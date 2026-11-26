@@ -6,7 +6,7 @@ command. A component's `source` has Emacs follow what changes instead, and updat
 | Source | What Emacs follows |
 |---|---|
 | `{"command": "make -j8"}` | A command Emacs runs, in the agent's directory (or `dir`). Its output is kept in a log the `show` reply names (in `agent-ui-source-log-directory`). |
-| `{"file": "build.log", "from": "end"}` | A file followed as it grows, looked at every `agent-ui-source-file-interval` seconds (0.5). `"from": "start"` (the default) reads what's already there; `"from": "end"` only what's added. When the file is truncated (written again), it's read from its start again. |
+| `{"file": "build.log", "from": "end"}` | A file followed as it grows, looked at every `agent-ui-source-file-interval` seconds (0.5). `"from": "start"` (the default) reads what's already there; `"from": "end"` only what's added. When the file is truncated (written again), it's read from its start again. Each look reads at most `agent-ui-source-file-chunk` bytes (256 KB), the rest at the next; a `tail` or `into` without rules starts that far from a big file's end. |
 | `{"poll": "df -h /", "every": 10}` | A command run every so many seconds. |
 
 ## Rules

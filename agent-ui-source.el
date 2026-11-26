@@ -68,6 +68,11 @@
   "Seconds between looks at a followed file."
   :type 'number :group 'agent-ui)
 
+(defcustom agent-ui-source-file-chunk (* 256 1024)
+  "Bytes of a followed file read at most in one look; the rest the next.
+A tail or into without rules starts this far from a big file's end."
+  :type 'natnum :group 'agent-ui)
+
 (defconst agent-ui-source--keys
   '(:command :file :poll :dir :every :rules :match :set :append :tail :into :done :failed :from)
   "What a source may have.")
@@ -285,7 +290,7 @@ arrays filled through."
 (defun agent-ui-source--apply (state lines)
   "Return LINES through STATE's rules: (SET . APPEND).
 The patches they make (a later line's set over an earlier's; appends
-added up)."
+added up, each property's values pushed, in order again at the end)."
   (let ((set nil) (append nil)
         ;; As grep -E matches: case counts.
         (case-fold-search nil))
@@ -298,9 +303,11 @@ added up)."
                        do (setq set (plist-put set k v))))
             (when-let* ((a (plist-get rule :append)))
               (cl-loop for (k v) on (agent-ui-source--fill a groups) by #'cddr
-                       do (setq append (plist-put append k (append (plist-get append k)
-                                                                   (if (listp v) v (list v)))))))))))
-    (cons set append)))
+                       do (let ((values (plist-get append k)))
+                            (dolist (value (if (listp v) v (list v)))
+                              (push value values))
+                            (setq append (plist-put append k values)))))))))
+    (cons set (cl-loop for (k v) on append by #'cddr nconc (list k (nreverse v))))))
 
 (defun agent-ui-source--change (canvas id set append)
   "Component ID of CANVAS changed by SET (an update) and APPEND."
@@ -450,19 +457,32 @@ Unreadable: said, looked at again next time."
      (t
       ;; Truncated (written again): from its start.
       (when (< size offset) (setq offset 0))
-      (setf (agent-ui-source--state-offset state) offset)
-      (when (> size offset)
-        ;; Its bytes, decoded up to its last whole character: one written
-        ;; in two goes is read whole next time, not as raw bytes.
-        (let* ((bytes (with-temp-buffer
-                        (set-buffer-multibyte nil)
-                        (insert-file-contents-literally file nil offset size)
-                        (buffer-string)))
-               (whole (agent-ui-source--utf-8-whole bytes)))
-          (setf (agent-ui-source--state-offset state) (+ offset whole))
-          (when (> whole 0)
-            (agent-ui-source--feed canvas id
-                                   (decode-coding-string (substring bytes 0 whole) 'utf-8)))))))))
+      (let* ((chunk (max 4 agent-ui-source-file-chunk))
+             ;; A tail or into without rules: only its last lines count, read
+             ;; from near its end, not all of a big file.
+             (skip (and (> (- size offset) chunk)
+                        (null (agent-ui-source--state-rules state))
+                        (or (agent-ui-source--state-tail state) (agent-ui-source--state-into state)))))
+        (when skip
+          (setq offset (- size chunk))
+          (setf (agent-ui-source--state-partial state) ""
+                (agent-ui-source--state-lines state) nil))
+        (setf (agent-ui-source--state-offset state) offset)
+        (when (> size offset)
+          ;; At most a slice of its bytes (the rest next time), decoded up to
+          ;; its last whole character: one written in two goes (or cut at the
+          ;; slice's end) is read whole next time, not as raw bytes.
+          (let* ((bytes (with-temp-buffer
+                          (set-buffer-multibyte nil)
+                          (insert-file-contents-literally file nil offset (min size (+ offset chunk)))
+                          (buffer-string)))
+                 ;; From near its end: from its first whole line.
+                 (start (if (and skip (string-match "\r\n\\|[\r\n]" bytes)) (match-end 0) 0))
+                 (whole (agent-ui-source--utf-8-whole bytes)))
+            (setf (agent-ui-source--state-offset state) (+ offset whole))
+            (when (> whole start)
+              (agent-ui-source--feed canvas id
+                                     (decode-coding-string (substring bytes start whole) 'utf-8))))))))))
 
 (defun agent-ui-source--utf-8-whole (bytes)
   "Return how many of BYTES (UTF-8) end on a whole character.

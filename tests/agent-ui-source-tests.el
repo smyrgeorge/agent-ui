@@ -259,6 +259,79 @@ still running, its exit and patch not there; once run, done."
       (write-region (unibyte-string #x9c #x93 ?\s ?d ?o ?n ?e ?\n) nil file t 'silent)
       (agent-ui-test-ausrc-wait (lambda () (equal (plist-get (agent-ui-get "f") :text) "ok ✓ done"))))))
 
+(ert-deftest agent-ui-source/a-big-file-read-a-slice-at-a-time ()
+  "A file bigger than a slice: each look reads at most a slice, the rest
+the next looks; its lines all arrive once, in order, a character split at
+a slice's end read whole (it was read in one look, however big: a big log
+froze Emacs) (doom-ht6.108)."
+  (agent-ui-test-ausrc
+    (let ((file (agent-ui-test-tmp-file (format "big-%d.log" (random 100000))))
+          (agent-ui-source-file-chunk 50)
+          (coding-system-for-write 'utf-8))
+      (with-temp-file file
+        (dotimes (i 60) (insert (format "é %d\n" (1+ i)))))
+      (agent-ui-show (list :id "t" :type "table" :columns '("N")
+                           :source (list :file file :match "^é (\\d+)$" :append '(:rows (("$1"))))))
+      (let ((state (agent-ui-source--state canvas "t"))
+            (size (file-attribute-size (file-attributes file)))
+            (looks 0))
+        ;; Its timer's looks taken by hand.
+        (cancel-timer (agent-ui-source--state-timer state))
+        (agent-ui-source--look canvas "t")
+        (should (<= 46 (agent-ui-source--state-offset state) 50))
+        (should (< 0 (length (plist-get (agent-ui-get "t") :rows)) 60))
+        (while (< (agent-ui-source--state-offset state) size)
+          (let ((before (agent-ui-source--state-offset state)))
+            (agent-ui-source--look canvas "t")
+            (should (< before (agent-ui-source--state-offset state) (+ before 51))))
+          (should (< (cl-incf looks) 100)))
+        (should-not (agent-ui-source--state-error state))
+        (should (equal (plist-get (agent-ui-get "t") :rows)
+                       (cl-loop for i from 1 to 60 collect (list i))))))))
+
+(ert-deftest agent-ui-source/a-big-files-tail-from-near-its-end ()
+  "A tail of a big file (no rules): its first look reads a slice from near
+its end, its last lines there at once (doom-ht6.108)."
+  (agent-ui-test-ausrc
+    (let ((file (agent-ui-test-tmp-file (format "big-tail-%d.log" (random 100000))))
+          (agent-ui-source-file-chunk 64)
+          (read nil))
+      (with-temp-file file
+        (dotimes (i 1000) (insert (format "line %d\n" (1+ i)))))
+      (agent-ui-show (list :id "f" :type "text" :text "" :source (list :file file :tail 2)))
+      (cancel-timer (agent-ui-source--state-timer (agent-ui-source--state canvas "f")))
+      (cl-letf* ((insert-literally (symbol-function 'insert-file-contents-literally))
+                 ((symbol-function 'insert-file-contents-literally)
+                  (lambda (file visit beg end &rest rest)
+                    (push (- end beg) read)
+                    (apply insert-literally file visit beg end rest))))
+        (agent-ui-source--look canvas "f"))
+      (should (equal read '(64)))
+      (should (equal (plist-get (agent-ui-get "f") :text) "line 999\nline 1000"))
+      ;; Its lines from there on as usual.
+      (write-region "line 1001\n" nil file t 'silent)
+      (agent-ui-source--look canvas "f")
+      (should (equal (plist-get (agent-ui-get "f") :text) "line 1000\nline 1001")))))
+
+(ert-deftest agent-ui-source/an-append-rule-over-many-lines-linear ()
+  "An append rule over many matching lines: their values in order, gathered
+in linear work (each match copied all before it again: quadratic)
+\(doom-ht6.108)."
+  (let ((state (agent-ui-source-check '(:file "x.log" :match "^v (\\d+)$" :append (:values ("$1") :labels "l$1")))))
+    (cl-flet ((lines (n) (cl-loop for i from 1 to n collect (format "v %d" i)))
+              (consed (lines)
+                (let ((before (car (memory-use-counts))))
+                  (agent-ui-source--apply state lines)
+                  (- (car (memory-use-counts)) before))))
+      (should (equal (agent-ui-source--apply state (append (lines 3) '("x")))
+                     '(nil :values (1 2 3) :labels ("l1" "l2" "l3"))))
+      (let ((applied (agent-ui-source--apply state (lines 2000))))
+        (should (equal (plist-get (cdr applied) :values) (number-sequence 1 2000))))
+      ;; Four times the lines: about four times the conses, not sixteen.
+      (let ((few (consed (lines 1000)))
+            (many (consed (lines 4000))))
+        (should (< many (* 6 few)))))))
+
 (ert-deftest agent-ui-source/a-file-not-there-yet ()
   (agent-ui-test-ausrc
     (let ((file (agent-ui-test-tmp-file (format "later-%d.log" (random 100000)))))
