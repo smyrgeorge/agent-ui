@@ -61,6 +61,24 @@
               (or (funcall available type) (and (memq type agent-ui-test-image-types) t)))
             '((name . agent-ui-test-images)))
 
+;; Emacs 29's `svg-print' puts a space before each child, a text's words
+;; too ("<text ...> 5</text>"; shown the same, SVG drops it): the tests,
+;; reading the words, get Emacs 30's, without it.
+(require 'svg)
+(when (equal (with-temp-buffer (svg-print '(text nil "x")) (buffer-string)) "<text> x</text>")
+  (advice-add 'svg-print :override
+              (lambda (dom)
+                (if (stringp dom)
+                    (insert dom)
+                  (insert (format "<%s" (car dom)))
+                  (dolist (attr (nth 1 dom))
+                    (unless (= (aref (format "%s" (car attr)) 0) ?:)
+                      (insert (format " %s=\"%s\"" (car attr) (cdr attr)))))
+                  (insert ">")
+                  (mapc #'svg-print (nthcdr 2 dom))
+                  (insert (format "</%s>" (car dom)))))
+              '((name . agent-ui-test-svg-print))))
+
 ;; No test sees the user's Agent UI session.
 (setenv "AGENT_UI_SESSION" nil)
 
