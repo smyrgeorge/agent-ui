@@ -237,8 +237,13 @@ as true / false, an empty one null)."
 
 ;; ====== ITS BUFFER (vui) ======
 
+(defvar agent-ui-pane-view-of)
 (defvar-local agent-ui-form--canvas nil "In a form's buffer: its canvas.")
 (defvar-local agent-ui-form--id nil "In a form's buffer: its component's id.")
+(defvar-local agent-ui-form--window nil
+  "In a form's buffer: the canvas's window it was opened in.
+\(WINDOW . DEDICATED), DEDICATED whether that window was dedicated; nil
+when it was opened in a window of its own.")
 
 (defvar agent-ui-form-keys-mode-map
   (let ((map (make-sparse-keymap)))
@@ -408,7 +413,7 @@ Its changes go to form ID on CANVAS."
     (when (agent-ui-ask-answered-p props)
       (user-error "This form is answered"))
     (if (and open (eq (buffer-local-value 'agent-ui-form--canvas open) canvas))
-        (pop-to-buffer open)
+        (agent-ui-form--show open canvas)
       (let ((buffer (get-buffer-create name)))
         (with-current-buffer buffer
           (agent-ui-form-mode)
@@ -421,7 +426,7 @@ Its changes go to form ID on CANVAS."
                                                   :fields (plist-get props :fields)
                                                   :initial (agent-ui-form--values props))
                                    name t)))
-          (pop-to-buffer buffer)
+          (agent-ui-form--show buffer canvas)
           ;; Laid out again for the window it's in (then as that changes:
           ;; vui's resize hook).
           (with-current-buffer buffer (vui-rerender instance)))
@@ -429,10 +434,43 @@ Its changes go to form ID on CANVAS."
         (goto-char (point-min))
         (ignore-errors (widget-forward 1))))))
 
+(defun agent-ui-form--show (buffer canvas)
+  "Show BUFFER, a form of CANVAS, in CANVAS's window, selected.
+That's the selected window if it shows CANVAS, else one that does: the
+form takes the canvas's place there until it's sent or cancelled (its
+view in a session's pane stays the canvas's, `agent-ui-pane-view-of').
+CANVAS in no window: a window of its own."
+  (let ((window (if (eq (window-buffer (selected-window)) canvas)
+                    (selected-window)
+                  (get-buffer-window canvas))))
+    (if (not (window-live-p window))
+        (pop-to-buffer buffer)
+      (with-current-buffer buffer
+        (setq-local agent-ui-pane-view-of canvas)
+        (unless agent-ui-form--window
+          (setq agent-ui-form--window (cons window (window-dedicated-p window)))))
+      (set-window-dedicated-p window nil)
+      (set-window-buffer window buffer)
+      (select-window window))))
+
 (defun agent-ui-form--close ()
-  "The form's buffer killed, its window closed (as it was before)."
-  (let ((buffer (current-buffer)))
-    (quit-window nil)
+  "The form's buffer killed; its canvas back in its window.
+Opened in its canvas's window, the canvas is shown there again, as it
+was (dedicated or not), selected; opened in a window of its own, that
+window closed as it was before.  No other window or buffer touched."
+  (let* ((buffer (current-buffer))
+         (canvas agent-ui-form--canvas)
+         (window (car agent-ui-form--window))
+         (dedicated (cdr agent-ui-form--window)))
+    (if (and (window-live-p window) (eq (window-buffer window) buffer)
+             (buffer-live-p canvas))
+        (progn
+          ;; Its pane may have dedicated the window to the form meanwhile.
+          (set-window-dedicated-p window nil)
+          (set-window-buffer window canvas)
+          (set-window-dedicated-p window dedicated)
+          (select-window window))
+      (quit-window nil))
     (kill-buffer buffer)))
 
 (defun agent-ui-form-cancel ()

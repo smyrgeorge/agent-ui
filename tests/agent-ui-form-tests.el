@@ -162,6 +162,51 @@ field under its label, no wider than the window."
                 (should (equal (plist-get (agent-ui-get "ticket" :canvas canvas) :values) '(:title "Fix the parser"))))
             (kill-buffer "*Agent UI form: ticket*")))))))
 
+;; In its canvas's window: the form takes the canvas's place there (its view
+;; in a session's pane still the canvas's), and gives it back when it's
+;; sent or cancelled; the other windows and their buffers left as they were.
+(ert-deftest agent-ui-components/form-in-its-canvas-window ()
+  (agent-ui-test-aue-canvas
+    (let* ((sent nil)
+           (agent-ui-action-function (lambda (prompt submit) (push (list prompt submit) sent)))
+           (session (agent-ui-test-buffer "Claude Agent @ form" "The conversation.\n")))
+      (unwind-protect
+          (save-window-excursion
+            (delete-other-windows)
+            (switch-to-buffer session)
+            (let* ((canvas-window (split-window nil nil 'below))
+                   (session-window (selected-window)))
+              (set-window-buffer canvas-window canvas)
+              ;; A view's window in a session's pane is dedicated to it.
+              (set-window-dedicated-p canvas-window t)
+              (select-window canvas-window)
+              (agent-ui-show (append '(:id "ticket") agent-ui-test-aue-ticket))
+              (dolist (finish '(cancel send))
+                (with-current-buffer canvas (agent-ui-test-aue-press "⏵ Fill in"))
+                (let ((form (get-buffer "*Agent UI form: ticket*")))
+                  (should form)
+                  ;; In the canvas's window, selected; no other window made.
+                  (should (eq (window-buffer canvas-window) form))
+                  (should (eq (selected-window) canvas-window))
+                  (should (= (length (window-list)) 2))
+                  ;; Its view still the canvas's.
+                  (should (eq (agent-ui--pane-view canvas-window) canvas))
+                  (with-current-buffer form
+                    (pcase finish
+                      ('cancel (agent-ui-form-cancel))
+                      ('send (agent-ui-test-aue-type "title" "Fix the parser")
+                             (agent-ui-form-send))))
+                  (should-not (buffer-live-p form)))
+                ;; The canvas back in its window, dedicated again, selected;
+                ;; the session's window as it was.
+                (should (eq (window-buffer canvas-window) canvas))
+                (should (window-dedicated-p canvas-window))
+                (should (eq (selected-window) canvas-window))
+                (should (eq (window-buffer session-window) session))
+                (should (buffer-live-p session)))
+              (should (= (length sent) 1))))
+        (kill-buffer session)))))
+
 (ert-deftest agent-ui-components/form-cancelled-kept ()
   "Cancel: nothing sent, what was typed kept, there when it's opened again."
   (agent-ui-test-aue-form

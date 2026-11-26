@@ -278,6 +278,18 @@ It is the selected frame's first, else another visible frame's."
             (append (get-buffer-window-list session 'nomini nil)
                     (get-buffer-window-list session 'nomini 'visible))))
 
+(defvar-local agent-ui-pane-view-of nil
+  "In a buffer shown in a view's window in place of its canvas: that canvas.
+A form being filled in is (agent-ui-form.el): its view stays the
+canvas's, with its bar, its session, its place in the layout.")
+
+(defun agent-ui--pane-view (window)
+  "The view WINDOW shows: its canvas, or the one its buffer stands in for."
+  (let ((buffer (window-buffer window)))
+    (or (let ((canvas (buffer-local-value 'agent-ui-pane-view-of buffer)))
+          (and (buffer-live-p canvas) canvas))
+        buffer)))
+
 (defun agent-ui--pane-cell-session (window)
   "The session of the view WINDOW shows (nil: none).
 It is the one its window parameter names (a panel of an agent is no
@@ -285,7 +297,7 @@ session's canvas), else its canvas's."
   (let* ((named (window-parameter window 'agent-ui-pane))
          (session (if (stringp named)
                       (get-buffer named)
-                    (buffer-local-value 'agent-ui--session-buffer (window-buffer window)))))
+                    (buffer-local-value 'agent-ui--session-buffer (agent-ui--pane-view window)))))
     (and (buffer-live-p session) session)))
 
 (defun agent-ui--pane-cells (frame &optional session)
@@ -698,7 +710,7 @@ none; closing one dismisses its view (see above)."
                     (lambda (a b) (< (car (window-edges a)) (car (window-edges b)))))))
     (dolist (cell cells)
       (agent-ui--pane-set cell 'tab-line-format 'none)
-      (agent-ui--pane-set cell 'header-line-format (agent-ui--pane-bar (window-buffer cell)))
+      (agent-ui--pane-set cell 'header-line-format (agent-ui--pane-bar (agent-ui--pane-view cell)))
       (let ((footer (and (memq cell row)
                          (list (length cells) (eq cell (car row)) (eq cell (car (last row)))))))
         (agent-ui--pane-set cell 'agent-ui-pane-footer footer)
@@ -838,7 +850,8 @@ By column, left to right, each top to bottom."
 Its view's text as shown (its dirty components drawn first), and the bars
 and divider around it."
   (with-current-buffer (window-buffer cell)
-    (agent-ui--flush)
+    (when (derived-mode-p 'agent-ui-canvas-mode)
+      (agent-ui--flush))
     (+ (cdr (window-text-pixel-size cell (point-min) (point-max)))
        (- (window-pixel-height cell) (window-body-height cell t)))))
 
@@ -983,7 +996,7 @@ They are deleted, their room given back to their sessions."
   "`delete-window' on CELL, a view's window (its parameter).
 CELL is deleted; its view, if it still shows something, dismissed (see
 above), but when Agent UI takes its windows out itself."
-  (let ((view (window-buffer cell)))
+  (let ((view (agent-ui--pane-view cell)))
     (unless (or agent-ui--pane-detaching (not (buffer-live-p view)))
       (with-current-buffer view
         (unless (agent-ui--empty-p)
@@ -1095,7 +1108,7 @@ closed: the others left where they were, laid out again)."
          (= (length cells)
             (seq-count (lambda (other) (agent-ui--pane-under-p other area))
                        (agent-ui--pane-windows (window-frame window))))
-         (equal (mapcar (lambda (column) (mapcar #'window-buffer column)) (agent-ui--pane-columns cells))
+         (equal (mapcar (lambda (column) (mapcar #'agent-ui--pane-view column)) (agent-ui--pane-columns cells))
                 (buffer-local-value 'agent-ui--pane-plan (window-buffer window))))))
 
 (defun agent-ui--pane-rebuild-p (session)
@@ -1179,7 +1192,7 @@ each session shown, its views in its pane."
           (cond
            ;; Not a canvas (a workspace's windows made again at startup, its
            ;; buffers gone): a window like any.
-           ((not (eq (buffer-local-value 'major-mode (window-buffer cell)) 'agent-ui-canvas-mode))
+           ((not (eq (buffer-local-value 'major-mode (agent-ui--pane-view cell)) 'agent-ui-canvas-mode))
             (agent-ui--pane-unattach cell))
            ((not (and session (rassq session shown)))
             (let ((agent-ui--pane-detaching t))
@@ -1301,7 +1314,7 @@ after; its value.  From a view, as from its session's window, the view
 selected again after if the session still is."
   (let* ((frame (selected-frame))
          (from (selected-window))
-         (view (and (agent-ui-pane-window-p from) (window-buffer from)))
+         (view (and (agent-ui-pane-window-p from) (agent-ui--pane-view from)))
          (session (and view (agent-ui--pane-cell-session from))))
     (when session
       (when-let* ((window (agent-ui--pane-session-window session)))
