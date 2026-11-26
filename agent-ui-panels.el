@@ -144,12 +144,18 @@ naming the project's panels if there's none."
 
 ;; ====== READING ONE ======
 
-(defun agent-ui-panels--forms (file what)
-  "FILE's top-level forms, read, not evaluated.
+(defun agent-ui-panels--bytes (file)
+  "FILE's content, its bytes (a unibyte string)."
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (insert-file-contents-literally file)
+    (buffer-string)))
+
+(defun agent-ui-panels--forms (bytes what)
+  "The top-level forms of BYTES (a file's, UTF-8), read, not evaluated.
 An error for WHAT saying where it doesn't read."
   (with-temp-buffer
-    (let ((coding-system-for-read 'utf-8))
-      (insert-file-contents file))
+    (insert (decode-coding-string bytes 'utf-8))
     (goto-char (point-min))
     (let (forms)
       (condition-case err
@@ -167,11 +173,13 @@ An error for WHAT saying where it doesn't read."
 (defun agent-ui-panel-read (file)
   "FILE, a panel's (see the top of this file), read, never evaluated.
 The value is a plist, :name (its file's), :file, :ui (its component, right
-as show has it), :every and :form (the whole, for its script).  An error
-saying what's wrong with it."
+as show has it), :every, :form (the whole, for its script) and :hash (the
+sha256 of the content read: its code, as let run).  An error saying
+what's wrong with it."
   (let* ((name (file-name-base file))
          (what (format "panel %s" name))
-         (forms (agent-ui-panels--forms file what))
+         (bytes (agent-ui-panels--bytes file))
+         (forms (agent-ui-panels--forms bytes what))
          (form (car forms))
          (props (cdr-safe form)))
     (unless (and (= (length forms) 1) (eq (car-safe form) 'agent-ui-panel))
@@ -199,7 +207,8 @@ saying what's wrong with it."
       (condition-case err
           (agent-ui--checked ui)
         (agent-ui-error (agent-ui--fail "%s: its :ui: %s" what (agent-ui-error-message err))))
-      (list :name name :file file :ui ui :every (plist-get props :every) :form form))))
+      (list :name name :file file :ui ui :every (plist-get props :every) :form form
+            :hash (secure-hash 'sha256 bytes)))))
 
 ;; ====== CHECKING ONE ======
 
@@ -300,7 +309,9 @@ its fetches' timer, its commands running, its last error."
   (loaded (make-hash-table :test #'equal))
   ;; When its :fetch last ran (`float-time'), nil before; when its queries
   ;; last all ended, its data in (a query can take longer than its :every).
-  fetched settled)
+  fetched settled
+  ;; The sha256 of its file as read: the code it runs, the one let run.
+  sha256)
 
 (defvar-local agent-ui-panels--state nil
   "In a project panel's canvas: the panel (an `agent-ui-panels--state').")
@@ -463,7 +474,8 @@ canvas."
              (canvas (let ((default-directory root))
                        (agent-ui-canvas canvas-name)))
              (panel (agent-ui-panels--make :name (plist-get read :name) :file file :root root
-                                          :canvas canvas :ui (plist-get read :ui))))
+                                          :canvas canvas :ui (plist-get read :ui)
+                                          :sha256 (plist-get read :hash))))
         (with-current-buffer canvas
           (setq default-directory root
                 agent-ui-panels--state panel
@@ -540,10 +552,7 @@ Their files' content's sha256."
 
 (defun agent-ui-panels--hash (file)
   "FILE's content's sha256."
-  (with-temp-buffer
-    (set-buffer-multibyte nil)
-    (insert-file-contents-literally file)
-    (secure-hash 'sha256 (current-buffer))))
+  (secure-hash 'sha256 (agent-ui-panels--bytes file)))
 
 (defun agent-ui-panels--trusted ()
   "The trusted panels and projects.
@@ -585,18 +594,18 @@ It is the root whose trust it shares
   "Whether the project at ROOT is trusted: its panels all run."
   (and root (assoc (agent-ui-panels--project root) (agent-ui-panel-trusted-projects)) t))
 
-(defun agent-ui-panel-trusted-p (file)
+(defun agent-ui-panel-trusted-p (file &optional hash)
   "Whether panel FILE's code may run unasked.
-Its project trusted, or the file, as it is now, let run in its project
-\(its own, or one sharing its trust: an agent's worktree its project's).
-The same in another repository isn't: its scripts aren't the ones you let
-run."
+Its project trusted, or the file, as it is now (HASH: as it was read, its
+content's sha256), let run in its project (its own, or one sharing its
+trust: an agent's worktree its project's).  The same in another
+repository isn't: its scripts aren't the ones you let run."
   (let* ((file (expand-file-name file))
          (project (lambda (file) (when-let* ((root (agent-ui-panel-root (file-name-directory file))))
                                    (agent-ui-panels--project root))))
          (here (funcall project file)))
     (and (or (agent-ui-panel-project-trusted-p (agent-ui-panel-root (file-name-directory file)))
-             (let ((hash (agent-ui-panels--hash file)))
+             (let ((hash (or hash (agent-ui-panels--hash file))))
                (seq-some (lambda (entry)
                            (and (equal (car-safe entry) hash)
                                 (stringp (nth 1 entry))
@@ -605,12 +614,13 @@ run."
                          (agent-ui-panels--trusted))))
          t)))
 
-(defun agent-ui-panel-trust (file)
+(defun agent-ui-panel-trust (file &optional hash)
   "Remember panel FILE's code, as it is now, as let run.
-Its older contents are forgotten."
+HASH: as it was read, its content's sha256.  Its older contents are
+forgotten."
   (let ((file (expand-file-name file)))
     (agent-ui-panels--write-trusted
-     (cons (list (agent-ui-panels--hash file) file (format-time-string "%FT%T%z"))
+     (cons (list (or hash (agent-ui-panels--hash file)) file (format-time-string "%FT%T%z"))
            (seq-remove (lambda (e) (and (stringp (car-safe e)) (equal (nth 1 e) file)))
                        (agent-ui-panels--trusted))))))
 
@@ -645,13 +655,16 @@ content, still run).  Interactively, the projects trusted to pick from."
     (message "Agent UI: %s's panels asked about again" (abbreviate-file-name root))))
 
 (defun agent-ui-panels--allowed-p (panel)
-  "Whether PANEL's code may run: its project trusted, or its file as it is;
+  "Whether PANEL's code may run: its project trusted, or its file as read;
 else the user asked (it view-ed first if they say), a yes remembered: for
-the file, or for its whole project."
+the file, or for its whole project.  Its code is the file as it was read:
+changed since (an agent editing it while it's asked), a yes for the file
+lets nothing run, remembers nothing."
   (let ((file (agent-ui-panels--file panel))
-        (root (agent-ui-panels--root panel)))
+        (root (agent-ui-panels--root panel))
+        (hash (agent-ui-panels--sha256 panel)))
     (or (agent-ui-panel-project-trusted-p root)
-        (agent-ui-panel-trusted-p file)
+        (agent-ui-panel-trusted-p file hash)
         (let ((answer nil))
           (while (not answer)
             (pcase (car (read-multiple-choice
@@ -663,11 +676,19 @@ the file, or for its whole project."
                                         (abbreviate-file-name root)))
                            (?v "view it" "Its file first, read-only; asked again after")
                            (?n "not now" "Drawn, nothing run (r asks again)"))))
-              (?y (agent-ui-panel-trust file) (setq answer 'yes))
+              (?y (setq answer (if (agent-ui-panels--changed-p panel)
+                                   'no
+                                 (agent-ui-panel-trust file hash)
+                                 'yes)))
               (?p (agent-ui-panel-trust-project root) (setq answer 'yes))
               (?v (view-file-other-window file))
               (_ (setq answer 'no))))
           (eq answer 'yes)))))
+
+(defun agent-ui-panels--changed-p (panel)
+  "Whether PANEL's file changed since it was read (or is gone)."
+  (not (equal (ignore-errors (agent-ui-panels--hash (agent-ui-panels--file panel)))
+              (agent-ui-panels--sha256 panel))))
 
 (defun agent-ui-panels--code-p (form ui)
   "Whether a panel has code to run.
@@ -808,7 +829,10 @@ nothing run."
   (when (and (agent-ui-panels--live-p panel)
              (agent-ui-panels--code-p form (agent-ui-panels--ui panel))
              (or (funcall agent-ui-panel-allow-function panel)
-                 (agent-ui-panels--failed panel "its code" "not run, not let: r asks again"))
+                 (agent-ui-panels--failed panel "its code"
+                                          (if (agent-ui-panels--changed-p panel)
+                                              "not run, its file changed since it was read: r reads it again"
+                                            "not run, not let: r asks again")))
              (agent-ui-panels--live-p panel))
     (let ((script (condition-case err
                       (let ((default-directory (agent-ui-panels--root panel)))
@@ -935,6 +959,7 @@ it, it goes on as it was."
                (canvas (agent-ui-panels--canvas panel)))
           (agent-ui-panels--stop panel)
           (setf (agent-ui-panels--ui panel) ui
+                (agent-ui-panels--sha256 panel) (plist-get read :hash)
                 (agent-ui-panels--error panel) nil
                 (agent-ui-panels--errors panel) nil
                 (agent-ui-panels--titles panel) nil

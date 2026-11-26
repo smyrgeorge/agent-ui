@@ -80,6 +80,8 @@ A panel's code runs as Emacs itself, and comes from a repository. So before it f
 - Its components' `source`s are commands, so they count as its code too. They don't start before it may run.
 - A yes is remembered by the file's content (sha256) and where it is, in `agent-ui-panel-trust-file` (under your
   `user-emacs-directory`), not in the repository. The same file isn't asked about again, after a restart too.
+- What runs is the file as it was read when the panel opened, and that's what a yes is remembered for. If it changes
+  while you're asked (your agent editing it), nothing runs and nothing is remembered: `r` reads it again and asks.
 - Once the file changes (a pull, an edit), you're asked again. The same file in another repository (a clone, a fork) is
   asked about there, since its scripts aren't the ones you let run.
 - A trusted project's panels all run without asking, whatever their files become (while your agent builds one, say):

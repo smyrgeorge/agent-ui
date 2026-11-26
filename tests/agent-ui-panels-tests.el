@@ -837,6 +837,61 @@ one forgotten: its panels asked about again (doom-a3g)."
           ;; None left: said so.
           (should-error (call-interactively #'agent-ui-panel-forget-project) :type 'user-error))))))
 
+(ert-deftest agent-ui-panels/what-runs-is-what-was-let-run ()
+  "Its file changed after it was read, before its code runs (an agent editing
+it while the user is asked): a yes for the file as viewed lets neither run,
+nor is it remembered; the file now a content let run before, the code read
+isn't run unasked.  Read again (r), the file as it is now asked about, run
+\(doom-ht6.100)."
+  (let* ((a (agent-ui-test-aup-fixture "counted"))
+         (b (replace-regexp-in-string "'\\(start\\|fetch\\|stop\\) " "'\\1-b " a)))
+    (agent-ui-test-aup `(("counted" . ,a))
+      (let* ((agent-ui-panel-trust-file (expand-file-name "trusted.eld" (make-temp-file "trust-" t)))
+             (agent-ui-panel-allow-function #'agent-ui-panels--allowed-p)
+             (file (agent-ui-panel-file "counted"))
+             (answers nil) (asked 0) (viewed nil))
+        (cl-letf (((symbol-function 'read-multiple-choice)
+                   (lambda (&rest _) (cl-incf asked) (list (pop answers))))
+                  ((symbol-function 'view-file-other-window)
+                   (lambda (f) (push (with-temp-buffer (insert-file-contents f) (buffer-string)) viewed))))
+          (save-window-excursion
+            ;; B viewed, yes: neither A nor B run, B not remembered.
+            (setq agent-ui-test-aup-calls nil answers (list ?v ?y))
+            (let* ((canvas (agent-ui-open-panel "counted" nil t))
+                   (panel (buffer-local-value 'agent-ui-panels--state canvas)))
+              (unwind-protect
+                  (progn
+                    (with-temp-file file (insert b))
+                    (agent-ui-test-sleep 0.05)
+                    (should (= asked 2))
+                    (should (equal viewed (list b)))
+                    (should-not (agent-ui-panels--script panel))
+                    (should-not agent-ui-test-aup-calls)
+                    (should-not (agent-ui-panel-trusted-p file))
+                    (should (string-match-p "changed" (agent-ui-panels--error panel)))
+                    ;; Read again: B asked about, run.
+                    (setq answers (list ?y))
+                    (with-current-buffer canvas (agent-ui-panel-reload))
+                    (should (= asked 3))
+                    (should (memq 'start-b agent-ui-test-aup-calls))
+                    (should-not (memq 'start agent-ui-test-aup-calls))
+                    (should (agent-ui-panel-trusted-p file)))
+                (kill-buffer canvas)))
+            ;; B let run before; A read, the file B again before its code
+            ;; runs: A not run unasked.
+            (with-temp-file file (insert a))
+            (setq agent-ui-test-aup-calls nil asked 0 answers (list ?n))
+            (let* ((canvas (agent-ui-open-panel "counted" nil t))
+                   (panel (buffer-local-value 'agent-ui-panels--state canvas)))
+              (unwind-protect
+                  (progn
+                    (with-temp-file file (insert b))
+                    (agent-ui-test-sleep 0.05)
+                    (should (= asked 1))
+                    (should-not (agent-ui-panels--script panel))
+                    (should-not agent-ui-test-aup-calls))
+                (kill-buffer canvas)))))))))
+
 ;; ====== THE AGENT AND PANELS ======
 
 (defun agent-ui-test-aup-request (lines &optional payload)
