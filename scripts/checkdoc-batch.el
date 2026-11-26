@@ -1,6 +1,9 @@
 ;;; checkdoc-batch.el --- Run checkdoc on files, fail on any finding  -*- lexical-binding: t -*-
 (require 'checkdoc)
 (setq checkdoc-diagnostic-buffer "*warn*")
+;; Its guess at a non-imperative verb flags any verb in the first sentence
+;; ("Return the answer as the agent reads it"); off by default from Emacs 31.
+(setq checkdoc-verb-check-experimental-flag nil)
 (let ((files command-line-args-left) (n 0))
   (setq command-line-args-left nil)
   (dolist (f files)
