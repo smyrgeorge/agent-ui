@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -368,8 +368,6 @@ a still picture).  PROPS and CTX are the component's props and context."
   (interactive)
   (agent-ui-move-item 1))
 
-(keymap-set agent-ui-canvas-mode-map "M-<up>" #'agent-ui-move-item-up)
-(keymap-set agent-ui-canvas-mode-map "M-<down>" #'agent-ui-move-item-down)
 
 ;; ====== DROPPING, EDITING ITEMS ======
 ;; A component whose items the user drops or rewords before answering (a plan
@@ -399,8 +397,6 @@ The current drawing's (what changed drawn first)."
   (funcall (agent-ui--item-action 'agent-ui-edit "item to edit"))
   (agent-ui--flush))
 
-(keymap-set agent-ui-canvas-mode-map "x" #'agent-ui-drop-item)
-(keymap-set agent-ui-canvas-mode-map "e" #'agent-ui-edit-item)
 
 ;; ====== REVIEW COMMENTS ======
 ;; On a component showing code (code, diff): the user writes comments on its
@@ -527,8 +523,6 @@ it (empty: removed)."
     (agent-ui-ask-change (list :id id) (list :comments (append (seq-take comments index) (nthcdr (1+ index) comments))))))
 
 (declare-function agent-ui--component-at-point "agent-ui-snapshot")
-(keymap-set agent-ui-canvas-mode-map "c" #'agent-ui-comment)
-(keymap-set agent-ui-canvas-mode-map "d" #'agent-ui-uncomment)
 
 
 (provide 'agent-ui-ask)

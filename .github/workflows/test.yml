@@ -10,11 +10,16 @@ permissions:
 
 jobs:
   test:
+    name: Emacs ${{ matrix.emacs }}
     runs-on: ubuntu-latest
+    # The development snapshot can break on its own: said, not failing the run.
+    continue-on-error: ${{ matrix.emacs == 'snapshot' }}
     strategy:
       fail-fast: false
       matrix:
-        emacs: ['29.4', '30.1']
+        # 29.1: the oldest Emacs it supports (Package-Requires); 31.1: the
+        # newest release.
+        emacs: ['29.1', '30.2', '31.1', 'snapshot']
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +33,7 @@ jobs:
       - name: Dependencies
         run: make deps
 
-      - name: Byte-compile (warnings are errors)
+      - name: Byte-compile every file (warnings are errors)
         run: make compile && make clean
 
       - name: package-lint

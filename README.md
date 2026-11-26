@@ -167,6 +167,7 @@ make deps      # clone the dependencies into .deps/
 make compile   # byte-compile, warnings as errors
 make lint      # package-lint and checkdoc
 make test      # the unit tests, in emacs -Q
+make melpazoid # the checks MELPA's reviewers run (needs Docker)
 ```
 
 The screenshots and GIFs in this README are made by a script, `scripts/media.sh` (macOS: it uses `screencapture`,

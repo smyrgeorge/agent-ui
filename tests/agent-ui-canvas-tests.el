@@ -92,9 +92,9 @@ current after the window closed)."
   (should (= (default-value 'agent-ui-redraw-delay) 0.1))
   (should (= (default-value 'agent-ui-max-components) 100))
   (should (equal (default-value 'agent-ui-default-canvas) "default"))
-  ;; Its own default; the config's shows a session's canvases in its
-  ;; session's pane (agent-ui-pane.el, test-agent-ui-pane.el).
-  (should (eq (eval (car (get 'agent-ui-display-function 'standard-value)) t) #'agent-ui-display-canvas)))
+  ;; By default, a session's canvases in its session's pane
+  ;; (agent-ui-pane.el, agent-ui-pane-tests.el).
+  (should (eq (eval (car (get 'agent-ui-display-function 'standard-value)) t) #'agent-ui-pane-display)))
 
 
 (ert-deftest agent-ui-canvas/a-top-line-of-its-own ()

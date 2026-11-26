@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -29,7 +29,8 @@
 ;; by its DANGER: high, in the error face, Proceed asking to type a WORD (the
 ;; branch's name; "yes" if none) and refusing another.  Proceed or Cancel
 ;; puts "Answer to confirm ID (QUESTION): proceed" (or cancel) into the
-;; session's prompt, sent at once; then it shows the answer, and can't be changed.  No default
+;; session's prompt, sent at once; then it shows the answer, and can't be
+;; changed.  No default
 ;; answer: nothing happens on its own.  Its state is the component's own
 ;; (:answered), as the components that ask (agent-ui-ask.el).
 ;;

@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -26,7 +26,8 @@
 ;;
 ;; One series of values or several: bars grouped by label, or stacked.  A
 ;; histogram counts its values in bins.  A line chart's values may have times:
-;; placed by them, an axis of ticks under it (minutes, hours, days).  In a terminal, drawn with characters
+;; placed by them, an axis of ticks under it (minutes, hours, days).  In a
+;; terminal, drawn with characters
 ;; (braille dots for lines, blocks for bars); in a graphic frame, as SVG in the
 ;; theme's colours, sized to the text.  Values appended to it (a live chart)
 ;; keep their latest WINDOW (none: as many as it draws).

@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -133,7 +133,6 @@ SESSION, else the default.  Made when a component is first shown in it
         (agent-ui--session-name buffer)
       (agent-ui-request-canvas session cwd))))
 
-(setq agent-ui-canvas-function #'agent-ui-session-canvas)
 
 (defun agent-ui--canvas-session (name)
   "Return the session a canvas named NAME is of.
@@ -444,7 +443,6 @@ of no session: the session working in its project, the latest."
 (declare-function agent-shell--prompt-queue-read "agent-shell-prompt-queue")
 (declare-function agent-shell--can-insert-into-prompt-p "agent-shell-prompt")
 (declare-function shell-maker-busy "shell-maker")
-(setq agent-ui-action-function #'agent-ui--act)
 
 ;; ====== A QUESTION WAITING ======
 ;; A session's turn ended with a question on its canvases not answered (a
@@ -488,7 +486,9 @@ a section hosting its canvas too), but EXCEPT's (a canvas being killed):
                                              when (agent-ui-ask-waiting-p e)
                                              collect (cons canvas (agent-ui--key (plist-get e :id) section)))))))
 
-(defvar agent-ui-reveal-function #'agent-ui--display
+(declare-function agent-ui-pane-reveal "agent-ui-pane" (canvas))
+
+(defvar agent-ui-reveal-function #'agent-ui-pane-reveal
   "Called with a canvas in no window that has a question to be answered:
 shows it (agent-ui-pane.el: in its session's pane, the session shown
 first, its Agent UI even if hidden).")

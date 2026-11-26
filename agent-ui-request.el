@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -59,9 +59,9 @@
 (declare-function agent-ui-panels--code-p "agent-ui-panels")
 (declare-function agent-ui-snapshot "agent-ui-snapshot")
 (declare-function agent-ui-stage "agent-ui-staging")
-(declare-function agent-ui-panels--name "agent-ui-panels")
-(declare-function agent-ui-panels--root "agent-ui-panels")
-(declare-function agent-ui-panels--file "agent-ui-panels")
+(declare-function agent-ui-panels--name "agent-ui-panels" (cl-x) t)
+(declare-function agent-ui-panels--root "agent-ui-panels" (cl-x) t)
+(declare-function agent-ui-panels--file "agent-ui-panels" (cl-x) t)
 
 ;; ====== VARIABLES ======
 
@@ -69,7 +69,9 @@
   "The command line agents run, bin/agent-ui (as the agent is told)."
   :type 'file :group 'agent-ui)
 
-(defvar agent-ui-canvas-function #'agent-ui-request-canvas
+(declare-function agent-ui-session-canvas "agent-ui-agent" (session cwd))
+
+(defvar agent-ui-canvas-function #'agent-ui-session-canvas
   "Function finding the canvas a request is for.
 Called with the agent's session (a string, or nil) and its working
 directory (or nil); returns the canvas its request is for (a buffer, or a

@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -311,7 +311,6 @@ copied, to report by hand."
                    issue (plist-get filed :title)))
       (agent-ui-bug-not-filed (agent-ui--bug-show-report (nth 1 err) (nth 2 err))))))
 
-(keymap-set agent-ui-canvas-mode-map "b" #'agent-ui-report-bug)
 
 ;; ====== THE AGENT'S WAY: bin/agent-ui bug ======
 

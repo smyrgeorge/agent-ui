@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -39,7 +39,8 @@
 ;; their strings "$1" (a group: a number if it reads as one), "$0" (the
 ;; match), or text with $N in it.  "tail": N sets a text component's text to the
 ;; last N lines; "into": PROP sets PROP to all of them (a diff's diff, as a
-;; poll of git diff gives it), or the last N with tail.  When a command ends: "done" (exit 0) or "failed" (else),
+;; poll of git diff gives it), or the last N with tail.  When a command ends:
+;; "done" (exit 0) or "failed" (else),
 ;; patches with $code; a progress bar is done or failed by itself.  A source
 ;; stops when its component is removed or shown again, or its canvas closed;
 ;; its log is deleted then.  One that can't run (its dir missing, a command
@@ -245,7 +246,6 @@ Not started.  Signals `agent-ui-error' saying what's wrong."
      :offset (if (equal (plist-get source :from) "end") 'end 0)
      :every (or every 5))))
 
-(setq agent-ui-check-source-function #'agent-ui-source-check)
 
 ;; ====== FROM OUTPUT TO CHANGES ======
 

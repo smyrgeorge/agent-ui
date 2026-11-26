@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -28,7 +28,8 @@
 ;; number or text) with its UNIT, CHANGE (a number: ▲ or ▼ with it; text: as
 ;; it is), GOOD "up" (default), "down" or "none": whether a rise is good
 ;; (green) or bad (red); FACE its value's colour (accent, success, warning,
-;; error, muted: a state, a figure past its limit).  Side by side, as many as fit, then wrapping; in the GUI, tiles
+;; error, muted: a state, a figure past its limit).  Side by side, as many as
+;; fit, then wrapping; in the GUI, tiles
 ;; (SVG).  The summary at the top of a canvas.
 ;;
 ;;   Coverage          Tests            Build

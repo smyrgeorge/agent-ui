@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1") (agent-shell "0.99.0") (vui "1.4.0"))
@@ -73,20 +73,7 @@
 (defvar agent-shell-mcp-servers)
 (defvar agent-shell--state)
 (defvar browse-url-handlers)
-(declare-function agent-shell-cwd "agent-shell")
-
-;; ====== KEYS ======
-;; A canvas's keys, besides those its parts bind (a answers with the component
-;; at point, b reports a bug, c comments, s sorts a table, R reviews the
-;; types the agent made...).  Evil users bind them in their normal state.
-
-(keymap-set agent-ui-canvas-mode-map "q" #'agent-ui-quit)
-(keymap-set agent-ui-canvas-mode-map "r" #'agent-ui-panel-reload)
-(keymap-set agent-ui-canvas-mode-map "S" #'agent-ui-save-panel)
-(keymap-set agent-ui-canvas-mode-map "K" #'agent-ui-move-item-up)
-(keymap-set agent-ui-canvas-mode-map "J" #'agent-ui-move-item-down)
-(keymap-set agent-ui-canvas-mode-map "E" #'agent-ui-export-pdf)
-(keymap-set agent-ui-canvas-mode-map "u" #'agent-ui-pane-toggle)
+(declare-function agent-shell-cwd "agent-shell-project")
 
 ;; ====== OPTIONS ======
 

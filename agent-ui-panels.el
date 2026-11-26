@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -52,7 +52,7 @@
 (require 'agent-ui-staging)
 
 (declare-function agent-ui-pdf-unique-file "agent-ui-snapshot")
-(declare-function nerd-icons-mdicon "nerd-icons")
+(declare-function nerd-icons-mdicon "ext:nerd-icons")
 (declare-function project-root "project")
 
 ;; ====== VARIABLES ======

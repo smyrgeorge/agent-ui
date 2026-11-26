@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -647,7 +647,6 @@ Kept as its sort and descending (the agent sees it)."
       (message "Sorted by %s, %s" (if (string-empty-p name) (format "column %d" (1+ column)) name)
                (if descending "descending" "ascending")))))
 
-(keymap-set agent-ui-canvas-mode-map "s" #'agent-ui-table-sort)
 
 (defun agent-ui-table--append (component patch)
   "Return COMPONENT with PATCH's rows.

@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -125,7 +125,7 @@ ids seen."
   props)
 
 (declare-function agent-ui-snapshot--svg-size "agent-ui-snapshot")
-(declare-function image-size "image.c")
+(declare-function image-size "ext:image.c")
 
 (defun agent-ui-panel--image-size (display)
   "Return the size an image DISPLAY is shown at, in pixels.

@@ -1,0 +1,39 @@
+# melpazoid <https://github.com/riscy/melpazoid>: the checks MELPA's reviewers
+# run on a recipe (its build, package-lint, byte-compile, checkdoc, and its
+# own), in a container with the newest Emacs.
+
+name: melpazoid
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  melpazoid:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with: { python-version: '3.10' }
+
+      - name: Install
+        run: |
+          sudo apt-get install emacs && emacs --version
+          git clone https://github.com/riscy/melpazoid.git ~/melpazoid
+
+      - name: Run
+        env:
+          LOCAL_REPO: ${{ github.workspace }}
+          # The recipe, as it will be written for MELPA:
+          RECIPE: (agent-ui :fetcher github :repo "smyrgeorge/agent-ui" :files (:defaults "bin" "skills" "assets"))
+          # Its advice (ignore-errors, hooks) said, not failing the run:
+          WARN_IS_ERROR: false
+          # Not on MELPA yet: true once it is.
+          EXIST_OK: false
+        run: echo $GITHUB_REF && make -C ~/melpazoid

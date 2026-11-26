@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -520,8 +520,9 @@ at the end of the last line that fits (a line longer than it all: in it)."
 (defface agent-ui-action '((t :inherit link))
   "A component's action: a button putting text into the session's prompt.")
 
-(defvar agent-ui-action-function
-  (lambda (_prompt _submit) (user-error "Actions need an agent's session"))
+(declare-function agent-ui--act "agent-ui-agent" (prompt submit))
+
+(defvar agent-ui-action-function #'agent-ui--act
   "Function called when an action's button is pressed.
 
 Called with an action's PROMPT and SUBMIT when its button is pressed, in

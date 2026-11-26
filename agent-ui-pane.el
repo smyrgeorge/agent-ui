@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -49,7 +49,8 @@
 ;;   once the resizing stops (see RESIZED).
 ;; - A view whose window is closed while it shows something stays hidden
 ;;   until a component is shown in it (a new one, or one again; an update
-;;   doesn't: a bar ticking would bring it back each second); q kills it.  Agent UI hidden for a
+;;   doesn't: a bar ticking would bring it back each second); q kills it.
+;;   Agent UI hidden for a
 ;;   session (`agent-ui-pane-toggle') stays so until shown again, or until a
 ;;   question is to be answered.
 
@@ -59,7 +60,7 @@
 (require 'subr-x)
 (require 'agent-ui-canvas)
 (require 'agent-ui-agent)
-(declare-function agent-ui-panels--name "agent-ui-panels")
+(declare-function agent-ui-panels--name "agent-ui-panels" (cl-x) t)
 
 ;; ====== VARIABLES ======
 
@@ -1363,9 +1364,8 @@ session's saved components come back when it's resumed."
     (kill-current-buffer)))
 
 ;; ====== AGENT UI'S WAY OF SHOWING A SESSION'S CANVASES ======
-
-(setq agent-ui-display-function #'agent-ui-pane-display
-      agent-ui-reveal-function #'agent-ui-pane-reveal)
+;; `agent-ui-pane-display' and `agent-ui-pane-reveal' are the defaults of
+;; `agent-ui-display-function' and `agent-ui-reveal-function'.
 
 
 (provide 'agent-ui-pane)

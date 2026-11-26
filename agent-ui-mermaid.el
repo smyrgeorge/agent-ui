@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -40,7 +40,7 @@
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 
-(declare-function mermaid-mode "mermaid-mode")
+(declare-function mermaid-mode "ext:mermaid-mode")
 
 (defvar agent-ui-mermaid--errors (make-hash-table :test #'equal)
   "The diagrams that failed, by theme and source.

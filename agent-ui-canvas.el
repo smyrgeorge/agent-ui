@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -63,17 +63,21 @@ Updates within it are drawn together."
   "The canvas used when none is named."
   :type 'string :group 'agent-ui)
 
-(defcustom agent-ui-display-function #'agent-ui-display-canvas
+(declare-function agent-ui-pane-display "agent-ui-pane" (canvas))
+(declare-function agent-ui-source-check "agent-ui-source" (source))
+
+(defcustom agent-ui-display-function #'agent-ui-pane-display
   "Called with a canvas's buffer when a new component is shown in it.
 That's while it's in no window (the minibuffer open: once it's closed):
-shows it, without selecting it."
+shows it, without selecting it.  By default, in its session's pane
+\(`agent-ui-pane-display'); `agent-ui-display-canvas' shows it as
+`display-buffer' would."
   :type 'function :group 'agent-ui)
 
 (defvar agent-ui-canvas-hook nil
   "Run in a canvas's buffer once it's made.")
 
-(defvar agent-ui-check-source-function
-  (lambda (_source) (agent-ui--fail "sources aren't loaded (agent-ui-source.el)"))
+(defvar agent-ui-check-source-function #'agent-ui-source-check
   "Called with a component's :source: an error if it's wrong.")
 
 (defvar agent-ui-shown-functions nil
@@ -164,8 +168,26 @@ It's ((NAME BUFFER . SECTION)...).")
 ;; ====== THE BUFFER ======
 
 (defvar-keymap agent-ui-canvas-mode-map
-  :doc "Keys of an Agent UI canvas."
-  "g" #'agent-ui-canvas-redraw)
+  :doc "Keys of an Agent UI canvas.
+Its commands are its parts' (quoted: defined in the files after this one)."
+  "g" #'agent-ui-canvas-redraw
+  "q" 'agent-ui-quit
+  "a" 'agent-ui-send-component
+  "b" 'agent-ui-report-bug
+  "c" 'agent-ui-comment
+  "d" 'agent-ui-uncomment
+  "s" 'agent-ui-table-sort
+  "x" 'agent-ui-drop-item
+  "e" 'agent-ui-edit-item
+  "K" 'agent-ui-move-item-up
+  "J" 'agent-ui-move-item-down
+  "M-<up>" 'agent-ui-move-item-up
+  "M-<down>" 'agent-ui-move-item-down
+  "R" 'agent-ui-review
+  "r" 'agent-ui-panel-reload
+  "S" 'agent-ui-save-panel
+  "E" 'agent-ui-export-pdf
+  "u" 'agent-ui-pane-toggle)
 
 (define-derived-mode agent-ui-canvas-mode special-mode "Agent UI"
   "What a coding agent shows: its components, updated as they change.

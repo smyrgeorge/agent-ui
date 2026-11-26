@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -49,7 +49,7 @@
 (require 'agent-ui-agent)
 (require 'agent-ui-panels)
 
-(declare-function image-size "image.c")
+(declare-function image-size "ext:image.c")
 
 (defvar browse-url-handlers)
 
@@ -425,7 +425,7 @@ Returns (:file FILE :markdown \"![TITLE](FILE)\")."
 
 (defvar agent-ui-panels--state)
 (declare-function agent-ui-panel-pdf-file "agent-ui-panels")
-(declare-function agent-ui-panels--name "agent-ui-panels")
+(declare-function agent-ui-panels--name "agent-ui-panels" (cl-x) t)
 
 (defun agent-ui-pdf-unique-file (name dir)
   "Return a PDF in DIR named after NAME, not there yet.
@@ -493,7 +493,7 @@ See `agent-ui-pdf-file' for where.  Returns its file."
   "Return the key of the component at point, in a canvas.
 Its id; in a section, SECTION/ID: a panel's child's, if it's in one."
   (let ((top (or (get-text-property (point) 'agent-ui-id)
-                 (and (> (point) (point-min)) (get-text-property (1- (point)) 'agent-ui-id))))
+                 (and (not (bobp)) (get-text-property (1- (point)) 'agent-ui-id))))
         (child (get-text-property (point) 'agent-ui-child)))
     (cond (child (agent-ui--key child (agent-ui--key-section top)))
           (top)
@@ -521,7 +521,6 @@ As text the agent reads."
     (agent-shell-insert :text (agent-ui-component-as-text id (current-buffer)) :shell-buffer shell)))
 
 (declare-function agent-shell-insert "agent-shell")
-(keymap-set agent-ui-canvas-mode-map "a" #'agent-ui-send-component)
 
 ;; ====== LINKS ======
 ;; agent-ui://canvas/NAME#ID, in the agent's reply ([the build](...)): a

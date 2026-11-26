@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026 Yorgos S.
 
-;; Author: Yorgos S.
+;; Author: Yorgos S. <https://github.com/smyrgeorge>
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.
@@ -268,7 +268,6 @@ key kept (it was cut off in a narrow pane)."
     (with-current-buffer canvas (agent-ui-review--canvas-header))))
 
 (add-hook 'agent-ui-canvas-hook #'agent-ui-review--canvas-header)
-(keymap-set agent-ui-canvas-mode-map "R" #'agent-ui-review)
 
 (defun agent-ui-review--staged (name)
   "The agent staged NAME: said, the list and the headers redrawn."
