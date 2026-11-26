@@ -41,7 +41,8 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'color)
+(autoload 'color-name-to-rgb "color")
+(autoload 'color-rgb-to-hex "color")
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 

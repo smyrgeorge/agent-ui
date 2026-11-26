@@ -40,8 +40,9 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'iso8601)
-(require 'svg)
+(autoload 'iso8601-parse "iso8601")
+(autoload 'svg-create "svg")
+(autoload 'svg-rectangle "svg")
 (require 'agent-ui-core)
 (require 'agent-ui-chart)
 

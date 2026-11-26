@@ -58,9 +58,11 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'color)
-(require 'parse-time)
-(require 'svg)
+(autoload 'color-name-to-rgb "color")
+(autoload 'color-rgb-to-hex "color")
+(autoload 'parse-iso8601-time-string "parse-time")
+(autoload 'svg-create "svg")
+(autoload 'svg-rectangle "svg")
 (require 'agent-ui-core)
 
 (defconst agent-ui-progress--eighths [" " "▏" "▎" "▍" "▌" "▋" "▊" "▉"]

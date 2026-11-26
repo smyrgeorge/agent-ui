@@ -47,10 +47,16 @@
 ;; An Emacs built without SVG (or PNG, ...) images, as CI's is, refuses to
 ;; make one ("Invalid image type"); in batch an image is only made, never
 ;; shown: let the GUI's drawings be made, so their tests run there too.
+;; `image-type' asks `image-types' (the ones built in), the code
+;; `image-type-available-p'.
 (require 'image)
+(defconst agent-ui-test-image-types '(svg png jpeg gif webp)
+  "The image types the tests make, whether Emacs has them or not.")
+(dolist (type agent-ui-test-image-types)
+  (add-to-list 'image-types type t))
 (advice-add 'image-type-available-p :around
             (lambda (available type)
-              (or (funcall available type) (memq type '(svg png jpeg gif webp))))
+              (or (funcall available type) (and (memq type agent-ui-test-image-types) t)))
             '((name . agent-ui-test-images)))
 
 ;; No test sees the user's Agent UI session.

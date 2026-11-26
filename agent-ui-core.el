@@ -34,8 +34,14 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'color)
-(require 'svg)
+(autoload 'color-name-to-rgb "color")
+(autoload 'color-rgb-to-hex "color")
+(autoload 'svg-circle "svg")
+(autoload 'svg-create "svg")
+(autoload 'svg-image "svg")
+(autoload 'svg-node "svg")
+(autoload 'svg-rectangle "svg")
+(autoload 'svg-text "svg")
 
 ;; ====== VARIABLES ======
 

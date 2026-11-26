@@ -40,8 +40,10 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'parse-time)
-(require 'svg)
+(autoload 'parse-iso8601-time-string "parse-time")
+(autoload 'svg-create "svg")
+(autoload 'svg-rectangle "svg")
+(autoload 'svg-text "svg")
 (require 'agent-ui-core)
 
 (defun agent-ui-countdown--time (value)

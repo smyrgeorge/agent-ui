@@ -40,8 +40,10 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'dom)
-(require 'svg)
+(autoload 'dom-node "dom")
+(autoload 'svg--append "svg")
+(autoload 'svg-create "svg")
+(autoload 'svg-rectangle "svg")
 (require 'agent-ui-core)
 (require 'agent-ui-progress)
 (require 'agent-ui-chart)

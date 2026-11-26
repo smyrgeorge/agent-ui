@@ -40,8 +40,14 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'parse-time)
-(require 'svg)
+(autoload 'parse-iso8601-time-string "parse-time")
+(autoload 'svg-circle "svg")
+(autoload 'svg-clip-path "svg")
+(autoload 'svg-create "svg")
+(autoload 'svg-line "svg")
+(autoload 'svg-polyline "svg")
+(autoload 'svg-rectangle "svg")
+(autoload 'svg-text "svg")
 (require 'agent-ui-core)
 
 (defconst agent-ui-chart-faces

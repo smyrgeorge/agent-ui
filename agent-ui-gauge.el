@@ -37,7 +37,11 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'svg)
+(autoload 'svg-circle "svg")
+(autoload 'svg-create "svg")
+(autoload 'svg-line "svg")
+(autoload 'svg-node "svg")
+(autoload 'svg-text "svg")
 (require 'agent-ui-core)
 
 (defun agent-ui-gauge--zones (props)

@@ -38,7 +38,9 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'svg)
+(autoload 'svg-create "svg")
+(autoload 'svg-rectangle "svg")
+(autoload 'svg-text "svg")
 (require 'agent-ui-core)
 (require 'agent-ui-progress)
 (require 'agent-ui-chart)
