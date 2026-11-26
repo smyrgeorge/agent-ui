@@ -569,6 +569,73 @@ component's next source neither fed nor told it ended."
       (funcall (process-filter process) process "later\n")
       (should-not (file-exists-p log)))))
 
+(defvar agent-ui-source--private-log-directory)
+
+(ert-deftest agent-ui-source/its-logs-in-a-folder-of-the-users-own ()
+  "Commands' logs: in `agent-ui-source-log-directory', made with mode 700;
+not in it if it's there already but a link, open to others or someone
+else's, in a folder of their own made once instead (doom-ht6.110: another
+user could make /tmp/agent-ui/ first and put links in place of logs)."
+  (let* ((root (file-name-as-directory (make-temp-file (agent-ui-test-tmp-file "log-dirs-") t)))
+         (agent-ui-source--private-log-directory nil))
+    (cl-flet ((log-dir (dir)
+                (agent-ui-test-ausrc
+                  (let ((agent-ui-source-log-directory dir))
+                    (agent-ui-show '(:id "c" :type "text" :text "" :source (:command "sleep 30" :tail 1)))
+                    (let ((log (plist-get (agent-ui-source-status "c") :log)))
+                      (should (file-exists-p log))
+                      (file-name-directory log)))))
+              (private-p (dir)
+                (and (eq (file-attribute-type (file-attributes (directory-file-name dir))) t)
+                     (eql (file-modes dir) #o700))))
+      ;; Not there: made, private.
+      (let ((new (expand-file-name "new/" root)))
+        (should (equal (log-dir new) new))
+        (should (private-p new))
+        ;; Open to others: not used; one of its own instead, private, the same each time.
+        (let ((open (expand-file-name "open/" root)))
+          (make-directory open)
+          (set-file-modes open #o777)
+          (let ((instead (log-dir open)))
+            (should-not (equal instead open))
+            (should (private-p instead))
+            (should (equal (log-dir open) instead))
+            (should-not (directory-files open nil directory-files-no-dot-files-regexp))))
+        ;; A link to a private folder: not followed.
+        (let ((link (expand-file-name "link" root)))
+          (make-symbolic-link (directory-file-name new) link)
+          (should-not (equal (file-truename (log-dir (file-name-as-directory link)))
+                             (file-truename new))))
+        ;; Someone else's (its owner as `file-attributes' says).
+        (let* ((theirs (expand-file-name "theirs/" root))
+               (attributes (symbol-function 'file-attributes)))
+          (make-directory theirs)
+          (set-file-modes theirs #o700)
+          (cl-letf (((symbol-function 'file-attributes)
+                     (lambda (file &optional format)
+                       (let ((a (funcall attributes file format)))
+                         (if (equal (directory-file-name file) (directory-file-name theirs))
+                             (append (list (nth 0 a) (nth 1 a) (1+ (user-uid))) (nthcdr 3 a))
+                           a)))))
+            (should-not (equal (log-dir theirs) theirs))))))))
+
+(ert-deftest agent-ui-source/a-log-replaced-by-a-link-not-written-through ()
+  "A command's log replaced by a link to another file: its output isn't
+appended to that file (doom-ht6.110)."
+  (agent-ui-test-ausrc
+    (agent-ui-show '(:id "c" :type "text" :text "" :source (:command "sleep 30" :tail 1)))
+    (let* ((state (with-current-buffer canvas (gethash "c" agent-ui-source--states)))
+           (process (agent-ui-source--state-process state))
+           (log (agent-ui-source--state-log state))
+           (other (agent-ui-test-tmp-file "someone-elses-file")))
+      (with-temp-file other (insert "mine\n"))
+      (delete-file log)
+      (make-symbolic-link other log)
+      (funcall (process-filter process) process "chunk\n")
+      (should (equal (with-temp-buffer (insert-file-contents other) (buffer-string)) "mine\n"))
+      ;; The component fed all the same.
+      (should (eql (agent-ui-source--state-count state) 1)))))
+
 ;; ====== THROUGH THE COMMAND LINE ======
 
 (ert-deftest agent-ui-source/in-a-request ()

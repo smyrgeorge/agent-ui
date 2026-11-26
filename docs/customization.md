@@ -89,7 +89,7 @@ A few settings are plain variables rather than user options; they're marked *(va
 
 | Option | Default | What it does |
 |---|---|---|
-| `agent-ui-source-log-directory` | `agent-ui/` in `temporary-file-directory` | Where commands' output is kept, for the agent to read. |
+| `agent-ui-source-log-directory` | `agent-ui/` in `temporary-file-directory` | Where commands' output is kept, for the agent to read. Made with mode 700; one already there that isn't the user's own, closed to others, isn't used (a folder of their own instead, made once per Emacs). |
 | `agent-ui-source-file-interval` | `0.5` | Seconds between looks at a followed file. |
 
 ## Project panels

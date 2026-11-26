@@ -61,7 +61,10 @@
 
 (defcustom agent-ui-source-log-directory
   (expand-file-name "agent-ui/" temporary-file-directory)
-  "Where commands' output is kept, for the agent to read."
+  "Where commands' output is kept, for the agent to read.
+Made with mode 700.  One already there that isn't a folder of the user's
+own closed to others (a link, someone else's, open to others) isn't used:
+logs go in a folder of their own, made once per Emacs."
   :type 'directory :group 'agent-ui)
 
 (defcustom agent-ui-source-file-interval 0.5
@@ -402,8 +405,9 @@ when FINAL."
 ;; ====== FOLLOWING ======
 
 (defun agent-ui-source--log (text log)
-  "Append TEXT to the file LOG, if any."
-  (when log
+  "Append TEXT to the file LOG, if any.
+Not if LOG was replaced by a link: it isn't written through."
+  (when (and log (not (file-symlink-p log)))
     (let ((coding-system-for-write 'utf-8))
       (write-region text nil log t 'silent))))
 
@@ -584,6 +588,34 @@ stayed in the temporary folder, every command's)."
     (ignore-errors (delete-file log)))
   (setq agent-ui-source--logs nil))
 
+(defvar agent-ui-source--private-log-directory nil
+  "The folder made for commands' logs, `agent-ui-source-log-directory' not used.")
+
+(defun agent-ui-source--private-directory-p (dir)
+  "Whether DIR is a folder (not a link) of the user's own, closed to others."
+  (let ((attributes (file-attributes (directory-file-name dir) 'integer)))
+    (and (eq (file-attribute-type attributes) t)
+         (eql (file-attribute-user-id attributes) (user-uid))
+         (zerop (logand (file-modes (directory-file-name dir) 'nofollow) #o077)))))
+
+(defun agent-ui-source--log-directory ()
+  "The folder commands' logs go in, the user's own, closed to others.
+`agent-ui-source-log-directory', made with mode 700 if it isn't there; if
+it's there but not private (another user could have made it first, put a
+link in place of a log), one made once per Emacs."
+  (let ((dir (file-name-as-directory agent-ui-source-log-directory)))
+    (with-file-modes #o700
+      ;; Not there: made (a link to nowhere there: refused, not used).
+      (ignore-errors (make-directory dir t))
+      (if (agent-ui-source--private-directory-p dir)
+          dir
+        (let ((own agent-ui-source--private-log-directory))
+          ;; Made by `make-temp-file', private; checked again it's still a folder.
+          (unless (and own (file-directory-p own) (not (file-symlink-p (directory-file-name own))))
+            (setq own (file-name-as-directory (make-temp-file "agent-ui-" t))
+                  agent-ui-source--private-log-directory own))
+          own)))))
+
 (defun agent-ui-source--check-dir (state)
   "An error if STATE's command's directory isn't there."
   (let ((dir (agent-ui-source--state-dir state)))
@@ -611,11 +643,10 @@ stopped."
           (pcase (agent-ui-source--state-kind state)
             ('command
              (agent-ui-source--check-dir state)
-             (make-directory agent-ui-source-log-directory t)
              (setf (agent-ui-source--state-log state)
                    ;; A key's / (a component in a section) isn't a folder.
                    (make-temp-file (expand-file-name (format "%s-" (string-replace "/" "@" id))
-                                                     agent-ui-source-log-directory)
+                                                     (agent-ui-source--log-directory))
                                    nil ".log"))
              (agent-ui-source--run canvas id state (agent-ui-source--state-what state)
                                    (lambda (code) (agent-ui-source--exited canvas id code))))
