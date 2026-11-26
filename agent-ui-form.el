@@ -457,10 +457,16 @@ CANVAS in no window: a window of its own."
   "The form's buffer killed; its canvas back in its window.
 Opened in its canvas's window, the canvas is shown there again, as it
 was (dedicated or not), selected; opened in a window of its own, that
-window closed as it was before.  No other window or buffer touched."
+window closed as it was before.  No other window or buffer touched.
+That window made again by its pane (laid out anew), the form shown in
+the new one: that one."
   (let* ((buffer (current-buffer))
          (canvas agent-ui-form--canvas)
-         (window (car agent-ui-form--window))
+         (window (let ((window (car agent-ui-form--window)))
+                   (if (and agent-ui-form--window
+                            (not (and (window-live-p window) (eq (window-buffer window) buffer))))
+                       (get-buffer-window buffer t)
+                     window)))
          (dedicated (cdr agent-ui-form--window)))
     (if (and (window-live-p window) (eq (window-buffer window) buffer)
              (buffer-live-p canvas))

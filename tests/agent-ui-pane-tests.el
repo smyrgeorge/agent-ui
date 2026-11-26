@@ -720,6 +720,77 @@ selected again after, in its new window."
       (should (eq (window-buffer (selected-window)) (agent-ui-test-aupn-canvas name "tests")))
       (should (agent-ui-pane-window-p (selected-window))))))
 
+(ert-deftest agent-ui-pane/settled-from-a-view-keeps-it-selected ()
+  "Planned again once settled (the fit after a new view's redraw) while a
+view is selected: that view selected again after, in its new window (it
+was left to the window Emacs chose, a code buffer's often: keys typed
+went there)."
+  (agent-ui-test-aupn
+    ;; Two views stacked (a planner that knew no better), side by side the
+    ;; better.
+    (cl-letf (((symbol-function 'agent-ui--pane-plan)
+               (lambda (lines _widths width _most)
+                 (list (list (number-sequence 0 (1- (length lines)))) (list width) (apply #'+ lines)))))
+      (agent-ui-test-aupn-show name)
+      (agent-ui-test-aupn-show (agent-ui-sub-canvas name "tests")))
+    (let ((old (get-buffer-window (agent-ui-test-aupn-canvas name "tests"))))
+      (select-window old)
+      (should-not (buffer-local-value 'agent-ui--pane-settled session))
+      (agent-ui--pane-fit-now)
+      (should (buffer-local-value 'agent-ui--pane-settled session))
+      (should-not (window-live-p old)))
+    (pcase-let ((`(,a ,b) (agent-ui--pane-cells (selected-frame))))
+      (should (= (window-top-line a) (window-top-line b))))
+    (should (eq (window-buffer (selected-window)) (agent-ui-test-aupn-canvas name "tests")))
+    (should (agent-ui-pane-window-p (selected-window)))))
+
+(ert-deftest agent-ui-pane/a-form-filled-in-kept-when-laid-out-again ()
+  "A form being filled in in a view's window (in place of its canvas): laid
+out anew (a new view; or while another window is selected), the form shown
+in its canvas's new window, where it was in it, selected if it was; sent or
+cancelled, its canvas back in that window, selected."
+  (agent-ui-test-aupn
+    (let ((ask (agent-ui-sub-canvas name "ask")))
+      (agent-ui-test-aupn-show name)
+      (agent-ui-show '(:id "f" :type "form" :fields ((:name "title" :label "Title"))) :canvas ask)
+      (agent-ui--pane-sync)
+      (select-window (get-buffer-window (agent-ui-test-aupn-canvas name "ask")))
+      (with-current-buffer (agent-ui-test-aupn-canvas name "ask")
+        (agent-ui--flush)
+        (goto-char (point-min))
+        (search-forward "Fill in")
+        (goto-char (match-beginning 0))
+        (agent-ui-button-press))
+      (let ((form (get-buffer "*Agent UI form: f*")))
+        (should (eq (window-buffer (selected-window)) form))
+        (set-window-point (selected-window) (with-current-buffer form (1- (point-max))))
+        (let ((place (window-point (selected-window))))
+          ;; A new view: laid out anew.
+          (agent-ui-test-aupn-show (agent-ui-sub-canvas name "tests"))
+          (agent-ui--pane-sync)
+          (should (= (length (agent-ui--pane-cells (selected-frame))) 3))
+          (should (eq (window-buffer (selected-window)) form))
+          (should (agent-ui-pane-window-p (selected-window)))
+          (should (eq (agent-ui--pane-view (selected-window)) (agent-ui-test-aupn-canvas name "ask")))
+          (should (= (window-point (selected-window)) place))
+          ;; Laid out anew while the conversation is selected: the form in
+          ;; its view's new window still, the conversation selected still.
+          (let ((cell (selected-window)))
+            (select-window (get-buffer-window session))
+            (agent-ui--pane-detach (selected-frame) session)
+            (agent-ui--pane-sync)
+            (should-not (window-live-p cell))
+            (should (eq (window-buffer (selected-window)) session))
+            (should (agent-ui-pane-window-p (get-buffer-window form)))
+            (select-window (get-buffer-window form)))
+          (with-current-buffer form
+            (agent-ui-form-cancel))
+          (should-not (buffer-live-p form))
+          (should (eq (window-buffer (selected-window)) (agent-ui-test-aupn-canvas name "ask")))
+          (should (agent-ui-pane-window-p (selected-window)))
+          (should (window-dedicated-p (selected-window)))
+          (should (= (length (agent-ui--pane-cells (selected-frame))) 3)))))))
+
 (defun agent-ui-test-aupn-wide-three (name)
   "Three views on NAME's session: its own, code (a diff: 80 columns at
 least), metrics."

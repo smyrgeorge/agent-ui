@@ -290,6 +290,34 @@ canvas's, with its bar, its session, its place in the layout.")
           (and (buffer-live-p canvas) canvas))
         buffer)))
 
+(defvar-local agent-ui--pane-stand-in nil
+  "In a view whose window was taken out showing another buffer in its place:
+\(BUFFER . POINT), that buffer and its point there.  BUFFER is shown in its
+view's next window instead of it (see `agent-ui--pane-show-in').")
+
+(defun agent-ui--pane-take-out (cell)
+  "CELL, a view's window about to be deleted, its stand-in remembered.
+That is the buffer it shows in place of its canvas, if any (a form being
+filled in), shown again in the canvas's next window."
+  (let ((view (agent-ui--pane-view cell)))
+    (unless (eq view (window-buffer cell))
+      (with-current-buffer view
+        (setq agent-ui--pane-stand-in (cons (window-buffer cell) (window-point cell)))))))
+
+(defun agent-ui--pane-keeping-view (frame change)
+  "CHANGE, a function of no argument, run; the view selected kept so.
+If a view of FRAME is selected and its window is made again (the
+selected one deleted, Emacs selecting another), its new window is
+selected after.  The value is CHANGE's."
+  (let* ((from (selected-window))
+         (view (and (agent-ui-pane-window-p from) (agent-ui--pane-view from))))
+    (prog1 (funcall change)
+      (when (and view (not (and (agent-ui-pane-window-p (selected-window))
+                                (eq (agent-ui--pane-view (selected-window)) view))))
+        (when-let* ((cell (seq-find (lambda (cell) (eq (agent-ui--pane-view cell) view))
+                                    (agent-ui--pane-cells frame))))
+          (select-window cell 'norecord))))))
+
 (defun agent-ui--pane-cell-session (window)
   "The session of the view WINDOW shows (nil: none).
 It is the one its window parameter names (a panel of an agent is no
@@ -735,9 +763,18 @@ a window kept its start)."
 
 (defun agent-ui--pane-show-in (cell view session)
   "VIEW, a canvas, shown in CELL, a window of SESSION's layout.
-Its parameter names SESSION: kept with a workspace's windows."
+Its parameter names SESSION: kept with a workspace's windows.  A buffer
+its last window showed in its place (a form being filled in), still
+standing in for it, is shown there instead, where it was."
   (set-window-dedicated-p cell nil)
   (set-window-buffer cell view)
+  (pcase (buffer-local-value 'agent-ui--pane-stand-in view)
+    (`(,buffer . ,point)
+     (with-current-buffer view
+       (setq agent-ui--pane-stand-in nil))
+     (when (and (buffer-live-p buffer) (eq (buffer-local-value 'agent-ui-pane-view-of buffer) view))
+       (set-window-buffer cell buffer)
+       (set-window-point cell point))))
   (set-window-prev-buffers cell nil)
   (set-window-next-buffers cell nil)
   (set-window-parameter cell 'agent-ui-pane (buffer-name session)))
@@ -942,20 +979,24 @@ layout better by more than half a line does.  Non-nil if it was."
 (defun agent-ui--pane-fit-now ()
   "The sessions waiting, their Agent UI fitted and planned again.
 Fitted by `agent-ui--pane-fit', planned again once settled
-\(`agent-ui--pane-settle')."
+\(`agent-ui--pane-settle'); the view selected kept."
   (setq agent-ui--pane-fit-timer nil)
   (let ((sessions agent-ui--pane-to-fit))
     (setq agent-ui--pane-to-fit nil)
-    (dolist (session sessions)
-      (when-let* (((buffer-live-p session))
-                  (window (agent-ui--pane-session-window session)))
-        (with-demoted-errors "Agent UI, its height: %S"
-          (agent-ui--pane-changing
-           (window-frame window)
-           (lambda ()
-             (agent-ui--pane-settle window session)
-             (when (window-live-p window)
-               (agent-ui--pane-fit window session)))))))))
+    (save-current-buffer
+      (dolist (session sessions)
+        (when-let* (((buffer-live-p session))
+                    (window (agent-ui--pane-session-window session)))
+          (with-demoted-errors "Agent UI, its height: %S"
+            (agent-ui--pane-keeping-view
+             (window-frame window)
+             (lambda ()
+               (agent-ui--pane-changing
+                (window-frame window)
+                (lambda ()
+                  (agent-ui--pane-settle window session)
+                  (when (window-live-p window)
+                    (agent-ui--pane-fit window session))))))))))))
 
 (defun agent-ui--pane-fit-soon (session)
   "SESSION's Agent UI fitted to what it shows once its views are drawn.
@@ -987,6 +1028,7 @@ They are deleted, their room given back to their sessions."
   (let ((agent-ui--pane-detaching t))
     (dolist (cell (agent-ui--pane-cells frame session))
       (when (window-live-p cell)
+        (agent-ui--pane-take-out cell)
         (condition-case nil
             (let ((ignore-window-parameters t))
               (delete-window cell))
@@ -1075,13 +1117,11 @@ once it's closed, a window change, they're synced and planned again."
                       (frame (window-frame window))
                       (cells (agent-ui--pane-cells frame session))
                       ((agent-ui--pane-in-place-p window cells)))
-            (let ((view (and (agent-ui-pane-window-p (selected-window)) (window-buffer (selected-window)))))
-              (with-demoted-errors "Agent UI, laid out for its pane's room: %S"
-                (agent-ui--pane-changing frame (lambda () (agent-ui--pane-replan window session))))
-              (when (and view (not (agent-ui-pane-window-p (selected-window))))
-                (when-let* ((cell (get-buffer-window view frame)))
-                  (when (agent-ui-pane-window-p cell)
-                    (select-window cell 'norecord)))))))))))
+            (with-demoted-errors "Agent UI, laid out for its pane's room: %S"
+              (agent-ui--pane-keeping-view
+               frame
+               (lambda ()
+                 (agent-ui--pane-changing frame (lambda () (agent-ui--pane-replan window session))))))))))))
 
 ;; ====== SYNCED ======
 ;; At each window change: each session's views in its pane, as planned, or
@@ -1175,12 +1215,9 @@ each session shown, its views in its pane."
       ;; again, deleted while selected, selected another (its buffer
       ;; current: a canvas's new component was drawn there).
       (save-current-buffer
-        (let ((view (and (agent-ui-pane-window-p (selected-window)) (window-buffer (selected-window)))))
-          (agent-ui--pane-changing frame (lambda () (agent-ui--pane-sync-frame frame)))
-          (when (and view (not (agent-ui-pane-window-p (selected-window))))
-            (when-let* ((window (get-buffer-window view frame)))
-              (when (agent-ui-pane-window-p window)
-                (select-window window 'norecord)))))))))
+        (agent-ui--pane-keeping-view
+         frame
+         (lambda () (agent-ui--pane-changing frame (lambda () (agent-ui--pane-sync-frame frame)))))))))
 
 (defun agent-ui--pane-sync-frame (frame)
   "FRAME's sessions' panes as they should be (see `agent-ui--pane-sync')."
@@ -1195,6 +1232,7 @@ each session shown, its views in its pane."
            ((not (eq (buffer-local-value 'major-mode (agent-ui--pane-view cell)) 'agent-ui-canvas-mode))
             (agent-ui--pane-unattach cell))
            ((not (and session (rassq session shown)))
+            (agent-ui--pane-take-out cell)
             (let ((agent-ui--pane-detaching t))
               (condition-case nil
                   (let ((ignore-window-parameters t))
