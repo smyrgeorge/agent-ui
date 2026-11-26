@@ -173,6 +173,84 @@ still running, its exit and patch not there; once run, done."
     (agent-ui-test-ausrc-ended "log")
     (should (equal (plist-get (agent-ui-get "log") :text) "48\n49\n50"))))
 
+(ert-deftest agent-ui-source/a-tail-of-quick-output-applied-at-most-every-redraw ()
+  "A command's output in many chunks quickly: its tail applied once, a moment
+after (`agent-ui-redraw-delay'), not one update per chunk (each joined its
+lines again and updated the component); its last lines applied at once when
+it ends; none left pending once it stops or its canvas closes
+\(doom-ht6.109)."
+  (agent-ui-test-ausrc
+    (cl-flet ((pending () (cl-count-if (lambda (timer) (eq (timer--function timer) #'agent-ui-source--flush))
+                                       timer-list)))
+      (agent-ui-show '(:id "log" :type "text" :text "" :source (:command "cat" :tail 3)))
+      (let ((process (agent-ui-source--state-process (agent-ui-source--state canvas "log")))
+            (updates 0))
+        (cl-letf* ((update (symbol-function 'agent-ui-update))
+                   ((symbol-function 'agent-ui-update)
+                    (lambda (id &rest args)
+                      (when (equal id "log") (cl-incf updates))
+                      (apply update id args))))
+          ;; Each line in two chunks.
+          (dotimes (i 200)
+            (funcall (process-filter process) process (format "line %d" (1+ i)))
+            (funcall (process-filter process) process "\n"))
+          (should (= updates 0))
+          (should (= (pending) 1))
+          (agent-ui-test-ausrc-wait (lambda () (equal (plist-get (agent-ui-get "log") :text)
+                                                      "line 198\nline 199\nline 200")))
+          (should (= updates 1))
+          ;; Its end: its last lines (one without a newline) at once.
+          (funcall (process-filter process) process "line 201\nline 202")
+          (process-send-eof process)
+          (agent-ui-test-ausrc-ended "log")
+          (should (equal (plist-get (agent-ui-get "log") :text) "line 200\nline 201\nline 202"))
+          (should (= (pending) 0))
+          (should (equal (plist-get (agent-ui-source-status "log") :exit) 0))
+          (should (equal (plist-get (agent-ui-source-status "log") :lines) 202))))
+      ;; Stopped, or its canvas closed: its update dropped.
+      (agent-ui-show '(:id "a" :type "text" :text "" :source (:command "cat" :tail 3)))
+      (let ((process (agent-ui-source--state-process (agent-ui-source--state canvas "a"))))
+        (funcall (process-filter process) process "x\n")
+        (should (= (pending) 1))
+        (agent-ui-remove "a")
+        (should (= (pending) 0)))
+      (agent-ui-show '(:id "b" :type "text" :text "" :source (:command "cat" :into "text")))
+      (let ((process (agent-ui-source--state-process (agent-ui-source--state canvas "b"))))
+        (funcall (process-filter process) process "x\n")
+        (should (= (pending) 1))
+        (kill-buffer canvas)
+        (should (= (pending) 0))))))
+
+(ert-deftest agent-ui-source/a-long-line-not-searched-again-at-each-chunk ()
+  "A command writing a long line without a newline, in many chunks: each
+chunk's work bounded (its line ends searched for in it alone, the line so far
+cut into lines of `agent-ui-source-line-max' characters), not all of the line
+again at each (quadratic: Emacs stalled); all of it there in the end
+\(doom-ht6.109)."
+  (agent-ui-test-ausrc
+    (let ((agent-ui-source-line-max 1000)
+          (longest 0)
+          (all (mapconcat (lambda (i) (make-string 100 (+ ?a (% i 26)))) (number-sequence 0 299) "")))
+      (agent-ui-show '(:id "j" :type "text" :text "" :source (:command "cat" :into "text")))
+      (let* ((state (agent-ui-source--state canvas "j"))
+             (process (agent-ui-source--state-process state)))
+        (cl-letf* ((split (symbol-function 'split-string))
+                   ((symbol-function 'split-string)
+                    (lambda (string &rest args)
+                      (setq longest (max longest (length string)))
+                      (apply split string args))))
+          (dotimes (i 300)
+            (funcall (process-filter process) process (substring all (* i 100) (* (1+ i) 100)))
+            (should (<= (length (agent-ui-source--state-partial state)) 1000))))
+        (should (<= longest 1100))
+        (process-send-eof process)
+        (agent-ui-test-ausrc-ended "j")
+        (let ((lines (split-string (plist-get (agent-ui-get "j") :text) "\n")))
+          (should (equal (apply #'concat lines) all))
+          (should (cl-every (lambda (line) (<= (length line) 1000)) lines)))
+        (should (equal (plist-get (agent-ui-source-status "j") :exit) 0))
+        (should (equal (plist-get (agent-ui-source-status "j") :lines) 30))))))
+
 (ert-deftest agent-ui-source/carriage-returns-are-lines ()
   ;; A progress meter rewriting its line.
   (agent-ui-test-ausrc

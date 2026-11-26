@@ -19,7 +19,8 @@ Rules turn the source's lines into changes to the component. A source has `rules
   JSON, each backslash is doubled (`\\d`, `\\[`).
 - In `set` and `append`, a string that is only `"$1"` is that group's value (a number if it reads as one), `"$0"` is
   the whole match, and `$N` inside other text is replaced.
-- `\r` ends a line too, as progress meters use it.
+- `\r` ends a line too, as progress meters use it. A line longer than `agent-ui-source-line-max` characters (64 KB)
+  is cut into lines of that length.
 - A chunk of output is one update, however many lines it has.
 
 Instead of rules:
@@ -27,6 +28,8 @@ Instead of rules:
 - `"tail": N` sets a `text` component's text to the last N lines.
 - `"into": PROP` sets the property PROP to all of the output (a `diff`'s `diff`, from a poll of `git diff`), or to its
   last N lines with `tail`. A `log` follows a file with `"into": "lines"`.
+- A command's `tail` or `into` is applied at most every `agent-ui-redraw-delay` seconds (0.1), however fast its output
+  comes, and at once when it ends.
 
 When a command ends, its `done` patch applies if it exited with 0, its `failed` patch otherwise; `$code` in them is the
 exit code. A `progress` bar marks itself done or failed when there's no such patch.

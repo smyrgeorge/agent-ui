@@ -73,6 +73,12 @@
 A tail or into without rules starts this far from a big file's end."
   :type 'natnum :group 'agent-ui)
 
+(defcustom agent-ui-source-line-max (* 64 1024)
+  "Characters of a line of output at most; a longer one cut into lines.
+Its end not come yet, the line isn't kept growing (each chunk would go over
+all of it again)."
+  :type 'natnum :group 'agent-ui)
+
 (defconst agent-ui-source--keys
   '(:command :file :poll :dir :every :rules :match :set :append :tail :into :done :failed :from)
   "What a source may have.")
@@ -80,7 +86,7 @@ A tail or into without rules starts this far from a big file's end."
 (cl-defstruct (agent-ui-source--state (:constructor agent-ui-source--make-state))
   "A source following, for a component of a canvas."
   kind what dir every rules tail into done failed process timer log (partial "") lines exit error
-  (count 0) offset)
+  (count 0) offset flush)
 
 (defvar-local agent-ui-source--states nil
   "In a canvas: its sources, by component id.")
@@ -320,27 +326,76 @@ added up, each property's values pushed, in order again at the end)."
        (with-current-buffer canvas
          (and agent-ui-source--states (gethash id agent-ui-source--states)))))
 
+(defun agent-ui-source--lines (state text final)
+  "Return TEXT's complete lines, after STATE's partial line (all if FINAL).
+Its line ends searched for in TEXT alone; the partial line left, past
+`agent-ui-source-line-max' characters, cut into lines."
+  (let ((partial (agent-ui-source--state-partial state))
+        (separators "\r\n\\|[\r\n]"))
+    (if final
+        (progn (setf (agent-ui-source--state-partial state) "")
+               (seq-remove #'string-empty-p (split-string (concat partial text) separators)))
+      (let ((end nil) (lines nil))
+        (while (string-match separators text (or end 0))
+          (setq end (match-end 0)))
+        (when end
+          (setq lines (butlast (split-string (concat partial (substring text 0 end)) separators))
+                partial ""))
+        (let* ((rest (concat partial (substring text (or end 0))))
+               (limit (max 1 agent-ui-source-line-max))
+               (i 0)
+               (cut nil))
+          (while (> (- (length rest) i) limit)
+            (push (substring rest i (+ i limit)) cut)
+            (cl-incf i limit))
+          (setf (agent-ui-source--state-partial state) (substring rest i))
+          (nconc lines (nreverse cut)))))))
+
+(defun agent-ui-source--kept (state set)
+  "SET with STATE's kept lines in its tail or into property.
+They are kept newest first: the last N (tail), or 5000, in order."
+  (let* ((n (or (agent-ui-source--state-tail state) 5000))
+         (cell (nthcdr (1- n) (agent-ui-source--state-lines state))))
+    (when (timerp (agent-ui-source--state-flush state))
+      (cancel-timer (agent-ui-source--state-flush state)))
+    (setf (agent-ui-source--state-flush state) nil)
+    (when cell (setcdr cell nil))
+    (plist-put set (intern (concat ":" (or (agent-ui-source--state-into state) "text")))
+               (string-join (reverse (agent-ui-source--state-lines state)) "\n"))))
+
+(defun agent-ui-source--flush (canvas id state)
+  "Apply STATE's tail or into to component ID in CANVAS, if still its source."
+  (setf (agent-ui-source--state-flush state) nil)
+  (when (agent-ui-source--current-p canvas id state)
+    (condition-case err
+        (agent-ui-update id (agent-ui-source--kept state nil) :canvas canvas)
+      (error (setf (agent-ui-source--state-error state) (agent-ui-error-message err))))))
+
 (defun agent-ui-source--feed (canvas id text &optional final)
   "Feed TEXT, more of the output of component ID's source in CANVAS.
 Its complete lines (all of them if FINAL) go through the rules, the
-component changed."
+component changed.  A command's tail or into is applied at most every
+`agent-ui-redraw-delay' seconds (it's all its lines joined again), at once
+when FINAL."
   (when-let* ((state (agent-ui-source--state canvas id)))
-    (let* ((all (concat (agent-ui-source--state-partial state) text))
-           (pieces (split-string all "\r\n\\|[\r\n]"))
-           (lines (if final (seq-remove #'string-empty-p pieces) (butlast pieces))))
-      (setf (agent-ui-source--state-partial state) (if final "" (car (last pieces))))
+    (let ((lines (agent-ui-source--lines state text final)))
       (cl-incf (agent-ui-source--state-count state) (length lines))
       (condition-case err
           (pcase-let ((`(,set . ,append) (agent-ui-source--apply state lines)))
             ;; tail: the last lines; into: all of them (the latest 5000), into
             ;; that property (text by default).
-            (let ((tail (agent-ui-source--state-tail state))
-                  (into (agent-ui-source--state-into state)))
-              (when (and (or tail into) (or lines final))
-                (let ((kept (last (append (agent-ui-source--state-lines state) lines) (or tail 5000))))
-                  (setf (agent-ui-source--state-lines state) kept)
-                  (setq set (plist-put set (intern (concat ":" (or into "text")))
-                                       (string-join kept "\n"))))))
+            (when (and (or (agent-ui-source--state-tail state) (agent-ui-source--state-into state))
+                       (or lines final))
+              (setf (agent-ui-source--state-lines state)
+                    (nconc (reverse lines) (agent-ui-source--state-lines state)))
+              (cond
+               ;; A file's look: once in a while already.
+               ((or final (eq (agent-ui-source--state-kind state) 'file))
+                (setq set (agent-ui-source--kept state set)))
+               ((not (agent-ui-source--state-flush state))
+                (setf (agent-ui-source--state-flush state)
+                      (run-with-timer agent-ui-redraw-delay nil
+                                      #'agent-ui-source--flush canvas id state)))))
             (agent-ui-source--change canvas id set append))
         (error (setf (agent-ui-source--state-error state) (agent-ui-error-message err)))))))
 
@@ -513,8 +568,8 @@ stayed in the temporary folder, every command's)."
     (remhash id agent-ui-source--states)
     (when (process-live-p (agent-ui-source--state-process state))
       (delete-process (agent-ui-source--state-process state)))
-    (when (timerp (agent-ui-source--state-timer state))
-      (cancel-timer (agent-ui-source--state-timer state)))
+    (dolist (timer (list (agent-ui-source--state-timer state) (agent-ui-source--state-flush state)))
+      (when (timerp timer) (cancel-timer timer)))
     (when-let* ((log (agent-ui-source--state-log state)))
       (if (agent-ui-source--state-exit state)
           (push log agent-ui-source--logs)
