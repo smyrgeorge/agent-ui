@@ -19,7 +19,8 @@
 ;; ====== HELPERS ======
 
 (defvar agent-ui-test-aumcp-sent nil "The messages the server sent, the latest first.")
-(defvar agent-ui-test-aumcp-runs nil "The command lines it ran (their arguments), the latest first.")
+(defvar agent-ui-test-aumcp-runs nil
+  "The command lines it ran (their arguments, then :stdin and its input), the latest first.")
 
 (defmacro agent-ui-test-aumcp (reply &rest body)
   "BODY with what the server sends recorded, bin/agent-ui not run but
@@ -31,7 +32,9 @@ recorded, its reply REPLY (a plist)."
                                                      :null-object nil :false-object :false)
                                   agent-ui-test-aumcp-sent)))
                ((symbol-function 'agent-ui-mcp--run)
-                (lambda (args) (push args agent-ui-test-aumcp-runs) ,reply)))
+                (lambda (args &optional input)
+                  (push (append args (and input (list :stdin input))) agent-ui-test-aumcp-runs)
+                  ,reply)))
        ,@body)))
 
 (defun agent-ui-test-aumcp-handle (json)
@@ -98,11 +101,11 @@ recorded, its reply REPLY (a plist)."
                                           name arguments))
                 (car agent-ui-test-aumcp-runs)))
       (should (equal (call "show" "{\"component\":{\"id\":\"b\",\"type\":\"progress\",\"rows\":[[\"a\",null]],\"x\":false}}")
-                     '("show" "{\"id\":\"b\",\"type\":\"progress\",\"rows\":[[\"a\",null]],\"x\":false}")))
+                     '("show" :stdin "{\"id\":\"b\",\"type\":\"progress\",\"rows\":[[\"a\",null]],\"x\":false}")))
       (should (equal (call "update" "{\"id\":\"b\",\"patch\":{\"value\":3,\"label\":null}}")
-                     '("update" "b" "{\"value\":3,\"label\":null}")))
+                     '("update" "b" :stdin "{\"value\":3,\"label\":null}")))
       (should (equal (call "append" "{\"id\":\"t\",\"patch\":{\"rows\":[[\"x\"]]}}")
-                     '("append" "t" "{\"rows\":[[\"x\"]]}")))
+                     '("append" "t" :stdin "{\"rows\":[[\"x\"]]}")))
       (should (equal (call "remove" "{\"id\":\"b\"}") '("remove" "b")))
       (should (equal (call "snapshot" "{\"id\":\"b\"}") '("snapshot" "b")))
       ;; A project panel's file checked (doom-3q5.1).
@@ -111,21 +114,21 @@ recorded, its reply REPLY (a plist)."
       (should (equal (call "panels" "{}") '("panels")))
       (should (equal (call "open" "{\"name\":\"service\"}") '("open" "service")))
       (should (equal (call "update" "{\"id\":\"ci\",\"patch\":{\"rows\":[]},\"panel\":\"service\"}")
-                     '("update" "ci" "{\"rows\":[]}" "--panel" "service")))
+                     '("update" "ci" "--panel" "service" :stdin "{\"rows\":[]}")))
       (should (equal (call "clear" "{}") '("clear")))
       (should (equal (call "list" "{}") '("list")))
       (should (equal (call "types" "{}") '("types")))
       (should (equal (call "types" "{\"type\":\"table\"}") '("types" "table")))
       (should (equal (call "render" "{\"component\":{\"type\":\"text\",\"text\":\"ü\"}}")
-                     '("render" "{\"type\":\"text\",\"text\":\"ü\"}")))
+                     '("render" :stdin "{\"type\":\"text\",\"text\":\"ü\"}")))
       (should (equal (call "remove" "{\"id\":\"b\",\"canvas\":\"tests\"}") '("remove" "b" "--canvas" "tests")))
       (should (equal (call "types" "{\"canvas\":\"tests\"}") '("types")))
       (should (equal (call "batch" "{\"operations\":[{\"op\":\"remove\",\"id\":\"b\"}]}")
-                     '("batch" "[{\"op\":\"remove\",\"id\":\"b\"}]")))
+                     '("batch" :stdin "[{\"op\":\"remove\",\"id\":\"b\"}]")))
       ;; A bug: as given, its canvas apart.
       (should (equal (call "bug" "{\"title\":\"t\",\"description\":\"d\",\"repro\":{\"type\":\"text\"},\"new\":false,\"canvas\":\"tests\"}")
-                     '("bug" "{\"title\":\"t\",\"description\":\"d\",\"repro\":{\"type\":\"text\"},\"new\":false}"
-                       "--canvas" "tests")))
+                     '("bug" "--canvas" "tests"
+                       :stdin "{\"title\":\"t\",\"description\":\"d\",\"repro\":{\"type\":\"text\"},\"new\":false}")))
       ;; A type's code: in a file, gone after.
       (let ((run (call "define" "{\"code\":\"(agent-ui-define x)\"}")))
         (should (equal (car run) "define"))
@@ -142,6 +145,38 @@ recorded, its reply REPLY (a plist)."
       (should (string-match-p "no component" (plist-get (aref (plist-get result :content) 0) :text))))
     (should (string-match-p "unknown tool frob"
                             (plist-get (aref (plist-get (plist-get (agent-ui-test-aumcp-handle "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"frob\",\"arguments\":{}}}") :result) :content) 0) :text)))))
+
+;; A component larger than the command line allows (doom-ht6.107).
+(ert-deftest agent-ui-mcp/json-on-stdin ()
+  "A component's JSON goes to bin/agent-ui on stdin, not as an argument:
+one of megabytes, over the system's argument limit, gets through."
+  (let* ((script (make-temp-file "agent-ui-mcp-" nil ".sh"
+                                 "#!/bin/sh\nprintf '{\"ok\":true,\"args\":\"%s\",\"bytes\":%s}' \"$*\" \"$(wc -c | tr -d ' ')\"\n"))
+         (agent-ui-mcp-command script)
+         (text (make-string (* 3 1024 1024) ?x))
+         (json (agent-ui-mcp--json (list :id "big" :type "text" :text text))))
+    (unwind-protect
+        (progn
+          (set-file-modes script #o700)
+          (let ((reply (agent-ui-mcp--call "show" (list :component (list :id "big" :type "text" :text text)
+                                                        :canvas "tests"))))
+            (should-not (car reply))
+            (let ((reply (json-parse-string (cdr reply) :object-type 'plist)))
+              ;; Only the operation and the options as arguments; the JSON whole on stdin.
+              (should (equal (plist-get reply :args) "show --canvas tests"))
+              (should (equal (plist-get reply :bytes) (string-bytes json)))))
+          ;; An update's patch, too, its id an argument.
+          (let ((reply (json-parse-string
+                        (cdr (agent-ui-mcp--call "update" (list :id "big" :patch (list :text "ü"))))
+                        :object-type 'plist)))
+            (should (equal (plist-get reply :args) "update big"))
+            (should (equal (plist-get reply :bytes) (string-bytes "{\"text\":\"ü\"}"))))
+          ;; An operation without JSON: nothing on stdin.
+          (should (equal (plist-get (json-parse-string (cdr (agent-ui-mcp--call "remove" (list :id "big")))
+                                                       :object-type 'plist)
+                                    :bytes)
+                         0)))
+      (delete-file script))))
 
 ;; ====== THE SERVER ITSELF ======
 

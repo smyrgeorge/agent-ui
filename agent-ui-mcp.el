@@ -158,14 +158,19 @@ nil if it can't be reached."
   "VALUE as JSON text (decoded: `json-serialize' gives UTF-8 bytes)."
   (decode-coding-string (json-serialize value :null-object :null :false-object :false) 'utf-8))
 
-(defun agent-ui-mcp--run (args)
-  "Run bin/agent-ui with ARGS, in the agent's directory.
-Its reply, parsed (or an error reply if it said nothing readable)."
+(defun agent-ui-mcp--run (args &optional input)
+  "Run bin/agent-ui with ARGS, in the agent's directory, INPUT on its stdin.
+INPUT, the JSON, goes there, not as an argument: an argument has a size
+limit, a large component's JSON over it.  Its reply, parsed (or an error
+reply if it said nothing readable)."
   (let ((default-directory (file-name-as-directory
                             (or (getenv "AGENT_UI_DIR") default-directory))))
     (with-temp-buffer
-      (let* ((status (let ((coding-system-for-read 'utf-8))
-                       (apply #'call-process agent-ui-mcp-command nil (list t nil) nil args)))
+      (let* ((status (let ((coding-system-for-read 'utf-8) (coding-system-for-write 'utf-8))
+                       (if input
+                           (apply #'call-process-region input nil agent-ui-mcp-command
+                                  nil (list t nil) nil args)
+                         (apply #'call-process agent-ui-mcp-command nil (list t nil) nil args))))
              (text (string-trim (buffer-string)))
              (text (if (multibyte-string-p text) text (decode-coding-string text 'utf-8))))
         (condition-case nil
@@ -179,11 +184,17 @@ Its reply, parsed (or an error reply if it said nothing readable)."
             (json (value) (agent-ui-mcp--json value)))
     (let* ((canvas (let ((c (arg :canvas))) (and (stringp c) (not (string-empty-p c)) c)))
            (panel (let ((p (arg :panel))) (and (stringp p) (not (string-empty-p p)) p)))
+           ;; The JSON on stdin, the rest as arguments.
+           (input (pcase name
+                    ((or "show" "render") (json (arg :component)))
+                    ((or "update" "append") (json (or (arg :patch) (make-hash-table))))
+                    ("batch" (json (or (arg :operations) [])))
+                    ;; The bug as given, but its canvas (an argument of its own).
+                    ("bug" (json (cl-loop for (k v) on arguments by #'cddr
+                                          unless (memq k '(:canvas :panel)) append (list k v))))))
            (args (pcase name
-                   ("show" (list "show" (json (arg :component))))
-                   ("render" (list "render" (json (arg :component))))
-                   ("update" (list "update" (or (arg :id) "") (json (or (arg :patch) (make-hash-table)))))
-                   ("append" (list "append" (or (arg :id) "") (json (or (arg :patch) (make-hash-table)))))
+                   ((or "show" "render" "batch" "bug") (list name))
+                   ((or "update" "append") (list name (or (arg :id) "")))
                    ("remove" (list "remove" (or (arg :id) "")))
                    ("snapshot" (list "snapshot" (or (arg :id) "")))
                    ("check" (list "check" (or (arg :name) "")))
@@ -193,11 +204,7 @@ Its reply, parsed (or an error reply if it said nothing readable)."
                    ("list" (list "list"))
                    ("get" (append (list "get") (and (arg :id) (list (arg :id)))
                                   (and (eq (arg :changed) t) (list "--changed"))))
-                   ("types" (if (arg :type) (list "types" (arg :type)) (list "types")))
-                   ("batch" (list "batch" (json (or (arg :operations) []))))
-                   ;; The bug as given, but its canvas (an argument of its own).
-                   ("bug" (list "bug" (json (cl-loop for (k v) on arguments by #'cddr
-                                                     unless (memq k '(:canvas :panel)) append (list k v)))))))
+                   ("types" (if (arg :type) (list "types" (arg :type)) (list "types")))))
            (reply
             (cond
              (args
@@ -207,7 +214,8 @@ Its reply, parsed (or an error reply if it said nothing readable)."
                                            (list "--canvas" canvas))
                                          ;; One of the project's panels, open.
                                          (when (and panel (not (member name '("types" "check" "panels" "open"))))
-                                           (list "--panel" panel)))))
+                                           (list "--panel" panel)))
+                                 input))
              ((equal name "define")
               (let ((file (make-temp-file "agent-ui-type-" nil ".el")))
                 (unwind-protect
