@@ -572,7 +572,7 @@ tests hit it, doom-b5u). Open then, it starts as ever."
         (kill-buffer canvas)))))
 
 (ert-deftest agent-ui-panels/the-panel-type-s-functions-its-own ()
-  "No function of the panel component's (components/panel.el) redefined by
+  "No function of the panel component's (agent-ui-panel.el) redefined by
 another file loaded after it (the project panels' code once took
 agent-ui-panel--draw)."
   (let ((file (seq-find (lambda (entry) (and (stringp (car entry))
@@ -580,7 +580,8 @@ agent-ui-panel--draw)."
                         load-history)))
     (should file)
     (dolist (item (cdr file))
-      (when (eq (car-safe item) 'defun)
+      ;; Its own (the autoloads of the libraries it uses are recorded too).
+      (when (and (eq (car-safe item) 'defun) (string-prefix-p "agent-ui-panel" (symbol-name (cdr item))))
         (should (string-match-p "/agent-ui-panel\\.elc?\\'" (or (symbol-file (cdr item) 'defun) "")))))))
 
 ;; ====== ITS LIFE ======

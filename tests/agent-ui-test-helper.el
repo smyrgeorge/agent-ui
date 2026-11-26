@@ -52,6 +52,8 @@
 (require 'image)
 (defconst agent-ui-test-image-types '(svg png jpeg gif webp)
   "The image types the tests make, whether Emacs has them or not.")
+;; Unbound where Emacs has no image support at all.
+(defvar image-types nil)
 (dolist (type agent-ui-test-image-types)
   (add-to-list 'image-types type t))
 (advice-add 'image-type-available-p :around
