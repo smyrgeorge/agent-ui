@@ -740,44 +740,46 @@ least), metrics."
        (advice-remove 'delete-window 'test-counting))))
 
 (ert-deftest agent-ui-pane/views-left-out-for-want-of-room ()
-  "A pane too narrow for a wide view (80 columns, of three): the other two
-shown, it left out; that layout in place, no window changed at each sync
-(each rebuilt it: a window change, syncing again in the same redisplay,
-Emacs frozen); the pane widened: all three, once the resizing stops."
-  (let ((size (cons (frame-width) (frame-height))))
-    (unwind-protect
-        (agent-ui-test-aupn
-          (set-frame-size nil 120 40)
-          (let* ((window (selected-window))
-                 (other (split-window window 60 'right)))
-            (agent-ui-test-aupn-wide-three name)
-            (agent-ui--pane-sync)
-            (should (= (window-total-width window) 60))
-            (should (equal (agent-ui-test-aupn-cells)
-                           (mapcar #'agent-ui-canvas-buffer-name
-                                   (list name (agent-ui-sub-canvas name "metrics")))))
-            (agent-ui-test-aupn-counting changes
-              (dotimes (_ 5)
-                (agent-ui--pane-sync))
-              (agent-ui--pane-fit-now)
-              (should (= changes 0)))
-            (should (buffer-local-value 'agent-ui--pane-wanted session))
-            ;; Widened: all three, once the resizing stops.
-            (delete-window other)
-            (agent-ui--pane-sync)
-            (should (= (window-total-width window) 120))
-            (agent-ui--pane-replan-now)
-            (should (= (length (agent-ui--pane-cells (selected-frame))) 3))
-            ;; Narrowed again: code left out again, at once (its columns
-            ;; don't fit).
-            (split-window (window-parent window) 60 'right)
-            (agent-ui--pane-sync)
-            (agent-ui--pane-replan-now)
-            (should (= (length (agent-ui--pane-cells (selected-frame))) 2))
-            (agent-ui-test-aupn-counting changes
-              (agent-ui--pane-sync)
-              (should (= changes 0)))))
-      (set-frame-size nil (car size) (cdr size)))))
+  "A pane too narrow for a wide view (of three): the other two shown, it
+left out; that layout in place, no window changed at each sync (each
+rebuilt it: a window change, syncing again in the same redisplay, Emacs
+frozen); the pane widened: all three, once the resizing stops.  Laid out
+within the batch frame's 80 columns (Emacs 31's batch frame can't be
+resized): views 26 columns at least, a wide one 53, so 40 is too narrow
+for it and 80 holds all three."
+  (let ((agent-ui-grid-min-width 26)
+        (agent-ui-grid-wide-width 53))
+    (agent-ui-test-aupn
+      (should (>= (frame-width) 80))
+      (let* ((window (selected-window))
+             (other (split-window window 40 'right)))
+        (agent-ui-test-aupn-wide-three name)
+        (agent-ui--pane-sync)
+        (should (= (window-total-width window) 40))
+        (should (equal (agent-ui-test-aupn-cells)
+                       (mapcar #'agent-ui-canvas-buffer-name
+                               (list name (agent-ui-sub-canvas name "metrics")))))
+        (agent-ui-test-aupn-counting changes
+          (dotimes (_ 5)
+            (agent-ui--pane-sync))
+          (agent-ui--pane-fit-now)
+          (should (= changes 0)))
+        (should (buffer-local-value 'agent-ui--pane-wanted session))
+        ;; Widened: all three, once the resizing stops.
+        (delete-window other)
+        (agent-ui--pane-sync)
+        (should (= (window-total-width window) (frame-width)))
+        (agent-ui--pane-replan-now)
+        (should (= (length (agent-ui--pane-cells (selected-frame))) 3))
+        ;; Narrowed again: code left out again, at once (its columns
+        ;; don't fit).
+        (split-window (window-parent window) 40 'right)
+        (agent-ui--pane-sync)
+        (agent-ui--pane-replan-now)
+        (should (= (length (agent-ui--pane-cells (selected-frame))) 2))
+        (agent-ui-test-aupn-counting changes
+          (agent-ui--pane-sync)
+          (should (= changes 0)))))))
 
 (ert-deftest agent-ui-pane/a-rebuild-loop-stopped ()
   "A layout its sync never takes as in place (a bug): rebuilt at most
