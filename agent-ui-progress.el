@@ -58,6 +58,7 @@
 
 (require 'cl-lib)
 (require 'subr-x)
+(require 'color)
 (require 'parse-time)
 (require 'svg)
 (require 'agent-ui-core)

@@ -41,6 +41,7 @@
 
 (require 'cl-lib)
 (require 'subr-x)
+(require 'color)
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 

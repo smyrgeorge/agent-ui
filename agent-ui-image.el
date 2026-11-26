@@ -40,6 +40,8 @@
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 
+(declare-function image-supported-file-p "image")
+
 (defcustom agent-ui-open-file-function #'find-file-other-window
   "Opens a file a component shows (an image), given its name."
   :type 'function :group 'agent-ui)
@@ -190,7 +192,8 @@ By its first bytes (a PNG named
 \"shot\" is one, a text file named a.png isn't), else by its name for an
 SVG (its <svg can come past them); nil if it's none."
   (let ((type (or (image-type-from-file-header file)
-                  (and (eq (image-supported-file-p file) 'svg) 'svg))))
+                  (and (fboundp 'image-supported-file-p)
+                       (eq (image-supported-file-p file) 'svg) 'svg))))
     (and type (image-type-available-p type) type)))
 
 (defun agent-ui-image--gui (props ctx)

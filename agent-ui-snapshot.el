@@ -46,6 +46,8 @@
 (require 'agent-ui-agent)
 (require 'agent-ui-panels)
 
+(declare-function image-size "image.c")
+
 (defvar browse-url-handlers)
 
 ;; ====== VARIABLES ======

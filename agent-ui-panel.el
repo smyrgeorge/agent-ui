@@ -123,6 +123,7 @@ ids seen."
   props)
 
 (declare-function agent-ui-snapshot--svg-size "agent-ui-snapshot")
+(declare-function image-size "image.c")
 
 (defun agent-ui-panel--image-size (display)
   "Return the size an image DISPLAY is shown at, in pixels.
