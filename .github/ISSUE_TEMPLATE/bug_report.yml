@@ -1,0 +1,171 @@
+name: Bug report
+description: Report a bug or unexpected behavior in Agent UI.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much of the form as you can.
+        Before opening a new issue, please search the existing issues to avoid duplicates.
+
+        Tip: `M-x agent-ui-report-bug` (or `b` on a component in a canvas) writes a report for you, with the
+        component's JSON, its drawing and your environment. It's shown and copied: paste it under "Additional context".
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: When the agent shows ..., the canvas ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps that reproduce the problem, ideally `bin/agent-ui` commands anyone can run.
+      placeholder: |
+        1. `agent-ui show '{"id":"build","type":"progress","max":12}'`
+        2. `agent-ui update build '{"value":5}'`
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: component
+    attributes:
+      label: The component
+      description: The component's JSON, if the bug is in how one is drawn or behaves (`agent-ui get ID` prints it).
+      render: json
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include the reply's error, or the backtrace (`M-x toggle-debug-on-error`) if there is one.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where does the problem occur?
+      multiple: true
+      options:
+        - A component's drawing
+        - The canvas, its keys or its views in the session's pane
+        - Questions and answers (choice, confirm, form, rank...)
+        - The command line (bin/agent-ui)
+        - The MCP tools
+        - Sources (a command, a file, a poll)
+        - Project panels
+        - Types the agent makes (staging, review)
+        - Canvases kept with their sessions
+        - Snapshots, PDF export
+        - What the agent is told (system prompt, skill)
+        - Documentation
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Agent UI version
+      description: Its version (`M-x describe-package agent-ui`) or commit.
+      placeholder: 0.1.0, or a commit like 8c01863
+    validations:
+      required: true
+
+  - type: input
+    id: emacs-version
+    attributes:
+      label: Emacs version
+      description: "`M-x emacs-version`"
+      placeholder: GNU Emacs 30.1
+    validations:
+      required: true
+
+  - type: input
+    id: agent-shell-version
+    attributes:
+      label: agent-shell version
+      placeholder: e.g. 0.99.3
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      description: Which agent was running in the session, if any?
+      multiple: true
+      options:
+        - Claude Code
+        - Codex
+        - Gemini CLI
+        - OpenCode
+        - Cursor
+        - Goose
+        - Another agent
+        - None (from a shell, or Lisp)
+
+  - type: dropdown
+    id: display
+    attributes:
+      label: Display
+      options:
+        - GUI
+        - Terminal (emacs -nw)
+        - Both
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      multiple: true
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your Emacs setup and anything else relevant (Doom, Spacemacs or vanilla; evil; theme; the optional tools, mmdc, node, LaTeX).
+      placeholder: |
+        - Setup: Doom Emacs, evil
+        - Theme: doom-one
+        - mmdc: 11.4
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: The report from `M-x agent-ui-report-bug`, screenshots, logs, or anything else that may help.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I am using the latest version of Agent UI, or I have confirmed the bug still exists there.
+          required: false

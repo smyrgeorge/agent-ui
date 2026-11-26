@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/smyrgeorge/agent-ui/tree/main/docs
+    about: Read Agent UI's documentation before opening an issue.
+  - name: Questions & discussions
+    url: https://github.com/smyrgeorge/agent-ui/discussions
+    about: Ask questions or discuss ideas with the community.

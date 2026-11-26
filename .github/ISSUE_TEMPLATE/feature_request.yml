@@ -1,0 +1,82 @@
+name: Feature request
+description: Suggest a new feature or an improvement for Agent UI.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Please describe the problem you are trying to solve
+        as well as the solution you have in mind.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem are you trying to solve? Why is the current behavior insufficient?
+      placeholder: I want my agent to show ..., but currently ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or change you would like to see. For a component, sketch its JSON.
+      placeholder: |
+        ```json
+        {"id": "deploys", "type": "...", "title": "..."}
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you have considered or are using (a type of your own, `agent-ui define`, counts).
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Agent UI would this touch?
+      multiple: true
+      options:
+        - A new component type
+        - An existing component
+        - The canvas, its keys or its views in the session's pane
+        - Questions and answers
+        - The command line (bin/agent-ui)
+        - The MCP tools
+        - Sources
+        - Project panels
+        - Types the agent makes
+        - What the agent is told (system prompt, skill)
+        - Integration with agent-shell
+        - Documentation
+        - Other / not sure
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Is this a breaking change?
+      description: Would it change the JSON agents send, or the replies they get?
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Links to related issues, screenshots, mockups, or anything else that helps.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a pull request for this feature.
+          required: false
