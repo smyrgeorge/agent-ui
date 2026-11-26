@@ -622,7 +622,8 @@ without it, those that had one (it stayed until the next turn's end)."
 ;; Options, both on (nil in config.el turns one off): a question shown (an
 ;; component that asks, `agent-ui-ask-waiting-p') takes the focus: its pane
 ;; selected, the cursor on it, once Emacs is idle a moment (typing in the
-;; session isn't taken over: the canvas's keys act), the minibuffer closed;
+;; session isn't taken over: the canvas's keys act; typed since it showed, a
+;; longer moment), the minibuffer closed;
 ;; not a resumed session's coming back.  Its answer sent (`agent-ui-ask-done-p'), it leaves its canvas,
 ;; with the components shown with it (their :with its id); on a session's ask
 ;; canvas, once no question waits there, everything on it (all of it was the
@@ -635,6 +636,13 @@ without it, those that had one (it stayed until the next turn's end)."
 (defvar agent-ui-focus-questions-delay 1.0
   "Seconds Emacs is idle before a question shown takes the focus.")
 
+(defvar agent-ui-focus-questions-typing-delay 5.0
+  "Seconds Emacs is idle before a question takes the focus, typed since.
+
+When the user typed since the question showed (in another buffer, the
+minibuffer), a pause of `agent-ui-focus-questions-delay' isn't enough:
+their next keys would go to the canvas.")
+
 (defvar agent-ui-close-answered t
   "Whether an answered question leaves its canvas.
 
@@ -643,33 +651,43 @@ killed (see above).")
 
 (defvar agent-ui--restoring)            ; agent-ui-persist.el's: canvases coming back
 
-(defun agent-ui--focus-question (canvas id)
+(defun agent-ui--focus-question (canvas id &optional keys)
   "Select CANVAS's question ID, if it still waits.
 
 CANVAS's question ID, if it still waits: its pane selected, the cursor on
 it.  While the minibuffer is open, once it's closed and Emacs is idle a
-moment again (the keys typed there aren't the canvas's)."
+moment again (the keys typed there aren't the canvas's).  KEYS is
+`num-input-keys' when it showed: typed since, once Emacs is idle
+`agent-ui-focus-questions-typing-delay' (a pause in their typing isn't
+the canvas's keys)."
   (when (and (buffer-live-p canvas)
              (ignore-errors (agent-ui-ask-waiting-p (agent-ui-get id :canvas canvas))))
-    (if (active-minibuffer-window)
-        (agent-ui-after-minibuffer
-         (lambda ()
-           (run-with-idle-timer agent-ui-focus-questions-delay nil #'agent-ui--focus-question canvas id)))
+    (cond
+     ((active-minibuffer-window)
+      (agent-ui-after-minibuffer
+       (lambda ()
+         (run-with-idle-timer agent-ui-focus-questions-delay nil
+                              #'agent-ui--focus-question canvas id keys))))
+     ((and keys (/= keys num-input-keys)
+           (< (float-time (or (current-idle-time) 0)) agent-ui-focus-questions-typing-delay))
+      (run-with-idle-timer agent-ui-focus-questions-typing-delay nil
+                           #'agent-ui--focus-question canvas id keys))
+     (t
       ;; As `agent-ui-goto-question' would: a command going there (a pane shown with none
       ;; running stays behind the one on the screen, tiling's fullscreen).
       (let ((this-command 'agent-ui-goto-question))
-        (agent-ui--show-question canvas id t)))))
+        (agent-ui--show-question canvas id t))))))
 
 (defun agent-ui--focus-question-h (id component)
   "Focus question ID, just shown as COMPONENT.
 
 A question shown (`agent-ui-shown-functions'): it takes the focus, once
-Emacs is idle a moment."
+Emacs is idle a moment (longer if the user types meanwhile)."
   (when (and agent-ui-focus-questions
              (not (bound-and-true-p agent-ui--restoring))
              (agent-ui-ask-waiting-p component))
     (run-with-idle-timer agent-ui-focus-questions-delay nil
-                         #'agent-ui--focus-question (current-buffer) id)))
+                         #'agent-ui--focus-question (current-buffer) id num-input-keys)))
 
 (add-hook 'agent-ui-shown-functions #'agent-ui--focus-question-h)
 

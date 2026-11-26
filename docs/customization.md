@@ -40,6 +40,7 @@ A few settings are plain variables rather than user options; they're marked *(va
 | `agent-ui-svg-font-weight` | `600` on macOS, `400` elsewhere | The weight of the text in SVG images (charts, graphs, timelines, gauges, chips, snapshots, diagrams). On macOS, SemiBold matches the editor's text, which macOS draws a little heavier. |
 | `agent-ui-focus-questions` *(variable)* | `t` | A question shown takes the focus. nil: the focus stays where it is. |
 | `agent-ui-focus-questions-delay` *(variable)* | `1.0` | Seconds without typing before a question takes the focus. |
+| `agent-ui-focus-questions-typing-delay` *(variable)* | `5.0` | Seconds without typing before a question takes the focus, when you've typed since it showed. |
 | `agent-ui-close-answered` *(variable)* | `t` | An answered question leaves its canvas. nil: it stays there. |
 
 ## The session's pane

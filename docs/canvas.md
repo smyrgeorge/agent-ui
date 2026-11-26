@@ -150,7 +150,8 @@ when it shows, and goes once you answer it.
 
 - **Shown, it takes the focus.** Its view is selected, with the cursor on the question, once you stop typing for a
   moment (`agent-ui-focus-questions-delay`, 1 second), so what you type in the session isn't taken by the canvas's
-  keys. Set `agent-ui-focus-questions` to nil to keep the focus where it is. Questions that come back with a resumed
+  keys. If you've typed since it showed, it waits for a longer pause (`agent-ui-focus-questions-typing-delay`, 5
+  seconds), so a pause in your typing elsewhere doesn't hand your next keys to it. Set `agent-ui-focus-questions` to nil to keep the focus where it is. Questions that come back with a resumed
   session don't take it.
 - **Answered, it goes.** Your answer goes straight to the agent, sent at once: there's no Enter to press, and nothing
   waits in the prompt. While the agent still works, the answer is queued and sent once it's done.
