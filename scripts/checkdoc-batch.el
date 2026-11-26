@@ -1,0 +1,15 @@
+;;; checkdoc-batch.el --- Run checkdoc on files, fail on any finding  -*- lexical-binding: t -*-
+(require 'checkdoc)
+(setq checkdoc-diagnostic-buffer "*warn*")
+(let ((files command-line-args-left) (n 0))
+  (setq command-line-args-left nil)
+  (dolist (f files)
+    (with-current-buffer (find-file-noselect f)
+      (let ((checkdoc-create-error-function
+             (lambda (text start _end &optional _unfixable)
+               (setq n (1+ n))
+               (princ (format "%s:%d: %s\n" f (line-number-at-pos start) text))
+               nil)))
+        (condition-case err (checkdoc-current-buffer t)
+          (error (princ (format "%s: ERROR %S\n" f err)))))))
+  (kill-emacs (if (> n 0) 1 0)))

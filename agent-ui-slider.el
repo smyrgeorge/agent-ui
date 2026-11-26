@@ -1,0 +1,305 @@
+;;; agent-ui-slider.el --- The slider component  -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Yorgos S.
+
+;; Author: Yorgos S.
+;; URL: https://github.com/smyrgeorge/agent-ui
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Agent UI's slider: a number the user tunes in a range (a threshold, a
+;; timeout, how many to take).
+;;
+;; Its track, the knob at its value, MIN and MAX at its ends; on the track's
+;; line, h / l (or ← / →) move it a STEP, H / L ten, a click puts it there:
+;; its own keys there (a text property's map: elsewhere h and l are the
+;; cursor's).  Set puts "Answer to slider ID (LABEL): 42 ms" into the
+;; session's prompt (sent at once); then it shows the
+;; value set, and can't be changed.  LIVE: each value sent once the knob rests
+;; (`agent-ui-slider-live-delay'), no Set: for a canvas the agent redraws from
+;; it.  Its value is the component's own (:value, saved with the session).
+;;
+;;   Timeout
+;;    0 ━━━━━━━━━━━●──────────────────── 120   42 ms
+;;    h / l move it (H / L ten steps), a click puts it there
+;;    ⏵ Set
+
+;;; Code:
+
+(require 'cl-lib)
+(require 'subr-x)
+(require 'agent-ui-core)
+(require 'agent-ui-canvas)
+(require 'agent-ui-ask)
+
+(defvar agent-ui-slider-live-delay 1.0
+  "Seconds a live slider's knob rests before its value is sent.")
+
+(defvar agent-ui-slider--live-timers (make-hash-table :test #'equal)
+  "Live sliders' timers waiting to send, by (CANVAS . ID).")
+
+;; ====== ITS VALUE ======
+
+(defun agent-ui-slider--step (props)
+  "PROPS' step, 1 if it has none."
+  (or (plist-get props :step) 1))
+
+(defun agent-ui-slider--decimals (number)
+  "How many decimals NUMBER has (0.05: 2), 10 at most."
+  (let ((decimals 0))
+    (while (and (< decimals 10)
+                (let ((scaled (* number (expt 10.0 decimals))))
+                  (> (abs (- scaled (fround scaled))) 1e-9)))
+      (cl-incf decimals))
+    decimals))
+
+(defun agent-ui-slider--snap (props value)
+  "VALUE snapped to PROPS' steps from its min, within min and max.
+It has as many decimals as its step and min have (0.1 six times: 0.6,
+not 0.6000000000000001)."
+  (let* ((min (plist-get props :min))
+         (max (plist-get props :max))
+         (step (agent-ui-slider--step props))
+         (snapped (+ min (* step (round (/ (float (- value min)) step))))))
+    (setq snapped (if (and (integerp min) (integerp step))
+                      ;; Integers stay integers.
+                      (round snapped)
+                    (let ((scale (expt 10.0 (max (agent-ui-slider--decimals step) (agent-ui-slider--decimals min)))))
+                      (/ (fround (* snapped scale)) scale))))
+    (max min (min max snapped))))
+
+(defun agent-ui-slider--value (props)
+  "PROPS' value, snapped (its min if it has none)."
+  (agent-ui-slider--snap props (or (plist-get props :value) (plist-get props :min))))
+
+(defun agent-ui-slider--shown (props value)
+  "VALUE with PROPS' unit: \"42 ms\"."
+  (concat (agent-ui-format-number value)
+          (if-let* ((unit (plist-get props :unit))) (concat " " unit) "")))
+
+(defun agent-ui-slider--check (props)
+  "Signal an error unless PROPS describe a valid slider."
+  (let ((min (plist-get props :min))
+        (max (plist-get props :max))
+        (step (plist-get props :step))
+        (value (plist-get props :value)))
+    (unless (< min max)
+      (agent-ui--fail "slider: min must be below max"))
+    (when (and step (<= step 0))
+      (agent-ui--fail "slider: step must be above 0"))
+    (when (and value (or (< value min) (> value max)))
+      (agent-ui--fail "slider: value %s is outside %s to %s"
+                      (agent-ui-format-number value) (agent-ui-format-number min) (agent-ui-format-number max))))
+  props)
+
+;; ====== MOVING IT ======
+
+(defun agent-ui-slider--set (props ctx value)
+  "The knob of PROPS put at VALUE (snapped), for the component of CTX.
+A live one's value is sent once it rests."
+  (let ((value (agent-ui-slider--snap props value)))
+    (agent-ui-ask-change ctx (list :value value))
+    (when (plist-get props :live)
+      (agent-ui-slider--send-later props ctx value))))
+
+(defun agent-ui-slider--send-later (props ctx value)
+  "A live slider's VALUE sent once its knob rests.
+PROPS and CTX are the component's."
+  (let* ((canvas (current-buffer))
+         (key (cons canvas (plist-get ctx :id)))
+         (old (gethash key agent-ui-slider--live-timers)))
+    (when (timerp old) (cancel-timer old))
+    (puthash key
+             (run-with-timer agent-ui-slider-live-delay nil
+                             (lambda ()
+                               (remhash key agent-ui-slider--live-timers)
+                               (when (buffer-live-p canvas)
+                                 (with-current-buffer canvas
+                                   ;; Its component the one acting (a
+                                   ;; section's session's), not point's.
+                                   (let ((agent-ui-pressed (plist-get ctx :id)))
+                                     (funcall agent-ui-action-function
+                                              (format "Slider %s (%s) set to %s" (plist-get ctx :id)
+                                                      (or (plist-get props :label) "value")
+                                                      (agent-ui-slider--shown props value))
+                                              t))))))
+             agent-ui-slider--live-timers)))
+
+(defun agent-ui-slider--removed (key)
+  "Call off the live send of component KEY, gone from the current canvas.
+It was waiting.  In `agent-ui-removed-functions'."
+  (when-let* ((timer (gethash (cons (current-buffer) key) agent-ui-slider--live-timers)))
+    (cancel-timer timer)
+    (remhash (cons (current-buffer) key) agent-ui-slider--live-timers)))
+
+(add-hook 'agent-ui-removed-functions #'agent-ui-slider--removed)
+
+(defun agent-ui-slider--slide (steps)
+  "Move the knob on point's line STEPS steps (below 0: left)."
+  (agent-ui--flush)
+  (let ((slide (get-text-property (point) 'agent-ui-slide)))
+    (unless slide
+      (user-error "No slider here"))
+    (funcall slide steps)
+    (agent-ui--flush)))
+
+(defun agent-ui-slider-left ()
+  "Move the slider's knob a step left."
+  (interactive)
+  (agent-ui-slider--slide -1))
+
+(defun agent-ui-slider-right ()
+  "Move the slider's knob a step right."
+  (interactive)
+  (agent-ui-slider--slide 1))
+
+(defun agent-ui-slider-left-more ()
+  "Move the slider's knob ten steps left."
+  (interactive)
+  (agent-ui-slider--slide -10))
+
+(defun agent-ui-slider-right-more ()
+  "Move the slider's knob ten steps right."
+  (interactive)
+  (agent-ui-slider--slide 10))
+
+(defun agent-ui-slider-click (event)
+  "Put the slider's knob where EVENT clicked its track."
+  (interactive "e")
+  (let* ((pos (posn-point (event-start event)))
+         (buffer (window-buffer (posn-window (event-start event)))))
+    (with-current-buffer buffer
+      (when-let* ((to (and pos (get-text-property pos 'agent-ui-slide-to))))
+        (funcall to)
+        (agent-ui--flush)))))
+
+(defvar agent-ui-slider-track-map
+  (let ((map (make-sparse-keymap)))
+    (dolist (key '("h" "<left>")) (keymap-set map key #'agent-ui-slider-left))
+    (dolist (key '("l" "<right>")) (keymap-set map key #'agent-ui-slider-right))
+    (dolist (key '("H" "S-<left>")) (keymap-set map key #'agent-ui-slider-left-more))
+    (dolist (key '("L" "S-<right>")) (keymap-set map key #'agent-ui-slider-right-more))
+    (keymap-set map "<mouse-1>" #'agent-ui-slider-click)
+    (keymap-set map "<down-mouse-1>" #'ignore)
+    map)
+  "The keys on a slider's track (a text property's map: above Vim's there).")
+
+;; ====== DRAWING ======
+
+(defun agent-ui-slider--draw (props ctx)
+  "PROPS drawn as a slider, for CTX."
+  (let* ((width (plist-get ctx :width))
+         (min (plist-get props :min))
+         (max (plist-get props :max))
+         (value (agent-ui-slider--value props))
+         (answered (agent-ui-ask-answered-p props))
+         (moving (not (or answered (plist-get ctx :still))))
+         (low (agent-ui-format-number min))
+         (high (agent-ui-format-number max))
+         ;; The value's column as wide as its widest (it doesn't jump).
+         (shown-width (apply #'max (mapcar (lambda (v) (string-width (agent-ui-slider--shown props v)))
+                                           (list min max value))))
+         ;; The value after the track while the track keeps 5 columns; else
+         ;; on a line of its own above it; the ends left out too where the
+         ;; track still hasn't 5 (its line ran past the width, cut there:
+         ;; "… 1000000   300" read as 300).
+         (ends-width (+ 1 (string-width low) 1 1 (string-width high)))
+         (beside (>= (- width ends-width 3 shown-width) 5))
+         (ends (or beside (>= (- width ends-width) 5)))
+         (track-width (max 1 (cond (beside (- width ends-width 3 shown-width))
+                                   (ends (- width ends-width))
+                                   (t (- width 1)))))
+         (knob (round (* (1- track-width) (/ (float (- value min)) (- max min)))))
+         (track (apply #'concat
+                       (cl-loop for i below track-width
+                                collect (let ((char (cond ((= i knob) (propertize "●" 'face 'agent-ui-accent))
+                                                          ((< i knob) (propertize "━" 'face 'agent-ui-accent))
+                                                          (t (propertize "─" 'face 'agent-ui-muted)))))
+                                          (if moving
+                                              (let ((to (+ min (* (- max min) (/ (float i) (1- track-width))))))
+                                                (propertize char 'agent-ui-slide-to
+                                                            (lambda () (agent-ui-slider--set props ctx to))
+                                                            'mouse-face 'highlight))
+                                            char)))))
+         (shown (propertize (agent-ui-slider--shown props value) 'face 'bold))
+         (line (concat (if beside "" (concat " " (agent-ui-truncate shown (1- width)) "\n"))
+                       " " (if ends (concat (propertize low 'face 'agent-ui-muted) " ") "")
+                       track
+                       (if ends (concat " " (propertize high 'face 'agent-ui-muted)) "")
+                       (if beside (concat "   " shown) ""))))
+    (string-join
+     (append
+      ;; Its label wrapped (it was cut with …, its rest nowhere).
+      (and (plist-get props :label) (list (propertize (agent-ui-wrap (plist-get props :label) width) 'face 'bold)))
+      (list (if moving
+                (propertize line
+                            'keymap agent-ui-slider-track-map
+                            'agent-ui-slide (lambda (steps)
+                                              (agent-ui-slider--set props ctx (+ value (* steps (agent-ui-slider--step props)))))
+                            'help-echo "h / l: a step, H / L: ten, a click: there")
+              line))
+      (cond
+       (answered
+        (list (concat " " (propertize "✓ " 'face 'agent-ui-success)
+                      (propertize (concat "Set: " (agent-ui-slider--shown props value)) 'face 'agent-ui-muted))))
+       ((not moving) nil)
+       (t
+        (append
+         (list (propertize (concat " " (string-join (split-string (agent-ui-wrap "h / l move it (H / L ten steps), a click puts it there"
+                                                                                 (- width 1))
+                                                                   "\n")
+                                                     "\n "))
+                           'face 'agent-ui-muted))
+         (unless (plist-get props :live)
+           (list (agent-ui-button-row
+                  (list (agent-ui-button
+                         (propertize "⏵ Set" 'face 'agent-ui-action)
+                         (lambda ()
+                           (funcall agent-ui-action-function
+                                    (format "Answer to slider %s (%s): %s" (plist-get ctx :id)
+                                            (or (plist-get props :label) "value") (agent-ui-slider--shown props value))
+                                    t)
+                           (agent-ui-ask-change ctx (list :answered (agent-ui-slider--shown props value))))
+                         "RET: send the value"))
+                  width " ")))))))
+     "\n")))
+
+(agent-ui-define slider
+  "A number the user tunes in a range (a threshold, a timeout, how many to
+take): LABEL, MIN, MAX, STEP, UNIT, VALUE (where it starts). They move the
+knob and press Set: \"Answer to slider ID (LABEL): 42 ms\" comes into your
+prompt (at once). LIVE: each value, once the knob
+rests, comes as \"Slider ID (LABEL) set to 42 ms\", no Set: for something you
+redraw from it."
+  :props ((label string "What it sets")
+          (min number "Its lowest value" :required t)
+          (max number "Its highest value" :required t)
+          (step number "How much a step moves it (default 1)")
+          (unit string "Its unit, after the value (ms, %)")
+          (value number "Its value: where it starts, then the user's")
+          (live boolean "Send each value once the knob rests (no Set)" :default :false)
+          (answered string "The value set (then it can't be changed)"))
+  :example (:title "Before I retry"
+            :label "Timeout" :min 0 :max 120 :step 5 :unit "s" :value 30)
+  :check #'agent-ui-slider--check
+  :text #'agent-ui-slider--draw)
+
+
+(provide 'agent-ui-slider)
+
+;;; agent-ui-slider.el ends here

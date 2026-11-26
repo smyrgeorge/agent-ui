@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        emacs: ['29.4', '30.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The bug report's test reads the library's commit.
+          fetch-depth: 0
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs }}
+
+      - name: Dependencies
+        run: make deps
+
+      - name: Byte-compile (warnings are errors)
+        run: make compile && make clean
+
+      - name: package-lint
+        run: make package-lint
+
+      - name: checkdoc
+        run: make checkdoc
+
+      - name: Unit tests
+        run: make test
