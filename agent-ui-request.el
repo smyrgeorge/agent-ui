@@ -295,7 +295,8 @@ update, append: the id and the change; remove: the id)."
 
 (defvar-local agent-ui--reads nil
   "In a canvas: what each session read last, by its canvas's name.
-A hash table of a component's id to its hash.")
+A hash table of a component's id to a copy of its data, compared with
+`equal' (a hash such as `sxhash-equal' misses deep or late parts).")
 
 (defun agent-ui--get (id canvas)
   "Return the reply to get (see above): ID's component, or all of CANVAS's."
@@ -314,14 +315,14 @@ A hash table of a component's id to its hash.")
                        (push (cons reader table) agent-ui--reads)
                        table))))
          (shown (if changed
-                    (seq-remove (lambda (e) (equal (gethash (plist-get e :id) seen) (sxhash-equal e))) components)
+                    (seq-remove (lambda (e) (equal (gethash (plist-get e :id) seen) e)) components)
                   components))
          ;; Gone since the last read (all of them read: no ID).
          (gone (when (and changed (not (and id (not (string-empty-p id)))))
                  (seq-remove (lambda (old) (member old ids)) (hash-table-keys seen)))))
     ;; Remembered once read for good: not while its fetch runs (read again).
     (unless fetching
-      (dolist (e components) (puthash (plist-get e :id) (sxhash-equal e) seen))
+      (dolist (e components) (puthash (plist-get e :id) (copy-tree e t) seen))
       (dolist (old gone) (remhash old seen)))
     (append (list :ok t :canvas (agent-ui--canvas-label canvas))
             (when panel

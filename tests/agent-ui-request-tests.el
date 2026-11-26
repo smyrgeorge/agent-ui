@@ -87,6 +87,34 @@ gone."
     (agent-ui-test-aur-request "remove" "tests")
     (should (equal (plist-get (agent-ui-test-aur-request-with "get" nil "changed") :removed) '("tests")))))
 
+(ert-deftest agent-ui-request/get-changed-deep-or-late ()
+  "get --changed: a change deep or late in a component counts (an 8th
+step's status, a row past the 7th, a form's value inside a panel), not
+only what `sxhash-equal' sees."
+  (agent-ui-test-aur
+    (let ((steps (lambda (eighth)
+                   (json-encode `((id . "plan") (type . "steps")
+                                  (steps . ,(vconcat (mapcar (lambda (i)
+                                                               `((name . ,(format "Step %d" i))
+                                                                 (status . ,(if (= i 8) eighth "done"))))
+                                                             (number-sequence 1 10))))))))
+          (rows (lambda (tenth)
+                  (vconcat (mapcar (lambda (i) (vector (format "test %d" i) (if (= i 10) tenth "passed")))
+                                   (number-sequence 1 30))))))
+      (agent-ui-test-aur-request "show" nil (funcall steps "pending"))
+      (agent-ui-test-aur-request "show" nil (json-encode `((id . "tests") (type . "table") (columns . ["Test" "Result"])
+                                                           (rows . ,(funcall rows "running")))))
+      (agent-ui-test-aur-request "show" nil "{\"id\":\"box\",\"type\":\"panel\",\"children\":[{\"id\":\"ask\",\"type\":\"form\",\"question\":\"q\",\"fields\":[{\"name\":\"a\",\"value\":\"x\"}]}]}")
+      (agent-ui-test-aur-request-with "get" nil "changed")
+      (agent-ui-test-aur-request "show" nil (funcall steps "failed"))
+      (agent-ui-test-aur-request "update" "tests" (json-encode `((rows . ,(funcall rows "failed")))))
+      (agent-ui-test-aur-request "update" "ask" "{\"fields\":[{\"name\":\"a\",\"value\":\"y\"}]}")
+      (should (equal (mapcar (lambda (e) (plist-get e :id))
+                             (plist-get (agent-ui-test-aur-request-with "get" nil "changed") :components))
+                     '("plan" "tests" "box" "ask")))
+      ;; Read: nothing changed since.
+      (should-not (plist-get (agent-ui-test-aur-request-with "get" nil "changed") :components)))))
+
 
 (ert-deftest agent-ui-request/shown-though-its-pane-cant-open ()
   "Its canvas's pane can't open: shown all the same, the reply ok, saying
