@@ -44,6 +44,15 @@
 (setq native-comp-jit-compilation nil
       native-comp-enable-subr-trampolines nil)
 
+;; An Emacs built without SVG (or PNG, ...) images, as CI's is, refuses to
+;; make one ("Invalid image type"); in batch an image is only made, never
+;; shown: let the GUI's drawings be made, so their tests run there too.
+(require 'image)
+(advice-add 'image-type-available-p :around
+            (lambda (available type)
+              (or (funcall available type) (memq type '(svg png jpeg gif webp))))
+            '((name . agent-ui-test-images)))
+
 ;; No test sees the user's Agent UI session.
 (setenv "AGENT_UI_SESSION" nil)
 

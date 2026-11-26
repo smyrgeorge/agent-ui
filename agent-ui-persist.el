@@ -139,8 +139,11 @@ Its components, as JSON.  Returns the file, or nil."
   "Save at once, as the canvas closes, what's waiting (what's saved stays).
 A save failing is said, never stops it closing (nor its session)."
   (when (timerp agent-ui--persist-timer)
-    (with-demoted-errors "Agent UI: the canvas couldn't be saved: %S"
-      (agent-ui-persist-save (current-buffer)))))
+    ;; Not `with-demoted-errors': with `debug-on-error' on, it lets the
+    ;; error through, and the canvas stays open.
+    (condition-case err
+        (agent-ui-persist-save (current-buffer))
+      (error (message "Agent UI: the canvas couldn't be saved: %S" err)))))
 
 (add-hook 'agent-ui-changed-hook #'agent-ui--persist-later)
 (add-hook 'agent-ui-canvas-hook
