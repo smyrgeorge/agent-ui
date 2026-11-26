@@ -42,8 +42,10 @@
 ;; poll of git diff gives it), or the last N with tail.  When a command ends:
 ;; "done" (exit 0) or "failed" (else),
 ;; patches with $code; a progress bar is done or failed by itself.  A source
-;; stops when its component is removed or shown again, or its canvas closed;
-;; its log is deleted then.  One that can't run (its dir missing, a command
+;; stops when its component is removed or shown again, or its canvas closed: a
+;; command still running is killed, its log deleted; one that ended keeps its
+;; log (the agent reads it, its component closed by itself) until its canvas
+;; closes.  One that can't run (its dir missing, a command
 ;; failing to start) stops, its error said in its status (the component shown
 ;; all the same): it was an error out of the show after the component was in,
 ;; or a poll's timer failing every time, said running.
@@ -77,6 +79,10 @@
 
 (defvar-local agent-ui-source--states nil
   "In a canvas: its sources, by component id.")
+
+(defvar-local agent-ui-source--logs nil
+  "In a canvas: the logs of its ended commands whose components went.
+Kept for the agent to read, deleted with the canvas.")
 
 ;; ====== REGULAR EXPRESSIONS ======
 
@@ -478,7 +484,9 @@ All but the start of a character still being written."
 
 (defun agent-ui-source-stop (id)
   "Stop component ID's source, in the current canvas.
-Its log deleted (they stayed in the temporary folder, every command's)."
+A command that ended: its log kept until the canvas is killed (the agent
+was told to read it); one still running: killed, its log deleted (they
+stayed in the temporary folder, every command's)."
   (when-let* ((state (and agent-ui-source--states (gethash id agent-ui-source--states))))
     ;; No longer its source before its process ends: its sentinel, run
     ;; by `delete-process', would mark the component replacing it failed.
@@ -488,7 +496,18 @@ Its log deleted (they stayed in the temporary folder, every command's)."
     (when (timerp (agent-ui-source--state-timer state))
       (cancel-timer (agent-ui-source--state-timer state)))
     (when-let* ((log (agent-ui-source--state-log state)))
-      (ignore-errors (delete-file log)))))
+      (if (agent-ui-source--state-exit state)
+          (push log agent-ui-source--logs)
+        (ignore-errors (delete-file log))))))
+
+(defun agent-ui-source--closed ()
+  "The current canvas killed: its sources stopped, its commands' logs deleted."
+  (when agent-ui-source--states
+    (dolist (id (hash-table-keys agent-ui-source--states))
+      (agent-ui-source-stop id)))
+  (dolist (log agent-ui-source--logs)
+    (ignore-errors (delete-file log)))
+  (setq agent-ui-source--logs nil))
 
 (defun agent-ui-source--check-dir (state)
   "An error if STATE's command's directory isn't there."
@@ -506,7 +525,9 @@ stopped."
     (let ((state (agent-ui-source-check source))
           (canvas (current-buffer)))
       (unless agent-ui-source--states
-        (setq agent-ui-source--states (make-hash-table :test #'equal)))
+        (setq agent-ui-source--states (make-hash-table :test #'equal))
+        ;; After its components are stopped (`agent-ui--stop-timers').
+        (add-hook 'kill-buffer-hook #'agent-ui-source--closed 90 t))
       (unless (agent-ui-source--state-dir state)
         (setf (agent-ui-source--state-dir state) (file-name-as-directory default-directory)))
       (puthash id state agent-ui-source--states)

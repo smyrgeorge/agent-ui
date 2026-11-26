@@ -78,7 +78,9 @@ The work tree's changes, kept up to date:
   also gives the error of a change the component refused (a value that isn't a number, say), or why the source couldn't
   run.
 - When its `dir` is missing, or the command can't start, the component is shown without it, and `show`'s reply says so.
-- A source stops when its component is removed or shown again, or its canvas is closed. Its log is deleted then.
+- A source stops when its component is removed (or closes by itself, finished) or shown again, or its canvas is closed.
+  A command still running is killed and its log deleted. One that ended keeps its log, for the agent to read, until its
+  canvas is closed.
 - An update can't change a source; showing the component again does.
 - A canvas that comes back with its resumed session doesn't start its sources again, so a command isn't run twice.
 - A project panel's sources are its code: they don't start until you let the panel run

@@ -45,5 +45,6 @@ EOF
 `agent-ui list` says how each source goes: `running`, `exit`, `lines` read, its `log`, and the `error` of a change its
 rules made that the component refused (a value that isn't a number...), or why it couldn't run (its `dir` missing: the
 component is shown without it, the `show` reply's `source` says so). A source stops when its component is removed or
-shown again, or the session's canvas closes; its log is deleted then. To show progress from a script of your own, update the component from it
+shown again, or the session's canvas closes: a command still running is killed, its log deleted; one that ended
+keeps its log (a progress bar that closed itself too) until the canvas closes. To show progress from a script of your own, update the component from it
 (`agent-ui update ...` in its loop; `batch` for many at once).

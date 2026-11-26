@@ -335,32 +335,66 @@ added."
 
 (ert-deftest agent-ui-source/its-log-deleted-when-it-stops ()
   "A command's log: kept while its component is shown (for the agent to read),
-deleted when it's removed, shown again, its canvas killed (they stayed in
-the temporary folder)."
+and once it's removed if its command ended; one still running killed, its
+log deleted, when it's removed or shown again; all deleted with its canvas
+\(they stayed in the temporary folder)."
   (agent-ui-test-ausrc
     (cl-flet ((log-of (id) (plist-get (agent-ui-source-status id) :log)))
       (agent-ui-show '(:id "a" :type "text" :text "" :source (:command "echo a" :tail 1)))
       (agent-ui-test-ausrc-ended "a")
-      (let ((log (log-of "a")))
-        (should (file-exists-p log))
+      (let ((ended (log-of "a")))
+        (should (file-exists-p ended))
         (agent-ui-remove "a")
-        (should-not (file-exists-p log)))
-      (agent-ui-show '(:id "b" :type "text" :text "" :source (:command "echo b" :tail 1)))
-      (let ((log (log-of "b")))
-        (agent-ui-show '(:id "b" :type "text" :text "" :source (:command "echo again" :tail 1)))
-        (should-not (file-exists-p log))
-        (should (file-exists-p (log-of "b"))))
-      ;; A panel's child's too, with its canvas.
-      (agent-ui-show '(:id "p" :type "panel" :children ((:id "c" :type "text" :text "" :source (:command "echo c" :tail 1)))))
-      (let ((logs (list (log-of "b") (log-of "c"))))
-        (should (cl-every #'file-exists-p logs))
-        (kill-buffer canvas)
-        (should-not (cl-some #'file-exists-p logs))))))
+        (should (file-exists-p ended))
+        (agent-ui-show '(:id "r" :type "text" :text "" :source (:command "sleep 30" :tail 1)))
+        (let ((log (log-of "r")))
+          (agent-ui-remove "r")
+          (should-not (file-exists-p log)))
+        (agent-ui-show '(:id "b" :type "text" :text "" :source (:command "sleep 30" :tail 1)))
+        (let ((log (log-of "b")))
+          (agent-ui-show '(:id "b" :type "text" :text "" :source (:command "echo again" :tail 1)))
+          (should-not (file-exists-p log))
+          (should (file-exists-p (log-of "b"))))
+        ;; A panel's child's too, with its canvas; the ended one's kept till then.
+        (agent-ui-show '(:id "p" :type "panel" :children ((:id "c" :type "text" :text "" :source (:command "echo c" :tail 1)))))
+        (let ((logs (list ended (log-of "b") (log-of "c"))))
+          (should (cl-every #'file-exists-p logs))
+          (kill-buffer canvas)
+          (should-not (cl-some #'file-exists-p logs)))))))
+
+(ert-deftest agent-ui-source/a-finished-commands-log-kept-until-its-canvas-closes ()
+  "A progress bar's command that went well: its bar closes itself (its
+countdown over), its log kept (the agent was told to read it), deleted
+once its canvas is killed (doom-ht6.106)."
+  (let ((agent-ui-default-canvas (make-temp-name "source-"))
+        (agent-ui-display-function #'switch-to-buffer)
+        (agent-ui-close-finished 10)
+        (agent-ui-source-log-directory (file-name-as-directory (agent-ui-test-tmp-file "source-logs/"))))
+    (save-window-excursion
+      (delete-other-windows)
+      (let ((canvas (agent-ui-canvas)))
+        (switch-to-buffer canvas)
+        (unwind-protect
+            (progn
+              (agent-ui-show '(:id "keep" :type "text" :text "")) ; the canvas stays
+              (agent-ui-show '(:id "build" :type "progress" :source (:command "echo warning: x")))
+              (let ((log (plist-get (agent-ui-source-status "build") :log)))
+                (agent-ui-test-ausrc-ended "build")
+                (should (equal (plist-get (agent-ui-get "build") :status) "done"))
+                (dotimes (_ 10)
+                  (agent-ui--closing-tick canvas (buffer-local-value 'agent-ui--closing-timer canvas)))
+                (should-not (member "build" (buffer-local-value 'agent-ui--order canvas)))
+                (should (file-exists-p log))
+                (should (equal (with-temp-buffer (insert-file-contents log) (buffer-string))
+                               "warning: x\n"))
+                (kill-buffer canvas)
+                (should-not (file-exists-p log))))
+          (when (buffer-live-p canvas) (kill-buffer canvas)))))))
 
 (ert-deftest agent-ui-source/late-output-of-a-stopped-source-ignored ()
   "A command's output and end read after its source stopped (deleting
 another process reads what an exited one left: its log was written again,
-on Linux, once its canvas was killed): its log not made again, the
+on Linux, once its canvas was killed): its log not written again, the
 component's next source neither fed nor told it ended."
   (agent-ui-test-ausrc
     (agent-ui-show '(:id "b" :type "text" :text "" :source (:command "echo first" :tail 1)))
@@ -368,16 +402,21 @@ component's next source neither fed nor told it ended."
            (process (agent-ui-source--state-process first))
            (log (agent-ui-source--state-log first)))
       (agent-ui-test-ausrc-ended "b")
-      ;; Shown again: its first source stopped, its log deleted.
+      ;; Shown again: its first source stopped, its log (it ended) kept.
       (agent-ui-show '(:id "b" :type "text" :text "" :source (:command "sleep 30" :tail 1)))
-      (should-not (file-exists-p log))
+      (should (file-exists-p log))
       ;; The first command's output and end, read late.
       (funcall (process-filter process) process "late\n")
       (funcall (process-sentinel process) process "finished\n")
-      (should-not (file-exists-p log))
+      (should (equal (with-temp-buffer (insert-file-contents log) (buffer-string)) "first\n"))
       (should-not (string-match-p "late" (agent-ui-test-ausrc-text)))
       (should (eq (plist-get (agent-ui-source-status "b") :running) t))
-      (should-not (plist-get (agent-ui-source-status "b") :exit)))))
+      (should-not (plist-get (agent-ui-source-status "b") :exit))
+      ;; Its canvas killed: deleted, not made again.
+      (kill-buffer canvas)
+      (should-not (file-exists-p log))
+      (funcall (process-filter process) process "later\n")
+      (should-not (file-exists-p log)))))
 
 ;; ====== THROUGH THE COMMAND LINE ======
 
