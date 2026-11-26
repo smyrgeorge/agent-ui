@@ -774,9 +774,9 @@ goes well."
 
 
 (ert-deftest agent-ui-panels/a-trusted-project-s-panels-unasked ()
-  "Its project trusted (p): its panels run unasked, after a change too, a new
-one too; another project's still asked about; the projects trusted listed,
-one forgotten: its panels asked about again (doom-a3g)."
+  "Its project trusted (p, confirmed): its panels run unasked, after a change
+too, a new one too; another project's still asked about; the projects
+trusted listed, one forgotten: its panels asked about again (doom-a3g)."
   (agent-ui-test-aup `(("counted" . ,(agent-ui-test-aup-fixture "counted"))
                ("other" . ,(concat (agent-ui-test-aup-fixture "counted") ";; another\n")))
     (let* ((agent-ui-panel-trust-file (expand-file-name "trusted.eld" (make-temp-file "trust-" t)))
@@ -789,7 +789,8 @@ one forgotten: its panels asked about again (doom-a3g)."
                  (lambda (_prompt options &rest _)
                    (cl-incf asked)
                    (setq choices (mapcar #'car options))
-                   (list (pop answers)))))
+                   (list (pop answers))))
+                ((symbol-function 'yes-or-no-p) (lambda (_prompt) t)))
         (save-window-excursion
           (setq answers (list ?p))
           (let ((canvas (agent-ui-open-panel "counted")))
@@ -863,6 +864,11 @@ isn't run unasked.  Read again (r), the file as it is now asked about, run
                   (progn
                     (with-temp-file file (insert b))
                     (agent-ui-test-sleep 0.05)
+                    ;; Asked once the user selects it (doom-ht6.101).
+                    (should (= asked 0))
+                    (with-selected-window (get-buffer-window canvas)
+                      (agent-ui-panels--selected (selected-window))
+                      (agent-ui-test-sleep 0.05))
                     (should (= asked 2))
                     (should (equal viewed (list b)))
                     (should-not (agent-ui-panels--script panel))
@@ -887,10 +893,60 @@ isn't run unasked.  Read again (r), the file as it is now asked about, run
                   (progn
                     (with-temp-file file (insert b))
                     (agent-ui-test-sleep 0.05)
+                    (with-selected-window (get-buffer-window canvas)
+                      (agent-ui-panels--selected (selected-window))
+                      (agent-ui-test-sleep 0.05))
                     (should (= asked 1))
                     (should-not (agent-ui-panels--script panel))
                     (should-not agent-ui-test-aup-calls))
                 (kill-buffer canvas)))))))))
+
+(ert-deftest agent-ui-panels/asked-only-when-the-user-acts ()
+  "Opened by the agent (not selected), its code to be asked about: nothing
+asked from its timer (the user's next keys taken: \"please\", p, its project
+trusted), it waits, said on it; asked once the user selects it.  Its project
+trusted (p) only once confirmed with a yes typed, not a key (doom-ht6.101)."
+  (agent-ui-test-aup `(("counted" . ,(agent-ui-test-aup-fixture "counted")))
+    (let* ((agent-ui-panel-trust-file (expand-file-name "trusted.eld" (make-temp-file "trust-" t)))
+           (agent-ui-panel-allow-function #'agent-ui-panels--allowed-p)
+           (file (agent-ui-panel-file "counted"))
+           (answers nil) (asked 0) (confirmed nil))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (&rest _) (cl-incf asked) (list (pop answers))))
+                ((symbol-function 'yes-or-no-p)
+                 (lambda (prompt) (push (list prompt use-short-answers) confirmed) nil)))
+        (save-window-excursion
+          (delete-other-windows)
+          (setq agent-ui-test-aup-calls nil answers (list ?p ?y))
+          (let* ((canvas (agent-ui-open-panel "counted" nil t))
+                 (panel (buffer-local-value 'agent-ui-panels--state canvas)))
+            (unwind-protect
+                (progn
+                  (agent-ui-test-sleep 0.05)
+                  (should (= asked 0))
+                  (should-not (agent-ui-panels--script panel))
+                  (should (string-match-p "waiting for permission" (agent-ui-panels--error panel)))
+                  (should (string-match-p "waiting for permission" (agent-ui-test-aup-status canvas)))
+                  ;; Selected (its window-selection-change-functions, which
+                  ;; batch Emacs's missing redisplay doesn't run): asked.
+                  (should (memq #'agent-ui-panels--selected
+                                (buffer-local-value 'window-selection-change-functions canvas)))
+                  (select-window (get-buffer-window canvas))
+                  (agent-ui-panels--selected (selected-window))
+                  (agent-ui-test-sleep 0.05)
+                  ;; p, not confirmed: its project not trusted, asked again; y.
+                  (should (= asked 2))
+                  (should (equal (mapcar #'cadr confirmed) '(nil)))
+                  (should-not (agent-ui-panel-project-trusted-p root))
+                  (should (agent-ui-panel-trusted-p file))
+                  (should (agent-ui-panels--script panel))
+                  (should (memq 'start agent-ui-test-aup-calls))
+                  (should-not (agent-ui-panels--error panel))
+                  ;; Selected again: not asked.
+                  (agent-ui-panels--selected (selected-window))
+                  (agent-ui-test-sleep 0.05)
+                  (should (= asked 2)))
+              (kill-buffer canvas))))))))
 
 ;; ====== THE AGENT AND PANELS ======
 

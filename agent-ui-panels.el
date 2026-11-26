@@ -311,7 +311,10 @@ its fetches' timer, its commands running, its last error."
   ;; last all ended, its data in (a query can take longer than its :every).
   fetched settled
   ;; The sha256 of its file as read: the code it runs, the one let run.
-  sha256)
+  sha256
+  ;; Its file's form, while its code waits to be asked about (opened by an
+  ;; agent): asked once the user selects it.
+  waiting)
 
 (defvar-local agent-ui-panels--state nil
   "In a project panel's canvas: the panel (an `agent-ui-panels--state').")
@@ -453,11 +456,11 @@ above)."
   "Open panel NAME of DIR's project.
 DIR defaults to the current buffer's; NAME ending .el: a file.  Its :ui is
 drawn in a canvas of its own, in its pane, selected (NOSELECT: shown only,
-its code started a moment later, after the agent's request is answered:
-asking to let it, if it must, then; HERE: in the selected window instead,
-`agent-ui-open-panel-here').  Open already: its pane shown (HERE: shown
-here).  Interactively, the project's panels to pick from.  Returns its
-canvas."
+its code started a moment later, after the agent's request is answered; to
+be asked about, it waits, said on it, until the user selects it; HERE: in
+the selected window instead, `agent-ui-open-panel-here').  Open already:
+its pane shown (HERE: shown here).  Interactively, the project's panels to
+pick from.  Returns its canvas."
   (interactive (list (agent-ui-panels--read-name)))
   (let* ((file (agent-ui-panel-file name dir))
          (root (or (agent-ui-panel-root (file-name-directory file))
@@ -483,7 +486,8 @@ canvas."
                 ;; (agent-ui-canvas.el, A LONE PANEL'S TITLE).
                 agent-ui-canvas-name (plist-get read :name))
           (add-hook 'kill-buffer-hook #'agent-ui-panels--closed nil t)
-          (add-hook 'window-buffer-change-functions #'agent-ui-panels--shown nil t))
+          (add-hook 'window-buffer-change-functions #'agent-ui-panels--shown nil t)
+          (add-hook 'window-selection-change-functions #'agent-ui-panels--selected nil t))
         (condition-case err
             ;; Its components' sources (commands) not started yet: they're
             ;; its code too, run once it's allowed to.
@@ -492,7 +496,7 @@ canvas."
                  (signal (car err) (cdr err))))
         (if noselect
             (progn (funcall agent-ui-panel-display-function canvas)
-                   (run-with-timer 0 nil #'agent-ui-panels--start panel (plist-get read :form)))
+                   (run-with-timer 0 nil #'agent-ui-panels--start panel (plist-get read :form) t))
           (if here (switch-to-buffer canvas) (pop-to-buffer canvas))
           (agent-ui-panels--start panel (plist-get read :form)))
         (with-current-buffer canvas
@@ -530,7 +534,13 @@ It is as `agent-ui-open-panel' does, but not in a pane of its own."
 (defvar agent-ui-panel-allow-function #'agent-ui-panels--allowed-p
   "Function that says whether a panel's code may run.
 Called with a panel (an `agent-ui-panels--state') whose code (its script,
-its components' sources) is to run: non-nil lets it.")
+its components' sources) is to run: non-nil lets it.  With
+`agent-ui-panel-may-ask' nil, it asks nothing: nil, the panel waits.")
+
+(defvar agent-ui-panel-may-ask t
+  "Non-nil if the user may be asked now to let a panel's code run.
+Nil while it starts from a timer, opened by an agent: a question then would
+take the keys the user is typing elsewhere.")
 
 ;; ====== TRUSTING ONE ======
 ;; A panel's file comes from a repository and runs as Emacs itself: before
@@ -538,11 +548,14 @@ its components' sources) is to run: non-nil lets it.")
 ;; file first, or not now); run, it's remembered by its file's content
 ;; (sha256), in `agent-ui-panel-trust-file': asked again once it changes.  Not
 ;; now: drawn, nothing run, said on it; r asks again.
-;; Its project trusted (p): every panel of the project runs without asking,
-;; whatever its file becomes (a panel being built, an agent editing it, asked
-;; about after each change), remembered by its root in the same file: the
-;; project's code trusted, the scripts its panels run too (which a panel's
-;; content never covered).  M-x agent-ui-panel-forget-project lists the
+;; Opened by an agent (not selected), it isn't asked from a timer (the keys
+;; the user types elsewhere would answer): it waits, said on it, asked once
+;; the user selects it (or r).
+;; Its project trusted (p, confirmed with a yes typed): every panel of the
+;; project runs without asking, whatever its file becomes (a panel being
+;; built, an agent editing it, asked about after each change), remembered by
+;; its root in the same file: the project's code trusted, the scripts its
+;; panels run too (which a panel's content never covered).  M-x agent-ui-panel-forget-project lists the
 ;; projects trusted and forgets one: its panels asked about again.
 
 (defcustom agent-ui-panel-trust-file (locate-user-emacs-file "agent-ui/trusted-panels.eld")
@@ -656,34 +669,40 @@ content, still run).  Interactively, the projects trusted to pick from."
 
 (defun agent-ui-panels--allowed-p (panel)
   "Whether PANEL's code may run: its project trusted, or its file as read;
-else the user asked (it view-ed first if they say), a yes remembered: for
-the file, or for its whole project.  Its code is the file as it was read:
-changed since (an agent editing it while it's asked), a yes for the file
-lets nothing run, remembers nothing."
+else the user asked, if they may be (`agent-ui-panel-may-ask'; it view-ed
+first if they say), a yes remembered: for the file, or for its whole
+project (confirmed: a yes typed, a stray key can't give it).  Its code is
+the file as it was read: changed since (an agent editing it while it's
+asked), a yes for the file lets nothing run, remembers nothing."
   (let ((file (agent-ui-panels--file panel))
         (root (agent-ui-panels--root panel))
         (hash (agent-ui-panels--sha256 panel)))
     (or (agent-ui-panel-project-trusted-p root)
         (agent-ui-panel-trusted-p file hash)
-        (let ((answer nil))
-          (while (not answer)
-            (pcase (car (read-multiple-choice
-                         (format "Panel %s runs code from %s, as Emacs itself (its commands too). Run it?"
-                                 (agent-ui-panels--name panel) (abbreviate-file-name file))
-                         `((?y "run it" "Let its code run, remembered until its file changes")
-                           (?p "trust the project"
-                               ,(format "Let all of %s's panels run, whatever they become (M-x agent-ui-panel-forget-project undoes it)"
-                                        (abbreviate-file-name root)))
-                           (?v "view it" "Its file first, read-only; asked again after")
-                           (?n "not now" "Drawn, nothing run (r asks again)"))))
-              (?y (setq answer (if (agent-ui-panels--changed-p panel)
-                                   'no
-                                 (agent-ui-panel-trust file hash)
-                                 'yes)))
-              (?p (agent-ui-panel-trust-project root) (setq answer 'yes))
-              (?v (view-file-other-window file))
-              (_ (setq answer 'no))))
-          (eq answer 'yes)))))
+        (and agent-ui-panel-may-ask
+             (let ((answer nil))
+               (while (not answer)
+                 (pcase (car (read-multiple-choice
+                              (format "Panel %s runs code from %s, as Emacs itself (its commands too). Run it?"
+                                      (agent-ui-panels--name panel) (abbreviate-file-name file))
+                              `((?y "run it" "Let its code run, remembered until its file changes")
+                                (?p "trust the project"
+                                    ,(format "Let all of %s's panels run, whatever they become (M-x agent-ui-panel-forget-project undoes it)"
+                                             (abbreviate-file-name root)))
+                                (?v "view it" "Its file first, read-only; asked again after")
+                                (?n "not now" "Drawn, nothing run (r asks again)"))))
+                   (?y (setq answer (if (agent-ui-panels--changed-p panel)
+                                        'no
+                                      (agent-ui-panel-trust file hash)
+                                      'yes)))
+                   (?p (when (let ((use-short-answers nil))
+                               (yes-or-no-p (format "Trust all of %s's panels, whatever their files become? "
+                                                    (abbreviate-file-name root))))
+                         (agent-ui-panel-trust-project root)
+                         (setq answer 'yes)))
+                   (?v (view-file-other-window file))
+                   (_ (setq answer 'no))))
+               (eq answer 'yes))))))
 
 (defun agent-ui-panels--changed-p (panel)
   "Whether PANEL's file changed since it was read (or is gone)."
@@ -819,21 +838,29 @@ an error of it kept and said.  Non-nil if it went well."
   "Non-nil if PANEL's canvas buffer is live."
   (buffer-live-p (agent-ui-panels--canvas panel)))
 
-(defun agent-ui-panels--start (panel form)
+(defun agent-ui-panels--start (panel form &optional unasked)
   "PANEL's code started, if it has some and it's allowed.
 FORM (its file's) evaluated, its :ui drawn again with its sources, :start,
 :fetch now and every :every seconds.  Closed before (opened without being
 selected: started a moment later), nothing asked: a panel closed at once
 was asked about, its question come out of nowhere.  Closed while it asks,
-nothing run."
+nothing run.  UNASKED (opened by an agent, from a timer): the user not
+asked; to be, it waits, said on it, until they select it."
+  (setf (agent-ui-panels--waiting panel) nil)
   (when (and (agent-ui-panels--live-p panel)
              (agent-ui-panels--code-p form (agent-ui-panels--ui panel))
-             (or (funcall agent-ui-panel-allow-function panel)
-                 (agent-ui-panels--failed panel "its code"
-                                          (if (agent-ui-panels--changed-p panel)
-                                              "not run, its file changed since it was read: r reads it again"
-                                            "not run, not let: r asks again")))
+             (or (let ((agent-ui-panel-may-ask (and agent-ui-panel-may-ask (not unasked))))
+                   (funcall agent-ui-panel-allow-function panel))
+                 (if unasked
+                     (progn (setf (agent-ui-panels--waiting panel) form)
+                            (agent-ui-panels--failed panel "its code"
+                                                     "waiting for permission: select it (or r) to be asked"))
+                   (agent-ui-panels--failed panel "its code"
+                                            (if (agent-ui-panels--changed-p panel)
+                                                "not run, its file changed since it was read: r reads it again"
+                                              "not run, not let: r asks again"))))
              (agent-ui-panels--live-p panel))
+    (agent-ui-panels--well panel "its code")
     (let ((script (condition-case err
                       (let ((default-directory (agent-ui-panels--root panel)))
                         (eval form t))
@@ -921,6 +948,22 @@ a fetch missed while it was hidden, done."
               ((agent-ui-panels--stale panel))
               ((agent-ui-panels--script panel)))
     (run-with-timer 0 nil #'agent-ui-panels--fetch panel)))
+
+(defun agent-ui-panels--selected (window)
+  "A panel's code waiting, asked about once WINDOW, showing it, is selected.
+Its canvas's `window-selection-change-functions': WINDOW selected or left."
+  (when-let* ((buffer (window-buffer window))
+              (panel (buffer-local-value 'agent-ui-panels--state buffer))
+              ((agent-ui-panels--waiting panel))
+              ((eq window (selected-window))))
+    (run-with-timer 0 nil #'agent-ui-panels--ask panel)))
+
+(defun agent-ui-panels--ask (panel)
+  "PANEL's code, waiting, asked about, if its canvas is still selected."
+  (when (and (agent-ui-panels--waiting panel)
+             (agent-ui-panels--live-p panel)
+             (eq (window-buffer (selected-window)) (agent-ui-panels--canvas panel)))
+    (agent-ui-panels--start panel (agent-ui-panels--waiting panel))))
 
 (defun agent-ui-panels--stop (panel)
   "PANEL's timer stopped, its commands killed, its :stop called."

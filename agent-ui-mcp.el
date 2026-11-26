@@ -141,7 +141,7 @@ nil if it can't be reached."
                            :required ["title" "description"]))
       (list :name "panels" :description "The project's panels (PROJECT/.agent-ui/panels/NAME.el, kept in its repository, opened on demand, their data fetched afresh): their names, which are open. See the agent-ui skill's references/panels.md."
             :inputSchema '(:type "object"))
-      (list :name "open" :description "Open one of the project's panels in the user's Emacs, in a pane of its own (open already: shown). Its code, if the user hasn't let it run yet, is asked for then (the reply's trusted). The other tools work on it with their panel argument."
+      (list :name "open" :description "Open one of the project's panels in the user's Emacs, in a pane of its own (open already: shown). Its code, if the user hasn't let it run yet, waits until they select the panel and are asked (the reply's trusted). The other tools work on it with their panel argument."
             :inputSchema '(:type "object"
                            :properties (:name (:type "string" :description "The panel's name"))
                            :required ["name"]))

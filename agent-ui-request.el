@@ -225,8 +225,8 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
      (let* ((canvas (agent-ui-open-panel id agent-ui--request-cwd t))
             (file (agent-ui-panels--file (buffer-local-value 'agent-ui-panels--state canvas))))
        (list :ok t :panel id :canvas (buffer-name canvas)
-             ;; Not: the user is asked to let its code run, now (a panel
-             ;; with no code: nothing to ask).
+             ;; Not: the user is asked to let its code run, once they
+             ;; select it (a panel with no code: nothing to ask).
              :trusted (if (or (agent-ui-panel-trusted-p file)
                               (let ((read (agent-ui-panel-read file)))
                                 (not (agent-ui-panels--code-p (plist-get read :form) (plist-get read :ui)))))

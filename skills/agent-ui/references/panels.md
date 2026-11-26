@@ -79,8 +79,8 @@ buffers, `project-current`, `vc`, flymake's diagnostics). Define nothing global:
 ## Opening it, working on it
 
 `agent-ui panels` lists the project's panels (and which are open); `agent-ui open NAME` opens one in the user's Emacs,
-in its own pane (the MCP tools `panels` and `open`). Its reply's `trusted` false: the user is being asked to let its
-code run, the file as it was read: don't edit it meanwhile (changed, nothing runs until they press `r`). `--panel NAME` (the tools' `panel`) makes any operation work on an open panel: `agent-ui list --panel
+in its own pane (the MCP tools `panels` and `open`). Its reply's `trusted` false: the user will be asked to let its
+code run once they select it (it waits till then, said on it), the file as it was read: don't edit it meanwhile (changed, nothing runs until they press `r`). `--panel NAME` (the tools' `panel`) makes any operation work on an open panel: `agent-ui list --panel
 service`, `agent-ui get --panel service`. Its components' buttons (`actions`) put their prompt into the
 project's agent session, the latest. The user can also save a component of a canvas as a panel (`S`): its file
 written with the component as it was first shown and an empty `:fetch`, for you to fill in.

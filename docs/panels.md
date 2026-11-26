@@ -73,7 +73,7 @@ A panel's code runs as Emacs itself, and comes from a repository. So before it f
 | Key | What it does |
 |---|---|
 | `y` | Run it. |
-| `p` | Trust the project: all its panels run without asking. |
+| `p` | Trust the project: all its panels run without asking (once you confirm it with `yes`). |
 | `v` | View its file first, read-only, then be asked again. |
 | `n` | Not now: it's drawn, nothing runs, and it says so (`r` asks again). |
 
@@ -124,8 +124,9 @@ state (its buffers, `project-current`, `vc`, Flymake's diagnostics) can be read 
 
 - The agent lists the panels (`agent-ui panels`), opens one for you (`agent-ui open NAME`), and works on an open one
   with `--panel NAME` on any operation. With MCP, that's the tools `panels` and `open`, and the `panel` argument.
-- `agent-ui open NAME` shows its window without selecting it. If its code must be asked about, you're asked then, and
-  the reply's `trusted` is false.
+- `agent-ui open NAME` shows its window without selecting it. If its code must be asked about, you aren't asked
+  while you're typing elsewhere: it waits, and says so on the panel, until you select it (or press `r` there). The
+  reply's `trusted` is false.
 - The agent reads what a panel shows with `agent-ui get --panel NAME`, as data. A panel you aren't looking at fetches
   nothing; reading it fetches it first when its data is older than its `:every`, and the command waits for its queries
   (`AGENT_UI_WAIT` seconds at most, 10 by default).
