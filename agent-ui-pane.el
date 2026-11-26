@@ -273,10 +273,13 @@ SESSION)...), each session's first window only."
 
 (defun agent-ui--pane-session-window (session)
   "The window holding SESSION's Agent UI, or nil if it's in none.
-It is the selected frame's first, else another visible frame's."
-  (seq-find #'agent-ui--pane-session-p
-            (append (get-buffer-window-list session 'nomini nil)
-                    (get-buffer-window-list session 'nomini 'visible))))
+It is the selected frame's first in order, the one its sync lays it out
+under (see `agent-ui--pane-session-windows'), else another visible
+frame's.  Not the selected one first: its timers would move its views
+under another of its windows, its sync back, without end."
+  (seq-some (lambda (frame)
+              (car (car (agent-ui--pane-session-windows frame (list session)))))
+            (cons (selected-frame) (delq (selected-frame) (visible-frame-list)))))
 
 (defvar-local agent-ui-pane-view-of nil
   "In a buffer shown in a view's window in place of its canvas: that canvas.
@@ -950,12 +953,15 @@ out again if that's better by more than half a line; once."
   "SESSION's Agent UI, in WINDOW's pane, planned again for its views now.
 It is laid out again if their columns don't fit the pane, if it has room
 for more of them than it shows (some left out, see THE LAYOUT), or a
-layout better by more than half a line does.  Non-nil if it was."
+layout better by more than half a line does.  Non-nil if it was.  Only
+if it is in place there (see `agent-ui--pane-in-place-p'): else it's
+sync's to lay out."
   (let* ((views (agent-ui--pane-views session))
          (shown (buffer-local-value 'agent-ui--pane-plan session))
          (index (lambda (view) (seq-position views view)))
          (now (mapcar (lambda (column) (mapcar index column)) shown)))
-    (when (and now (not (seq-some (lambda (column) (memq nil column)) now)))
+    (when (and now (not (seq-some (lambda (column) (memq nil column)) now))
+               (agent-ui--pane-in-place-p window (agent-ui--pane-cells (window-frame window) session)))
       (let* ((lines (mapcar (lambda (view) (agent-ui--pane-view-lines view window)) views))
              (widths (mapcar #'agent-ui--pane-view-width views))
              (area (window-next-sibling window))

@@ -407,6 +407,48 @@ Agent UI in it."
       (let ((cell (car (agent-ui--pane-cells (selected-frame)))))
         (should (eq (window-next-sibling (frame-first-window)) cell))))))
 
+(ert-deftest agent-ui-pane/a-session-in-two-windows-its-views-stay ()
+  "The session in two windows of different widths, the second selected: its
+views under the first, fitted and planned again there, not laid out anew
+at each round (they moved under the second, sync made them again under
+the first, without end).  Views 20 columns at least: one column under the
+first's 30, two would fit under the second's 50."
+  (let ((agent-ui-grid-min-width 20))
+    (agent-ui-test-aupn
+      (let* ((first (selected-window))
+             (second (split-window first 30 'right))
+             (under-first (lambda ()
+                            (and (eq (window-buffer (frame-first-window)) session)
+                                 (agent-ui--pane-in-place-p
+                                  (frame-first-window) (agent-ui--pane-cells (selected-frame) session)))))
+             (rebuilt 0))
+        (set-window-buffer second session)
+        (select-window second)
+        (agent-ui-test-aupn-show name)
+        (agent-ui-test-aupn-show (agent-ui-sub-canvas name "tests"))
+        (agent-ui--pane-sync)
+        (should (funcall under-first))
+        (advice-add 'agent-ui--pane-attach :after (lambda (&rest _) (cl-incf rebuilt)) '((name . test-rebuilt)))
+        (unwind-protect
+            (dotimes (_ 3)
+              (cl-pushnew session agent-ui--pane-to-fit)
+              (agent-ui--pane-fit-now)
+              (should (funcall under-first))
+              (cl-pushnew session agent-ui--pane-to-replan)
+              (agent-ui--pane-replan-now)
+              (should (funcall under-first))
+              (agent-ui--pane-sync)
+              (should (funcall under-first)))
+          (advice-remove 'agent-ui--pane-attach 'test-rebuilt)
+          (when (timerp agent-ui--pane-fit-timer)
+            (cancel-timer agent-ui--pane-fit-timer))
+          (when (timerp agent-ui--pane-resize-timer)
+            (cancel-timer agent-ui--pane-resize-timer))
+          (setq agent-ui--pane-fit-timer nil agent-ui--pane-resize-timer nil
+                agent-ui--pane-to-fit nil agent-ui--pane-to-replan nil))
+        ;; Planned again once settled, at most: not at each round.
+        (should (<= rebuilt 1))))))
+
 (ert-deftest agent-ui-pane/a-view-window-of-no-canvas-left-alone ()
   "A window marked as a view but showing no canvas (a workspace's windows
 made again at startup, its buffers gone): a window like any again, kept."
