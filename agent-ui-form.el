@@ -276,9 +276,13 @@ when it was opened in a window of its own.")
 \\{agent-ui-form-keys-mode-map}"
   (agent-ui-form-keys-mode 1))
 
-(defun agent-ui-form--buffer-name (id)
-  "Name of the buffer of form ID."
-  (format "*Agent UI form: %s*" id))
+(defun agent-ui-form--buffer-name (canvas id)
+  "Name of the buffer of form ID of CANVAS.
+Its canvas's name in it: two canvases' forms of the same id (two
+sessions') each in a buffer of its own."
+  (format "*Agent UI form: %s · %s*"
+          (or (buffer-local-value 'agent-ui--canvas-name canvas) (buffer-name canvas))
+          id))
 
 (defun agent-ui-form--set-value (canvas id name value)
   "Set field NAME to VALUE, typed, in form ID on CANVAS.
@@ -310,11 +314,11 @@ longest option."
                                           (plist-get field :options)))))
     (_ 10)))
 
-(defun agent-ui-form--width (id)
-  "Return the columns form ID's buffer is laid out in.
+(defun agent-ui-form--width (canvas id)
+  "Return the columns form ID of CANVAS's buffer is laid out in.
 Its window's, less one (a line as wide wraps in a terminal); 79
 while it's in none."
-  (let ((window (get-buffer-window (agent-ui-form--buffer-name id) t)))
+  (let ((window (get-buffer-window (agent-ui-form--buffer-name canvas id) t)))
     (max 20 (1- (if window (window-width window) 80)))))
 
 (defun agent-ui-form--input (canvas id field value &optional width)
@@ -357,7 +361,7 @@ Its changes go to form ID on CANVAS."
   ;; field after its label while they all fit there (a text field
   ;; narrowed), else under it; no input wider than the window; its
   ;; texts wrapped.
-  (let* ((width (agent-ui-form--width id))
+  (let* ((width (agent-ui-form--width canvas id))
          (label-width (apply #'max 0 (mapcar (lambda (f) (string-width (agent-ui-form--label f))) fields)))
          (hint-width (lambda (f) (let ((hint (agent-ui-form--hint f)))
                                    (if (string-empty-p hint) 0 (+ 2 (string-width hint))))))
@@ -408,7 +412,7 @@ Its changes go to form ID on CANVAS."
   "Open form ID of CANVAS in a buffer of its own, selected; again: that one."
   (let* ((component (agent-ui-get id :canvas canvas))
          (props (agent-ui-check "form" component))
-         (name (agent-ui-form--buffer-name id))
+         (name (agent-ui-form--buffer-name canvas id))
          (open (get-buffer name)))
     (when (agent-ui-ask-answered-p props)
       (user-error "This form is answered"))

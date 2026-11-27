@@ -77,9 +77,9 @@ form's buffer; what's sent in `sent'."
        (save-window-excursion
          (with-current-buffer canvas (agent-ui-test-aue-press "⏵ Fill in"))
          (unwind-protect
-             (with-current-buffer "*Agent UI form: ticket*" ,@body)
-           (when (get-buffer "*Agent UI form: ticket*")
-             (kill-buffer "*Agent UI form: ticket*")))))))
+             (with-current-buffer (agent-ui-form--buffer-name canvas "ticket") ,@body)
+           (when (get-buffer (agent-ui-form--buffer-name canvas "ticket"))
+             (kill-buffer (agent-ui-form--buffer-name canvas "ticket"))))))))
 
 (defun agent-ui-test-aue-type (name text)
   "TEXT typed into the form's field NAME (in place of what's there); vui's
@@ -124,7 +124,7 @@ form answered on the canvas, its buffer gone."
     (agent-ui-test-aue-type "priority" "3")
     (agent-ui-form-send)
     (should (equal sent '(("Answer to form ticket (What should it say?): {\"title\":\"Fix the parser\",\"priority\":3,\"type\":null,\"blocking\":false}" t))))
-    (should-not (get-buffer "*Agent UI form: ticket*"))
+    (should-not (get-buffer (agent-ui-form--buffer-name canvas "ticket")))
     (with-current-buffer canvas
       (agent-ui--flush)
       (should (string-search " Priority  3\n Type      —\n Blocking  no\n ✓ Sent" (buffer-string)))
@@ -149,7 +149,7 @@ field under its label, no wider than the window."
           (let ((display-buffer-overriding-action '(display-buffer-same-window)))
             (agent-ui-form-open canvas "ticket"))
           (unwind-protect
-              (with-current-buffer "*Agent UI form: ticket*"
+              (with-current-buffer (agent-ui-form--buffer-name canvas "ticket")
                 (agent-ui-test-aue-settle)
                 (should (eq (get-buffer-window) window))
                 (dolist (line (split-string (buffer-string) "\n"))
@@ -160,7 +160,7 @@ field under its label, no wider than the window."
                 ;; Each field still typed into.
                 (agent-ui-test-aue-type "title" "Fix the parser")
                 (should (equal (plist-get (agent-ui-get "ticket" :canvas canvas) :values) '(:title "Fix the parser"))))
-            (kill-buffer "*Agent UI form: ticket*")))))))
+            (kill-buffer (agent-ui-form--buffer-name canvas "ticket"))))))))
 
 ;; In its canvas's window: the form takes the canvas's place there (its view
 ;; in a session's pane still the canvas's), and gives it back when it's
@@ -183,7 +183,7 @@ field under its label, no wider than the window."
               (agent-ui-show (append '(:id "ticket") agent-ui-test-aue-ticket))
               (dolist (finish '(cancel send))
                 (with-current-buffer canvas (agent-ui-test-aue-press "⏵ Fill in"))
-                (let ((form (get-buffer "*Agent UI form: ticket*")))
+                (let ((form (get-buffer (agent-ui-form--buffer-name canvas "ticket"))))
                   (should form)
                   ;; In the canvas's window, selected; no other window made.
                   (should (eq (window-buffer canvas-window) form))
@@ -212,15 +212,51 @@ field under its label, no wider than the window."
   (agent-ui-test-aue-form
     (agent-ui-test-aue-type "title" "Half a title")
     (agent-ui-form-cancel)
-    (should-not (get-buffer "*Agent UI form: ticket*"))
+    (should-not (get-buffer (agent-ui-form--buffer-name canvas "ticket")))
     (should-not sent)
     (with-current-buffer canvas
       (agent-ui--flush)
       (should (string-search " Title     Half a title" (buffer-string)))
       (agent-ui-test-aue-press "⏵ Fill in"))
-    (with-current-buffer "*Agent UI form: ticket*"
+    (with-current-buffer (agent-ui-form--buffer-name canvas "ticket")
       (should (equal (widget-value (seq-find (lambda (w) (equal (widget-get w :vui-key) "title")) widget-field-list))
                      "Half a title")))))
+
+;; doom-ht6.112
+(ert-deftest agent-ui-components/form-buffer-its-canvas-own ()
+  "Two canvases' forms of the same id: each in a buffer of its own, bound
+to its canvas, each answer sent from its own canvas (they shared one: the
+second opened over the first, its answer the only one, from the wrong
+canvas)."
+  (agent-ui-test-aue-canvas
+    (let* ((sent nil)
+           (agent-ui-action-function (lambda (prompt _submit) (push (cons (current-buffer) prompt) sent)))
+           (other (let ((agent-ui-default-canvas (make-temp-name "form-")))
+                    (agent-ui-show '(:id "first" :type "text" :text "x"))
+                    (agent-ui-canvas)))
+           (forms nil))
+      (unwind-protect
+          (save-window-excursion
+            (dolist (c (list canvas other))
+              (agent-ui-show (append '(:id "ticket") agent-ui-test-aue-ticket) :canvas c)
+              (with-current-buffer c (agent-ui-test-aue-press "⏵ Fill in"))
+              (push (window-buffer (selected-window)) forms))
+            (setq forms (nreverse forms))
+            (should-not (eq (nth 0 forms) (nth 1 forms)))
+            (should (cl-every #'buffer-live-p forms))
+            (should (eq (buffer-local-value 'agent-ui-form--canvas (nth 0 forms)) canvas))
+            (should (eq (buffer-local-value 'agent-ui-form--canvas (nth 1 forms)) other))
+            ;; The other's sent first, then the first's: each from its canvas.
+            (dolist (case (list (list (nth 1 forms) other "Other's") (list (nth 0 forms) canvas "First's")))
+              (with-current-buffer (nth 0 case)
+                (agent-ui-test-aue-type "title" (nth 2 case))
+                (agent-ui-form-send))
+              (should (eq (caar sent) (nth 1 case)))
+              (should (string-search (format "\"title\":\"%s\"" (nth 2 case)) (cdar sent)))
+              (should (plist-get (agent-ui-get "ticket" :canvas (nth 1 case)) :answered)))
+            (should (= (length sent) 2)))
+        (mapc (lambda (b) (when (buffer-live-p b) (kill-buffer b))) forms)
+        (kill-buffer other)))))
 
 ;; doom-0ej
 (ert-deftest agent-ui-components/form-slider-image-texts-read-whole ()

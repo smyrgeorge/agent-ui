@@ -803,7 +803,7 @@ cancelled, its canvas back in that window, selected."
         (search-forward "Fill in")
         (goto-char (match-beginning 0))
         (agent-ui-button-press))
-      (let ((form (get-buffer "*Agent UI form: f*")))
+      (let ((form (get-buffer (agent-ui-form--buffer-name (agent-ui-test-aupn-canvas name "ask") "f"))))
         (should (eq (window-buffer (selected-window)) form))
         (set-window-point (selected-window) (with-current-buffer form (1- (point-max))))
         (let ((place (window-point (selected-window))))
