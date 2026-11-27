@@ -53,11 +53,14 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'map)
 (require 'seq)
 (require 'subr-x)
-;; First: it loads nothing else, so it's there when the rest fails to load.
-(require 'agent-ui-doctor)
+;; First, the doctor: there when the rest fails to load (it loads nothing
+;; else), loaded when it's run.
+(autoload 'agent-ui-doctor "agent-ui-doctor"
+  "Check what Agent UI needs in this Emacs, and show what's missing." t)
+(autoload 'agent-ui-doctor-request "agent-ui-doctor"
+  "Answer bin/agent-ui doctor's request in FOLDER: its reply written there.")
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 (require 'agent-ui-request)
@@ -67,16 +70,27 @@
 (require 'agent-ui-ask)
 (require 'agent-ui-components)
 (require 'agent-ui-finished)
-(require 'agent-ui-staging)
-(require 'agent-ui-review)
 (require 'agent-ui-source)
+;; Loaded with it: its options are bound by a user's code (`let'), which a
+;; file loaded later would see as lexical.
 (require 'agent-ui-dashboards)
-(require 'agent-ui-snapshot)
-(require 'agent-ui-bug)
+
+;; Loaded when first used, not with Agent UI: snapshots and PDFs
+;; (agent-ui-snapshot.el), bugs (agent-ui-bug.el), the types the agent
+;; makes (agent-ui-staging.el, agent-ui-review.el), each a request's
+;; operation too (agent-ui-request.el) and the canvas's keys
+;; (agent-ui-canvas.el).
+(autoload 'agent-ui-open-link "agent-ui-snapshot"
+  "Open URL, an agent-ui:// link.")
+(autoload 'agent-ui-load-kept "agent-ui-staging"
+  "Load the types the user kept (`agent-ui-kept-directory').")
 
 (defvar agent-shell-mcp-servers)
 (defvar agent-shell--state)
 (defvar browse-url-handlers)
+;; agent-shell's, loaded with it: only called in its sessions.
+(declare-function map-elt "map" (map key &optional default testfn))
+(declare-function map-nested-elt "map" (map keys &optional default))
 (declare-function agent-shell-cwd "agent-shell-project")
 
 ;; ====== OPTIONS ======
@@ -196,7 +210,13 @@ sessions; the canvas's views follow their session's pane."
         (agent-ui--command-executable)
         (unless agent-ui--kept-loaded
           (setq agent-ui--kept-loaded t)
-          (agent-ui-load-kept)))
+          ;; agent-ui-staging.el loaded only when there are any.
+          (when (agent-ui--type-files agent-ui-kept-directory)
+            (agent-ui-load-kept)))
+        ;; Types the agent made, waiting for the user: their header on
+        ;; each canvas, their list (agent-ui-review.el).
+        (when (agent-ui--type-files agent-ui-staging-directory)
+          (require 'agent-ui-review)))
     (advice-remove 'agent-shell--make-acp-client #'agent-ui--client-environment-a)
     (advice-remove 'agent-shell--system-prompt #'agent-ui--system-prompt-a)
     (remove-hook 'agent-shell-mode-hook #'agent-ui--watch-questions-h)

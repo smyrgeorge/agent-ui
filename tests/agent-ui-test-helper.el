@@ -87,6 +87,10 @@
 ;; Every type's file, loaded when first used otherwise: not while a test
 ;; has `agent-ui--types' bound to a copy (the type would be in it only).
 (agent-ui-load-types)
+;; The parts loaded when first used too: not while a test fakes one of
+;; their functions (loaded then, it would replace it).
+(dolist (part '(agent-ui-doctor agent-ui-staging agent-ui-review agent-ui-snapshot agent-ui-bug))
+  (require part))
 (agent-ui-mode 1)
 
 ;; ====== TOOLS ======

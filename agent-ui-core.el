@@ -105,6 +105,22 @@ shown with (it goes when that's answered: agent-ui-agent.el).")
 The directory a `file' property's relative name is in (nil: the current
 buffer's): while a request is answered, the agent's.")
 
+(defcustom agent-ui-staging-directory (locate-user-emacs-file "agent-ui/staged/")
+  "Where the types the agent made wait for the user's review.
+Here, not in agent-ui-staging.el: `agent-ui-mode' looks in it without
+loading that (agent-ui.el)."
+  :type 'directory :group 'agent-ui)
+
+(defcustom agent-ui-kept-directory (locate-user-emacs-file "agent-ui/kept/")
+  "Where the types the user kept are.
+Loaded at each start (`agent-ui-load-kept'), when there are any."
+  :type 'directory :group 'agent-ui)
+
+(defun agent-ui--type-files (directory)
+  "The type files in DIRECTORY (NAME.el), nil if none or no DIRECTORY."
+  (and (file-directory-p directory)
+       (directory-files directory t "\\`[a-z][a-z0-9-]*\\.el\\'")))
+
 (defconst agent-ui--kinds '(string number integer boolean list any file)
   "The kinds of property, with (choice SYMBOL...).")
 

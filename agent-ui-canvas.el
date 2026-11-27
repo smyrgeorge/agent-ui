@@ -198,6 +198,16 @@ Its commands are its parts' (quoted: defined in the files after this one)."
   "E" 'agent-ui-export-pdf
   "u" 'agent-ui-pane-toggle)
 
+;; Those of the parts loaded only when first used (agent-ui.el).
+(autoload 'agent-ui-send-component "agent-ui-snapshot"
+  "Put the component at point into the prompt of the canvas's session." t)
+(autoload 'agent-ui-export-pdf "agent-ui-snapshot"
+  "CANVAS (the one here), as it shows now, saved as a PDF." t)
+(autoload 'agent-ui-report-bug "agent-ui-bug"
+  "Report a bug in Agent UI." t)
+(autoload 'agent-ui-review "agent-ui-review"
+  "List the component types the agent made, to keep or discard." t)
+
 (define-derived-mode agent-ui-canvas-mode special-mode "Agent UI"
   "What a coding agent shows: its components, updated as they change.
 
@@ -1100,6 +1110,43 @@ else the child of ENTRY's panel.  An error if none."
       (if-let* ((owner (and key (agent-ui--owner key))))
           (cons owner (agent-ui--find-child (agent-ui--entry-component owner) (agent-ui--key-id key)))
         (agent-ui--entry id)))))
+
+;; ====== WHERE A COMPONENT IS ======
+
+(defun agent-ui--component-at-point ()
+  "Return the key of the component at point, in a canvas.
+Its id; in a section, SECTION/ID: a panel's child's, if it's in one."
+  (let ((top (or (get-text-property (point) 'agent-ui-id)
+                 (and (not (bobp)) (get-text-property (1- (point)) 'agent-ui-id))))
+        (child (get-text-property (point) 'agent-ui-child)))
+    (cond (child (agent-ui--key child (agent-ui--key-section top)))
+          (top)
+          (t (user-error "No component here")))))
+
+(defun agent-ui--component-start (canvas id)
+  "Return where the component of key ID starts in CANVAS, or nil.
+A panel's child: its text's first character."
+  (with-current-buffer canvas
+    (when-let* ((found (let ((agent-ui--in-section nil))
+                         (ignore-error agent-ui-error (agent-ui--resolve id))))
+                (start (marker-position (agent-ui--entry-start (car found)))))
+      (if (not (cdr found))
+          start
+        (let ((child (plist-get (cdr found) :id))
+              (end (marker-position (agent-ui--entry-end (car found))))
+              (pos start))
+          (while (and (< pos end) (not (equal (get-text-property pos 'agent-ui-child) child)))
+            (setq pos (next-single-property-change pos 'agent-ui-child nil end)))
+          (and (< pos end) pos))))))
+
+;; Its link, agent-ui://canvas/NAME#ID, in the agent's reply ([the build](...)):
+;; a link agent-shell draws, and opens with `browse-url' (its handler:
+;; `agent-ui-open-link', agent-ui-snapshot.el).
+
+(defun agent-ui-link (canvas &optional id)
+  "The link to CANVAS (its name) and, with ID, to its component ID."
+  (concat "agent-ui://canvas/" (url-hexify-string canvas)
+          (if id (concat "#" (url-hexify-string id)) "")))
 
 (defun agent-ui--children-started (component &optional section)
   "COMPONENT's descendants shown (in SECTION).

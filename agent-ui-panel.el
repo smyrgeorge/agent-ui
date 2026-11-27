@@ -58,6 +58,8 @@
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 (require 'agent-ui-chart)
+;; Its frames in a graphical frame: an SVG, drawn as a snapshot's.
+(require 'agent-ui-snapshot)
 
 (defcustom agent-ui-panel-depth 6
   "How deep panels may nest."
@@ -124,7 +126,6 @@ ids seen."
       (agent-ui--fail "panel: weights are a positive number for each child (%d)" (length children))))
   props)
 
-(declare-function agent-ui-snapshot--svg-size "agent-ui-snapshot")
 (declare-function image-size "ext:image.c")
 ;; Only in an Emacs built for graphical frames: called after display-graphic-p.
 (declare-function imagep "ext:image.c")

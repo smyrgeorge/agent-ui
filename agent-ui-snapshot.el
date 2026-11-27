@@ -425,7 +425,6 @@ Returns (:file FILE :markdown \"![TITLE](FILE)\")."
 (defvar agent-ui-pdf-program "rsvg-convert"
   "The program making a canvas's SVG a PDF (librsvg's).")
 
-(defvar agent-ui-dashboards--state)
 (declare-function agent-ui-dashboard-pdf-file "agent-ui-dashboards")
 (declare-function agent-ui-dashboards--name "agent-ui-dashboards" (cl-x) t)
 
@@ -491,16 +490,6 @@ See `agent-ui-pdf-file' for where.  Returns its file."
 
 ;; ====== INTO THE PROMPT ======
 
-(defun agent-ui--component-at-point ()
-  "Return the key of the component at point, in a canvas.
-Its id; in a section, SECTION/ID: a panel's child's, if it's in one."
-  (let ((top (or (get-text-property (point) 'agent-ui-id)
-                 (and (not (bobp)) (get-text-property (1- (point)) 'agent-ui-id))))
-        (child (get-text-property (point) 'agent-ui-child)))
-    (cond (child (agent-ui--key child (agent-ui--key-section top)))
-          (top)
-          (t (user-error "No component here")))))
-
 (defun agent-ui-component-as-text (id &optional canvas)
   "Component ID of CANVAS as the agent reads it in a prompt."
   (let ((component (agent-ui-get id :canvas canvas)))
@@ -528,11 +517,6 @@ As text the agent reads."
 ;; agent-ui://canvas/NAME#ID, in the agent's reply ([the build](...)): a
 ;; link agent-shell draws, and opens with `browse-url'; its handler here shows
 ;; the canvas's pane, selected, the cursor on component ID.
-
-(defun agent-ui-link (canvas &optional id)
-  "The link to CANVAS (its name) and, with ID, to its component ID."
-  (concat "agent-ui://canvas/" (url-hexify-string canvas)
-          (if id (concat "#" (url-hexify-string id)) "")))
 
 (defun agent-ui-open-link (url &rest _)
   "Open URL, an agent-ui:// link (see LINKS above).
@@ -563,22 +547,6 @@ Its canvas's pane shown and selected, the cursor on its component.  A
               (set-window-point window pos)
               (set-window-start window (save-excursion (goto-char pos) (line-beginning-position)))))))
       canvas)))
-
-(defun agent-ui--component-start (canvas id)
-  "Return where the component of key ID starts in CANVAS, or nil.
-A panel's child: its text's first character."
-  (with-current-buffer canvas
-    (when-let* ((found (let ((agent-ui--in-section nil))
-                         (ignore-error agent-ui-error (agent-ui--resolve id))))
-                (start (marker-position (agent-ui--entry-start (car found)))))
-      (if (not (cdr found))
-          start
-        (let ((child (plist-get (cdr found) :id))
-              (end (marker-position (agent-ui--entry-end (car found))))
-              (pos start))
-          (while (and (< pos end) (not (equal (get-text-property pos 'agent-ui-child) child)))
-            (setq pos (next-single-property-change pos 'agent-ui-child nil end)))
-          (and (< pos end) pos))))))
 
 ;; In `browse-url-handlers', by `agent-ui-mode' (agent-ui.el).
 

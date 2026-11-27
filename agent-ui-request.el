@@ -46,9 +46,12 @@
 (require 'subr-x)
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
-(require 'agent-ui-doctor)
+;; The doctor, snapshots, bugs and the types the agent makes: each loaded
+;; by the operation asking for it, not with Agent UI (agent-ui.el).
 
 (declare-function agent-ui-bug-reply "agent-ui-bug")
+(declare-function agent-ui-doctor-reply "agent-ui-doctor")
+(declare-function agent-ui-ansi "agent-ui-snapshot")
 (declare-function agent-ui-open-dashboard "agent-ui-dashboards")
 (declare-function agent-ui-dashboard-canvas "agent-ui-dashboards")
 (declare-function agent-ui-dashboard-check "agent-ui-dashboards")
@@ -158,9 +161,8 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
               (log (plist-get source :log))
               (hidden (buffer-local-value 'agent-ui--hidden (agent-ui--buffer canvas))))
          (append (list :ok t :id id)
-                 ;; A link to it, for the agent's reply (agent-ui-snapshot.el).
-                 (when (fboundp 'agent-ui-link)
-                   (list :link (agent-ui-link (agent-ui--canvas-label canvas) id)))
+                 ;; A link to it, for the agent's reply.
+                 (list :link (agent-ui-link (agent-ui--canvas-label canvas) id))
                  (when log (list :log log))
                  ;; Shown, its source not run (its dir missing): why.
                  (when (plist-get source :error) (list :source source))
@@ -212,10 +214,12 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
                                      :width (if window (agent-ui-window-columns window)
                                               agent-ui-default-width)))))
          ;; --ansi: in its faces' colours, for a terminal.
-         (list :ok t :text (if (and (member "ansi" agent-ui--request-options) (fboundp 'agent-ui-ansi))
-                               (agent-ui-ansi text)
+         (list :ok t :text (if (member "ansi" agent-ui--request-options)
+                               (progn (require 'agent-ui-snapshot)
+                                      (agent-ui-ansi text))
                              (substring-no-properties text))))))
     ("snapshot"
+     (require 'agent-ui-snapshot)
      (append (list :ok t)
              (agent-ui-snapshot (agent-ui--need-id op id) :canvas canvas :directory agent-ui--request-cwd)))
     ;; The project's dashboards (agent-ui-dashboards.el): which, opening one.
@@ -250,11 +254,15 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
      (agent-ui-dashboard-check (agent-ui-dashboard-file id agent-ui--request-cwd)))
     ;; What Agent UI needs, checked (agent-ui-doctor.el): bin/agent-ui asks
     ;; `agent-ui-doctor-request' itself, with its own checks.
-    ("doctor" (agent-ui-doctor-reply))
+    ("doctor"
+     (require 'agent-ui-doctor)
+     (agent-ui-doctor-reply))
     ;; A bug in Agent UI itself, filed in its own issues (agent-ui-bug.el).
     ("bug"
+     (require 'agent-ui-bug)
      (agent-ui-bug-reply (agent-ui--payload-object payload "bug") canvas))
     ("define"
+     (require 'agent-ui-staging)
      (unless (and (stringp payload) (not (string-empty-p (string-trim payload))))
        (agent-ui--fail "define: give a type's code (a file, or on stdin)"))
      (append (list :ok t) (agent-ui-stage payload agent-ui--request-canvas)))

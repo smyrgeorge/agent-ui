@@ -43,6 +43,23 @@ there before (a key of the canvas's)."
                          (seq-filter (lambda (entry) (featurep (cdr entry))) agent-ui--type-features)))
                  '(nil nil 30 t t ((text . agent-ui-text))))))
 
+(ert-deftest agent-ui-components/parts-loaded-when-used ()
+  "Agent UI loaded, its mode on, doesn't load what only some sessions use
+(each file ~8 ms of Emacs's start): the doctor, snapshots, bugs, the
+types the agent makes (none kept, none waiting), lisp-mnt and map.  Their
+commands are there, and the doctor's answer; a show's reply still links
+to its component."
+  (should (equal (agent-ui-test-fresh
+                  '(list (seq-filter #'featurep '(agent-ui-doctor agent-ui-staging agent-ui-review
+                                                  agent-ui-snapshot agent-ui-bug lisp-mnt map))
+                         (seq-every-p #'commandp '(agent-ui-doctor agent-ui-review agent-ui-report-bug
+                                                   agent-ui-open-dashboard agent-ui-open-dashboard-here
+                                                   agent-ui-export-pdf agent-ui-send-component
+                                                   agent-ui-dashboard-reload agent-ui-save-dashboard))
+                         (fboundp 'agent-ui-doctor-request)
+                         (agent-ui-link "a b" "c")))
+                 '(nil t t "agent-ui://canvas/a%20b#c"))))
+
 ;; doom-ht6.29
 (ert-deftest agent-ui-components/no-issues-board ()
   "The issues board is gone (Beads' own list shows the same): an issues

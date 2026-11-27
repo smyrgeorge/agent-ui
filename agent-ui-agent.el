@@ -45,7 +45,6 @@
 (require 'agent-ui-canvas)
 (require 'agent-ui-request)
 
-(declare-function agent-ui--component-start "agent-ui-snapshot")
 (declare-function agent-ui-ask-done-p "agent-ui-ask")
 (declare-function agent-ui-ask-waiting-p "agent-ui-ask")
 

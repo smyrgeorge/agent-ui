@@ -49,9 +49,7 @@
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 (require 'agent-ui-persist)
-(require 'agent-ui-staging)
 
-(declare-function agent-ui-pdf-unique-file "agent-ui-snapshot")
 (declare-function nerd-icons-mdicon "ext:nerd-icons")
 (declare-function project-root "project")
 
@@ -255,6 +253,8 @@ level, a lambda's body isn't looked at (its warnings unsaid)."
               (insert-file-contents file))
             (goto-char (point-max))
             (insert "\n)\n"))
+          ;; The types the agent makes' compiler (loaded when first used).
+          (require 'agent-ui-staging)
           (agent-ui--byte-compile temp 2 (format "dashboard %s" name)))
       (delete-file temp))))
 
@@ -285,6 +285,7 @@ Returns (:ok t :dashboard NAME :file FILE :type TYPE :every N :warnings [...]
                     "compiling runs its macros, and its code isn't trusted yet: compiled once the user lets it run")))))
 
 (declare-function agent-ui--byte-compile "agent-ui-staging")
+(declare-function agent-ui-pdf-unique-file "agent-ui-snapshot")
 
 ;; ====== OPENING ONE ======
 ;; On demand: a canvas of its own (no session's), named after the dashboard and
@@ -1056,6 +1057,7 @@ it, it goes on as it was."
   "Where DASHBOARD's PDF goes now, beside its file.
 It is NAME-YYYYMMDD-HHMMSS.pdf (another in the same second:
 NAME-...-2.pdf)."
+  (require 'agent-ui-snapshot)
   (let ((file (agent-ui-dashboards--file dashboard)))
     (agent-ui-pdf-unique-file (file-name-base file) (file-name-directory file))))
 
@@ -1228,7 +1230,6 @@ one), trusted (the user made it)."
              name (abbreviate-file-name file))
     file))
 
-(declare-function agent-ui--component-at-point "agent-ui-snapshot")
 
 
 (provide 'agent-ui-dashboards)

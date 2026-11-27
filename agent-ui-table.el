@@ -636,7 +636,6 @@ buttons where they were), nothing sorts them, and all are drawn."
 
 ;; ====== SORTING IN THE CANVAS ======
 
-(declare-function agent-ui--component-at-point "agent-ui-snapshot")
 
 (defun agent-ui-table-sort ()
   "Sort the table at point by the column at point; again, the other way.

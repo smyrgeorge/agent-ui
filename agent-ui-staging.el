@@ -48,15 +48,6 @@
 
 ;; ====== VARIABLES ======
 
-(defcustom agent-ui-staging-directory (locate-user-emacs-file "agent-ui/staged/")
-  "Where the types the agent made wait for the user's review."
-  :type 'directory :group 'agent-ui)
-
-(defcustom agent-ui-kept-directory (locate-user-emacs-file "agent-ui/kept/")
-  "Where the types the user kept are.
-Loaded at each start (`agent-ui-load-kept')."
-  :type 'directory :group 'agent-ui)
-
 (defcustom agent-ui-staging-requires '(cl-lib subr-x seq map pcase rx svg)
   "What a type the agent made may `require'."
   :type '(repeat symbol) :group 'agent-ui)
@@ -90,20 +81,18 @@ nil).  agent-ui-agent.el puts TEXT into that session's prompt.")
 
 (defun agent-ui-staged-files ()
   "The staged types' files, newest first: none is loaded before it's kept."
-  (when (file-directory-p agent-ui-staging-directory)
-    (sort (directory-files agent-ui-staging-directory t "\\`[a-z][a-z0-9-]*\\.el\\'")
-          (lambda (a b) (time-less-p (file-attribute-modification-time (file-attributes b))
-                                     (file-attribute-modification-time (file-attributes a)))))))
+  (sort (agent-ui--type-files agent-ui-staging-directory)
+        (lambda (a b) (time-less-p (file-attribute-modification-time (file-attributes b))
+                                   (file-attribute-modification-time (file-attributes a))))))
 
 (defun agent-ui-load-kept ()
   "Load the types the user kept (`agent-ui-kept-directory').
 One that fails to load is said, the others go on."
-  (when (file-directory-p agent-ui-kept-directory)
-    (dolist (file (directory-files agent-ui-kept-directory t "\\`[a-z][a-z0-9-]*\\.el\\'"))
-      (condition-case err
-          (load file nil t)
-        (error (message "Agent UI: the kept type %s doesn't load: %s"
-                        (file-name-base file) (error-message-string err)))))))
+  (dolist (file (agent-ui--type-files agent-ui-kept-directory))
+    (condition-case err
+        (load file nil t)
+      (error (message "Agent UI: the kept type %s doesn't load: %s"
+                      (file-name-base file) (error-message-string err))))))
 
 ;; ====== CHECKING THE CODE ======
 
@@ -219,6 +208,8 @@ then nothing of it stays."
       (let ((coding-system-for-write 'utf-8))
         (write-region (agent-ui--staged-text name code) nil file nil 'silent))
       (puthash name canvas agent-ui--staged-by)
+      ;; Its review's list and the canvases' header: told by this hook.
+      (require 'agent-ui-review)
       (run-hook-with-args 'agent-ui-staged-functions name)
       (list :type (symbol-name name) :file file :status "waiting"
             :note (concat "Waiting for the user's review: nothing of it runs before they keep it. "

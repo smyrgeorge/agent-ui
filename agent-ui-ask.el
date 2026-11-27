@@ -522,7 +522,6 @@ it (empty: removed)."
                (comments (plist-get props :comments)))
     (agent-ui-ask-change (list :id id) (list :comments (append (seq-take comments index) (nthcdr (1+ index) comments))))))
 
-(declare-function agent-ui--component-at-point "agent-ui-snapshot")
 
 
 (provide 'agent-ui-ask)
