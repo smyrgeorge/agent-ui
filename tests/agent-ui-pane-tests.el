@@ -992,4 +992,23 @@ rebuilt again a second later."
           (agent-ui--pane-sync)
           (should (> changes 0)))))))
 
+;; doom-ht6.154
+(ert-deftest agent-ui-pane/a-views-bar-says-its-title ()
+  "A view's bar says the title the agent gave its canvas: the session's
+own (it said Canvas) and another (it said its name); taken back, as before."
+  (agent-ui-test-aupn
+    (agent-ui-test-aupn-show name)
+    (agent-ui-test-aupn-show name "y")
+    (agent-ui-test-aupn-show (agent-ui-sub-canvas name "tests"))
+    (pcase-let ((`(,a ,b) (agent-ui--pane-cells (selected-frame))))
+      (should (equal (agent-ui-test-aupn-bar a) " Canvas"))
+      (should (equal (agent-ui-test-aupn-bar b) " tests"))
+      (agent-ui-set-title "Demo" :canvas name)
+      (agent-ui-set-title "Suite 100%" :canvas (agent-ui-sub-canvas name "tests"))
+      (should (equal (agent-ui-test-aupn-bar a) " Demo"))
+      ;; A % in it, shown as it is.
+      (should (equal (agent-ui-test-aupn-bar b) " Suite 100%%"))
+      (agent-ui-set-title nil :canvas name)
+      (should (equal (agent-ui-test-aupn-bar a) " Canvas")))))
+
 ;;; agent-ui-pane-tests.el ends here

@@ -666,9 +666,10 @@ windows, column by column, top to bottom."
 ;; ====== ITS WINDOWS ======
 
 (defun agent-ui-pane-view-name (view)
-  "VIEW's name: the title of the lone panel it shows (`agent-ui-canvas-title':
-not drawn on it then), else its part's (\"tests\"), a dashboard's, else Canvas
-\(the session's own canvas: Agent UI is the bar's under the views)."
+  "VIEW's name, on its bar: its title, its part's, a dashboard's, or Canvas.
+Its title is `agent-ui-canvas-title' (the lone panel it shows, not drawn
+on it then, or the one an agent gave it); its part's \"tests\"; Canvas,
+the session's own canvas (Agent UI is the bar's under the views)."
   (or (agent-ui-canvas-title view)
       (buffer-local-value 'agent-ui--canvas-part view)
       (and (boundp 'agent-ui-dashboards--state)

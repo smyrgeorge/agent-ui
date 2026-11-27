@@ -42,14 +42,15 @@ agent-ui update ID JSON       # change some of its properties; null puts one bac
 agent-ui append ID JSON       # add to its lists: a table's rows, a checklist's steps, a todo's items
 agent-ui remove ID            # remove it
 agent-ui clear                # remove every component
+agent-ui title TITLE          # its title, on its pane's bar
 agent-ui list                 # the canvas's components: ids and types
 agent-ui get [ID] [--changed] # its components as data: how to read a dashboard
 agent-ui types [TYPE]         # the types, their properties, an example each
 agent-ui batch JSON           # several operations at once: [{"op":"show",...}, {"op":"update","id":...,...}]
-agent-ui render JSON          # a component drawn as text, as the canvas would (nothing shown): {"ok":true,"text":...}
+agent-ui render JSON          # a component drawn as text, as the canvas would (nothing shown)
                               # --ansi first: in its colours, to print in a terminal
 agent-ui define FILE          # a type of your own (references/custom-types.md), from FILE or stdin
-agent-ui snapshot ID          # the component as an image, for your reply: {"file":..., "markdown":"![...](...)"}
+agent-ui snapshot ID          # the component as an image, for your reply
 agent-ui bug JSON             # a bug in Agent UI itself, filed in its own issues (references/bugs.md)
 agent-ui dashboards           # the project's dashboards, kept in its repo (references/dashboards.md)
 agent-ui open NAME            # one opened for the user; --dashboard NAME: any operation on it

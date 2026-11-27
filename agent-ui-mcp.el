@@ -115,6 +115,10 @@ nil if it can't be reached."
             :inputSchema (list :type "object" :properties (list :id id) :required ["id"]))
       (list :name "clear" :description "Remove every component of the canvas."
             :inputSchema '(:type "object"))
+      (list :name "title" :description "Give the canvas a title: its pane's bar and its tab say it, whatever it shows (a lone panel with a title: that title, as ever). For a canvas holding several things, which its bar would only call Canvas, or its name. \"\" takes it away; clearing the canvas too."
+            :inputSchema '(:type "object"
+                           :properties (:title (:type "string" :description "The title (\"\": none)"))
+                           :required ["title"]))
       (list :name "list" :description "The canvas's components: ids, types, their sources' state."
             :inputSchema '(:type "object"))
       (list :name "get" :description "What the canvas (or an open dashboard: its dashboard argument) shows, as data: its components, or one, with their properties and values. Read dashboards so, never by a snapshot. changed: only those changed since your last read (and removed: those gone). A dashboard's reply says when it last fetched; one hidden with old data is fetched first."
@@ -128,7 +132,7 @@ nil if it can't be reached."
                                :required ["component"]))
       (list :name "snapshot" :description "A component as an image (SVG) in .agent-shell/images/: the reply's markdown, put in your reply, shows it in the conversation."
             :inputSchema (list :type "object" :properties (list :id id) :required ["id"]))
-      (list :name "batch" :description "Several operations at once: [{\"op\": \"show\", ...component}, {\"op\": \"update\", \"id\": ..., ...patch}, {\"op\": \"append\", ...}, {\"op\": \"remove\", \"id\": ...}]."
+      (list :name "batch" :description "Several operations at once: [{\"op\": \"show\", ...component}, {\"op\": \"update\", \"id\": ..., ...patch}, {\"op\": \"append\", ...}, {\"op\": \"remove\", \"id\": ...}, {\"op\": \"title\", \"title\": ...}]."
             :inputSchema '(:type "object" :properties (:operations (:type "array" :items (:type "object")))
                            :required ["operations"]))
       (list :name "bug" :description "A bug in Agent UI itself (a wrong drawing, an error, a property missing), filed in its own issues, not this project's: ask the user first, then carry on with a workaround. Its title and description; what you expected and the workaround used; the component on the canvas showing it (its JSON and drawing go with it); a repro, a component with neutral data showing it (drawn as text). Replies with the issue; a similar open bug gets the report as a note (new: true files it anyway). Not filed (no issues set up): the reply's report, written, for the user to report by hand."
@@ -204,6 +208,8 @@ reply if it said nothing readable)."
                    ("doctor" (list "doctor"))
                    ("open" (list "open" (or (arg :name) "")))
                    ("clear" (list "clear"))
+                   ;; None: none given, the command's usage error.
+                   ("title" (cons "title" (let ((title (arg :title))) (and (stringp title) (list title)))))
                    ("list" (list "list"))
                    ("get" (append (list "get") (and (arg :id) (list (arg :id)))
                                   (and (eq (arg :changed) t) (list "--changed"))))

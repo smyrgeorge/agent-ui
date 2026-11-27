@@ -556,4 +556,47 @@ it again) (doom-ht6.146)."
       (should (string-match-p "--timeout=120 " (nth 0 runs)))
       (should (string-match-p "--timeout=30 " (nth 1 runs))))))
 
+;; doom-ht6.154
+(ert-deftest agent-ui-request/a-title ()
+  "title: {\"title\": TEXT}, the reply with the title it has now (none:
+none); \"\" or null takes it back; get says it; in a batch, on another
+canvas too; without one, an error."
+  (agent-ui-test-aur
+    (agent-ui-show '(:id "a" :type "text" :text "a"))
+    (should (equal (agent-ui-test-aur-request "title" nil "{\"title\":\"Demo\"}") '(:ok t :title "Demo")))
+    (should (equal (agent-ui-canvas-title canvas) "Demo"))
+    (should (equal (plist-get (agent-ui-test-aur-request "get") :title) "Demo"))
+    (should (equal (agent-ui-test-aur-request "title" nil "{\"title\":null}") '(:ok t)))
+    (should-not (plist-member (agent-ui-test-aur-request "get") :title))
+    (should (string-match-p "give {\"title\": TEXT}"
+                            (plist-get (agent-ui-test-aur-request "title" nil "{}") :error)))
+    (should (string-match-p "give a title, text"
+                            (plist-get (agent-ui-test-aur-request "title" nil "{\"title\":3}") :error)))
+    (let ((reply (agent-ui-test-aur-request "batch" nil "[{\"op\":\"title\",\"title\":\"B\"},{\"op\":\"title\",\"title\":\"T\",\"canvas\":\"tests\"}]"))
+          (tests (concat agent-ui-default-canvas " / tests")))
+      (unwind-protect
+          (progn
+            (should (equal (plist-get reply :results) '((:ok t :title "B") (:ok t :title "T"))))
+            (should (equal (agent-ui-canvas-title canvas) "B"))
+            (should (equal (agent-ui-canvas-title (get-buffer (agent-ui-canvas-buffer-name tests))) "T"))
+            (should (equal (agent-ui-test-aur-request-in "tests" "title" nil "{\"title\":\"\"}") '(:ok t)))
+            (should-not (agent-ui-canvas-title (get-buffer (agent-ui-canvas-buffer-name tests)))))
+        (when (get-buffer (agent-ui-canvas-buffer-name tests))
+          (kill-buffer (agent-ui-canvas-buffer-name tests)))))))
+
+(ert-deftest agent-ui-request/the-script-gives-a-title ()
+  "agent-ui title TITLE: as JSON to Emacs, whatever it holds; one argument."
+  (agent-ui-test-aur
+    (agent-ui-test-aur-with-server
+      (agent-ui-show '(:id "a" :type "text" :text "a"))
+      (should (equal (agent-ui-test-aur-run '("title" "A \"run\" \\ 1\t2"))
+                     '(0 . "{\"ok\":true,\"title\":\"A \\\"run\\\" \\\\ 1\\t2\"}")))
+      (should (equal (agent-ui-canvas-title canvas) "A \"run\" \\ 1\t2"))
+      (should (equal (agent-ui-test-aur-run '("title" "")) '(0 . "{\"ok\":true}")))
+      (should-not (agent-ui-canvas-title canvas))
+      (dolist (args '(("title") ("title" "a" "b")))
+        (let ((run (agent-ui-test-aur-run args)))
+          (should (= (car run) 2))
+          (should (string-match-p "agent-ui title TITLE" (cdr run))))))))
+
 ;;; agent-ui-request-tests.el ends here

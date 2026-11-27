@@ -12,6 +12,7 @@ agent-ui update build '{"value":5,"label":"linking"}'
 agent-ui append tests '{"rows":[["lexer","passed","0.4s"]]}'
 agent-ui remove build
 agent-ui clear                 # remove every component of the canvas
+agent-ui title "Release v2.4"  # the canvas's title, on its pane's bar and its tab
 agent-ui list                  # the canvas's components: ids, types, their sources' state
 agent-ui get [ID] [--changed]  # what it shows, as data
 agent-ui types [TYPE]          # the catalog: each type, its properties, an example
@@ -34,6 +35,7 @@ agent-ui doctor                # what Agent UI needs, checked
 | `append` | `ID [JSON]` | Adds to a component's lists. |
 | `remove` | `ID` | Removes a component. |
 | `clear` | | Removes every component of the canvas. |
+| `title` | `TITLE` | Gives the canvas a title ([below](#a-canvass-title)); `""` takes it away. |
 | `list` | | The canvas's components: their ids, types and sources' state. |
 | `get` | `[ID] [--changed]` | What the canvas shows, as data ([below](#reading-the-canvas-get)). |
 | `types` | `[TYPE]` | The component types, each with its properties and an example. |
@@ -112,7 +114,8 @@ A batch is an array of operations, each a flat object with its `op` and what tha
 [{"op": "show", "id": "build", "type": "progress", "max": 12},
  {"op": "update", "id": "build", "value": 3},
  {"op": "append", "id": "tests", "rows": [["lexer", "passed"]]},
- {"op": "remove", "id": "old"}]
+ {"op": "remove", "id": "old"},
+ {"op": "title", "title": "Release v2.4"}]
 ```
 
 The reply has each operation's result, in order: `{"ok": true, "results": [{"ok": true, "id": "build"}, ...]}`. Its
@@ -176,6 +179,26 @@ other operations can't.
 
 `--canvas` and `--dashboard` can go anywhere on the command line and work with any operation.
 
+### A canvas's title
+
+A view's bar says its canvas's name: `Canvas` for the session's own, `tests` for another. A canvas showing only a panel
+with a title has that title instead. `agent-ui title TITLE` gives a canvas a title of its own, for a canvas that holds
+several things:
+
+```sh
+agent-ui title "Release v2.4"
+agent-ui title --canvas tests "Test runs"
+agent-ui title ""              # taken away: the bar says Canvas again
+```
+
+- Its view's bar says it, and so does its tab when it has a pane of its own. A canvas showing only a panel with a
+  title still has that panel's title, which names everything on it.
+- The reply has the title the canvas has now: `{"ok": true, "title": "Release v2.4"}`. `get` has it too.
+- Newlines become spaces. `""` (or `null` in JSON) takes it away, and so does `clear`, with the components.
+- A canvas that has nothing on it yet keeps its title for when its first component opens it.
+- It's kept with the session and comes back with it.
+- A project dashboard's canvas goes by the dashboard's name and refuses a title.
+
 ## Environment
 
 | Variable | What it does |
@@ -207,6 +230,7 @@ It speaks MCP over stdio and does each call through `bin/agent-ui`, so replies a
 | `update`, `append` | `id`, `patch` |
 | `remove` | `id` |
 | `clear`, `list` | none |
+| `title` | `title` |
 | `get` | `id`, `changed` |
 | `types` | `type` |
 | `render` | `component` |

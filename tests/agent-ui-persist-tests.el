@@ -371,4 +371,25 @@ session is resumed."
       (agent-ui--flush)
       (should (string-search "   0.6" (buffer-string))))))
 
+;; doom-ht6.154
+(ert-deftest agent-ui-persist/its-title ()
+  "A canvas with a title given it: saved with its components, back with
+them; taken back, or cleared, its components' array alone again."
+  (agent-ui-test-aups
+    (agent-ui-show '(:id "a" :type "text" :text "a") :canvas name)
+    (agent-ui-set-title "Démo" :canvas name)
+    (agent-ui-test-aups-settle)
+    (should (equal (agent-ui-test-aups-saved) '(:title "Démo" :components ((:id "a" :type "text" :text "a")))))
+    (kill-buffer (agent-ui-canvas-buffer-name name))
+    (should (= (agent-ui-persist-restore session) 1))
+    (should (equal (agent-ui-canvas-title (get-buffer (agent-ui-canvas-buffer-name name))) "Démo"))
+    (should (equal (agent-ui-persist--read (agent-ui-test-aups-file)) '((:id "a" :type "text" :text "a"))))
+    (agent-ui-set-title "" :canvas name)
+    (agent-ui-test-aups-settle)
+    (should (equal (agent-ui-test-aups-saved) '((:id "a" :type "text" :text "a"))))
+    (agent-ui-set-title "Again" :canvas name)
+    (agent-ui-clear :canvas name)
+    (agent-ui-test-aups-settle)
+    (should (equal (agent-ui-test-aups-saved) nil))))
+
 ;;; agent-ui-persist-tests.el ends here

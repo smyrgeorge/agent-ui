@@ -94,7 +94,8 @@ canvas closes.")
 
 (defvar agent-ui-title-changed-hook nil
   "Run in a canvas once its title changed (`agent-ui-canvas-title').
-Its lone panel's, come, changed or gone.  Its view's bar names it again.")
+Its lone panel's, come, changed or gone; the one an agent gave it, given
+or taken back (`agent-ui-set-title').  Its view's bar names it again.")
 
 (defvar agent-ui-removed-functions nil
   "Called in a canvas with a component's id once it's gone.
@@ -145,6 +146,10 @@ it's drawn otherwise."
 Agent UI: NAME), set by what made it: a project dashboard's, its name.
 Its lone panel's title is then drawn in the panel's top border, not given
 to its tab (see A LONE PANEL'S TITLE).")
+(defvar-local agent-ui--given-title nil
+  "The title an agent gave the canvas (`agent-ui-set-title'), or nil.
+Its view's bar and its tab say it unless it shows a lone panel (see A
+TITLE GIVEN).")
 (defvar-local agent-ui--untitled nil
   "The canvas's lone panel and its title, as last seen: (ID . TITLE).
 Not drawn on it (see `agent-ui-canvas-title'); nil: none.")
@@ -542,6 +547,15 @@ again soon."
 ;; panel's top border (╭─ TITLE ───╮, cut with … when narrow): a title a
 ;; sentence long made its tab as long.  A panel without a border: its title
 ;; drawn over it, as any component's.
+;;
+;; A TITLE GIVEN
+;; A canvas showing more than a lone panel has no title of its own: its bar
+;; said Canvas (the session's), or its name (tests).  An agent gives it one
+;; (`agent-ui-set-title', agent-ui title TEXT): its bar and its tab say it
+;; then, whatever it shows, but a lone panel, whose title is more precise
+;; (it names all there is).  Cleared, the canvas loses it with its
+;; components; kept with them (agent-ui-persist.el).  A canvas with a name of
+;; its own goes by it: it takes none.
 
 (defun agent-ui--lone-panel ()
   "The current canvas's lone panel (see above).
@@ -563,19 +577,58 @@ with a title (its newlines spaces); else nil."
   (and (buffer-live-p buffer) (eq (buffer-local-value 'major-mode buffer) 'agent-ui-canvas-mode)))
 
 (defun agent-ui-canvas-title (&optional buffer)
-  "The title of canvas BUFFER (default: the current one).
-When it shows a lone panel (see above): its bar or tab says it, the
-canvas doesn't draw it over the panel.  nil otherwise, and for a canvas
-with a name of its own (its panel's top border says it)."
+  "The title of canvas BUFFER (default: the current one), its bar's and tab's.
+When it shows a lone panel (see above), the panel's: the canvas doesn't
+draw it over the panel; else the one an agent gave it (see A TITLE
+GIVEN).  nil otherwise, and for a canvas with a name of its own (its
+panel's top border says it)."
   (let ((buffer (or buffer (current-buffer))))
     (and (agent-ui--canvas-p buffer)
          (not (buffer-local-value 'agent-ui-canvas-name buffer))
-         (with-current-buffer buffer (cdr (agent-ui--lone-panel))))))
+         (or (with-current-buffer buffer (cdr (agent-ui--lone-panel)))
+             (buffer-local-value 'agent-ui--given-title buffer)))))
+
+(cl-defun agent-ui-set-title (title &key canvas)
+  "Give CANVAS TITLE, for its bar and its tab to say (see A TITLE GIVEN).
+TITLE nil or blank takes it back.  Its newlines spaces.  A canvas not
+there yet is made, its pane opening with its first component.  An
+error for a canvas with a name of its own (a project dashboard), or
+shown in a section of another (`agent-ui-host': that section's
+divider names it).  Returns the title it has now, or nil."
+  (unless (or (null title) (stringp title))
+    (agent-ui--fail "title: give a title, text (\"\" takes it away), not %s" (agent-ui--show-value title)))
+  (when-let* ((hosted (agent-ui--hosted canvas)))
+    (agent-ui--fail "canvas %s is shown in section %s of canvas %s: that section's divider names it"
+                    canvas (nth 1 hosted) (buffer-local-value 'agent-ui--canvas-name (car hosted))))
+  (let ((title (and title (string-trim (replace-regexp-in-string "[\n\r]+" " " title)))))
+    (when (equal title "")
+      (setq title nil))
+    ;; Nothing to take back from a canvas not there.
+    (when (or title (agent-ui--live-canvas-p canvas))
+      (with-current-buffer (agent-ui--canvas-buffer canvas t)
+        (when agent-ui-canvas-name
+          (agent-ui--fail "canvas %s goes by its name, %s: it takes no title"
+                          agent-ui--canvas-name agent-ui-canvas-name))
+        (unless (equal title agent-ui--given-title)
+          (setq agent-ui--given-title title)
+          (run-hooks 'agent-ui-title-changed-hook)
+          (force-mode-line-update t))))
+    title))
+
+(defun agent-ui--title-cleared ()
+  "The current canvas cleared: the title given it taken back with its components."
+  (when agent-ui--given-title
+    (setq agent-ui--given-title nil)
+    (run-hooks 'agent-ui-title-changed-hook)
+    (force-mode-line-update t)))
+
+(add-hook 'agent-ui-cleared-hook #'agent-ui--title-cleared)
 
 (defun agent-ui-canvas-label (buffer)
   "What names canvas BUFFER where its name would (a tab): \"Agent UI:
 NAME\" for a canvas with a name of its own (a project dashboard), \"Agent UI:
-TITLE\" when it shows a lone panel (see above), nil otherwise."
+TITLE\" for its title (`agent-ui-canvas-title': its lone panel's, or the
+one given it), nil otherwise."
   (when-let* ((name (and (agent-ui--canvas-p buffer)
                          (or (buffer-local-value 'agent-ui-canvas-name buffer)
                              (agent-ui-canvas-title buffer)))))

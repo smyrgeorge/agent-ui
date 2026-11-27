@@ -10,6 +10,9 @@
 #   agent-ui append ID [JSON]    add to its lists ({"rows": [[...]]})
 #   agent-ui remove ID           remove it
 #   agent-ui clear               remove every component
+#   agent-ui title TITLE         the canvas's title, its bar's and tab's
+#                                (a lone panel's title before it); ""
+#                                takes it away, clear too
 #   agent-ui list                the canvas's components: ids, types, sources
 #   agent-ui get [ID] [--changed]
 #                                what it shows, as data: its components (or ID's)
@@ -81,6 +84,7 @@ json_string() {  # json_string TEXT: TEXT as a JSON string
   s=${s//\"/\\\"}
   s=${s//$'\n'/\\n}
   s=${s//$'\t'/\\t}
+  s=${s//$'\r'/\\r}
   printf '"%s"' "$s"
 }
 
@@ -154,8 +158,12 @@ case "$op" in
     fi ;;
   clear|list|doctor)
     [ $# -gt 0 ] && fail 2 "$op: takes no arguments" ;;
+  title)
+    [ $# -ne 1 ] && fail 2 "title: agent-ui title TITLE (\"\" takes it away)"
+    takes_json=1
+    json="{\"title\":$(json_string "$1")}" ;;
   *)
-    fail 2 "unknown operation \"$op\"; operations: show, update, append, remove, clear, list, get, types, batch, render, define, snapshot, bug, check, dashboards, open, doctor" ;;
+    fail 2 "unknown operation \"$op\"; operations: show, update, append, remove, clear, title, list, get, types, batch, render, define, snapshot, bug, check, dashboards, open, doctor" ;;
 esac
 case "$id" in *$'\n'*) fail 2 "an id is one line" ;; esac
 

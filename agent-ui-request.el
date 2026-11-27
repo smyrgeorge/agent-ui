@@ -89,8 +89,8 @@ Its other canvases' names start with it.")
   "While a request is answered: the agent's directory (its sources' default).")
 
 (defconst agent-ui-operations
-  '("show" "update" "append" "remove" "clear" "list" "get" "types" "batch" "render" "define" "snapshot" "bug" "check"
-    "dashboards" "open" "doctor")
+  '("show" "update" "append" "remove" "clear" "title" "list" "get" "types" "batch" "render" "define" "snapshot" "bug"
+    "check" "dashboards" "open" "doctor")
   "What bin/agent-ui does.")
 
 ;; ====== THE CANVAS ======
@@ -182,6 +182,14 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
     ("clear"
      (agent-ui-clear :canvas canvas)
      (list :ok t))
+    ;; Its bar's and tab's title: {"title": TEXT}, "" or null taking it back.
+    ("title"
+     (let ((payload (agent-ui--payload-object payload "title")))
+       (unless (plist-member payload :title)
+         (agent-ui--fail "title: give {\"title\": TEXT} (\"\" takes it away)"))
+       (append (list :ok t)
+               (when-let* ((title (agent-ui-set-title (plist-get payload :title) :canvas canvas)))
+                 (list :title title)))))
     ("list"
      (list :ok t :components
            (vconcat (mapcar (lambda (e)
@@ -269,7 +277,8 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
 (defun agent-ui--batch-item (item canvas)
   "Do one operation of a batch on CANVAS.
 ITEM is {\"op\": OP, ...} with what OP takes \(show: the component;
-update, append: the id and the change; remove: the id)."
+update, append: the id and the change; remove: the id; title: the
+title)."
   (condition-case err
       (let* ((item (agent-ui--payload-object item "batch"))
              (op (plist-get item :op))
@@ -281,7 +290,7 @@ update, append: the id and the change; remove: the id)."
                        canvas)))
         (cond
          ((not (stringp op))
-          (agent-ui--fail "batch: each operation has \"op\": show, update, append or remove"))
+          (agent-ui--fail "batch: each operation has \"op\": show, update, append, remove, clear or title"))
          ((member op '("batch" "types" "list" "get" "render" "define" "snapshot" "bug" "check" "dashboards" "open"
                        "doctor"))
           (agent-ui--fail "batch: %s isn't done in a batch" op)))
@@ -330,6 +339,9 @@ A hash table of a component's id to a copy of its data, compared with
       (dolist (e components) (puthash (plist-get e :id) (copy-tree e t) seen))
       (dolist (old gone) (remhash old seen)))
     (append (list :ok t :canvas (agent-ui--canvas-label canvas))
+            ;; The title the agent gave it, if it did.
+            (when-let* ((title (buffer-local-value 'agent-ui--given-title buffer)))
+              (list :title title))
             (when dashboard
               (list :dashboard (agent-ui-dashboards--name dashboard)
                     :root (abbreviate-file-name (agent-ui-dashboards--root dashboard))

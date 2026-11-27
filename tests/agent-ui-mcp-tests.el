@@ -72,7 +72,7 @@ recorded, its reply REPLY (a plist)."
   (agent-ui-test-aumcp '(:ok t :types [(:name "progress" :doc "A progress bar: VALUE of MAX.\nMore." :props [(:name "value" :kind "number")])])
     (let ((tools (append (plist-get (plist-get (agent-ui-test-aumcp-handle "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}") :result) :tools) nil)))
       (should (equal (mapcar (lambda (tool) (plist-get tool :name)) tools)
-                     '("show" "update" "append" "remove" "clear" "list" "get" "types" "render" "snapshot" "batch" "bug" "dashboards" "open" "check" "doctor" "define")))
+                     '("show" "update" "append" "remove" "clear" "title" "list" "get" "types" "render" "snapshot" "batch" "bug" "dashboards" "open" "check" "doctor" "define")))
       ;; Each its schema; show's description has the types, from Emacs.
       (dolist (tool tools)
         (should (equal (plist-get (plist-get tool :inputSchema) :type) "object")))
@@ -119,6 +119,11 @@ recorded, its reply REPLY (a plist)."
       (should (equal (call "update" "{\"id\":\"ci\",\"patch\":{\"rows\":[]},\"dashboard\":\"service\"}")
                      '("update" "ci" "--dashboard" "service" :stdin "{\"rows\":[]}")))
       (should (equal (call "clear" "{}") '("clear")))
+      ;; A title (doom-ht6.154): an argument, "" taking it away; none
+      ;; given, none passed (the command's usage error).
+      (should (equal (call "title" "{\"title\":\"Demo run\"}") '("title" "Demo run")))
+      (should (equal (call "title" "{\"title\":\"\",\"canvas\":\"tests\"}") '("title" "" "--canvas" "tests")))
+      (should (equal (call "title" "{}") '("title")))
       (should (equal (call "list" "{}") '("list")))
       (should (equal (call "types" "{}") '("types")))
       (should (equal (call "types" "{\"type\":\"table\"}") '("types" "table")))

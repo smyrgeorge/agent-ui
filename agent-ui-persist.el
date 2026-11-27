@@ -39,7 +39,9 @@
 ;; own components (it saved only these, the others lost for good); its
 ;; clearing drops them.  A save waiting when Emacs exits is done then.  A
 ;; session's other canvases ("SESSION / tests") are kept beside it,
-;; ID@tests.json, and come back with it.
+;; ID@tests.json, and come back with it.  A canvas with a title given it
+;; (`agent-ui-set-title') is saved as {"title": ..., "components": [...]},
+;; and comes back with it; one without, as its components' array.
 
 ;;; Code:
 
@@ -124,10 +126,18 @@ A component that can't be written as JSON left out: the others saved."
         (error (push (plist-get component :id) bad))))
     (cons (concat "[" (string-join (nreverse written) ",") "]") (nreverse bad))))
 
+(defun agent-ui-persist--saved (title json)
+  "What's saved for a canvas: JSON, its components' array, with its TITLE.
+TITLE nil: the array alone (see above)."
+  (if (not title)
+      json
+    (let ((head (json-serialize (list :title title))))
+      (concat (substring head 0 -1) ",\"components\":" json "}"))))
+
 (defun agent-ui-persist-save (&optional canvas)
   "Save CANVAS (default: the current buffer's), if it has a session id.
-Its components, as JSON; one that can't be written left out, said (once).
-Returns the file, or nil."
+Its components, as JSON, and the title given it; a component that can't be
+written left out, said (once).  Returns the file, or nil."
   (with-current-buffer (or canvas (current-buffer))
     (when (timerp agent-ui--persist-timer)
       (cancel-timer agent-ui--persist-timer))
@@ -141,7 +151,8 @@ Returns the file, or nil."
         (pcase-let ((`(,json . ,bad) (agent-ui-persist--json components)))
           (make-directory (file-name-directory file) t)
           (let ((coding-system-for-write 'utf-8))
-            (write-region (decode-coding-string json 'utf-8) nil file nil 'silent))
+            (write-region (decode-coding-string (agent-ui-persist--saved agent-ui--given-title json) 'utf-8)
+                          nil file nil 'silent))
           (agent-ui--persist-said
            (and bad (format "%s left out: %s written as JSON" (string-join bad ", ")
                             (if (cdr bad) "they can't be" "it can't be")))))
@@ -174,6 +185,7 @@ A save failing is said, never stops it closing (nor its session)."
       (error (message "Agent UI: the canvas couldn't be saved: %S" err)))))
 
 (add-hook 'agent-ui-changed-hook #'agent-ui--persist-later)
+(add-hook 'agent-ui-title-changed-hook #'agent-ui--persist-later)
 (add-hook 'agent-ui-canvas-hook
           (lambda () (add-hook 'kill-buffer-hook #'agent-ui--persist-closing -50 t)))
 
@@ -250,14 +262,25 @@ others."
                             unless (agent-ui-persist--gone-p c)
                             collect (if (agent-ui--plist-p c) (agent-ui-persist--without-gone c) c)))))))
 
+(defun agent-ui-persist--read-saved (file)
+  "What's saved in FILE: (TITLE . COMPONENTS); nil if it can't be read.
+Its components' array alone (no title), or an object with both (see
+above)."
+  (let ((saved (condition-case nil
+                   (agent-ui-parse-json (with-temp-buffer
+                                          (let ((coding-system-for-read 'utf-8))
+                                            (insert-file-contents file))
+                                          (buffer-string)))
+                 ((agent-ui-error file-error) nil))))
+    (if (agent-ui--plist-p saved)
+        (let ((title (plist-get saved :title))
+              (components (plist-get saved :components)))
+          (cons (and (stringp title) title) (and (listp components) components)))
+      (cons nil (and (listp saved) saved)))))
+
 (defun agent-ui-persist--read (file)
   "The components saved in FILE; nil if it can't be read."
-  (condition-case nil
-      (agent-ui-parse-json (with-temp-buffer
-                             (let ((coding-system-for-read 'utf-8))
-                               (insert-file-contents file))
-                             (buffer-string)))
-    ((agent-ui-error file-error) nil)))
+  (cdr (agent-ui-persist--read-saved file)))
 
 (defun agent-ui-persist-restore (session)
   "Bring SESSION's canvases back, an `agent-shell' buffer with a session id.
@@ -283,10 +306,11 @@ If kept and empty: how many of its components; nil if not."
               ((file-readable-p file))
               (name (agent-ui-sub-canvas (agent-ui--session-name session) part))
               ((not (agent-ui-components :canvas name))))
-    (let ((components (agent-ui-persist--read file))
-          (count 0)
-          ;; Coming back: its questions don't take the focus.
-          (agent-ui--restoring t))
+    (let* ((saved (agent-ui-persist--read-saved file))
+           (components (cdr saved))
+           (count 0)
+           ;; Coming back: its questions don't take the focus.
+           (agent-ui--restoring t))
       (dolist (component components)
         (when (agent-ui--plist-p component)
           (condition-case nil
@@ -296,6 +320,11 @@ If kept and empty: how many of its components; nil if not."
                      (cl-incf count))
             ;; One of a type gone since (discarded, dropped): left out.
             (agent-ui-error nil))))
+      ;; Its title, as it was (not if it's shown in another's section now).
+      (when (car saved)
+        (condition-case nil
+            (agent-ui-set-title (car saved) :canvas name)
+          (agent-ui-error nil)))
       ;; Those finished come back kept, no countdown (the user's Keep isn't
       ;; saved; theirs was running as it ended): until they change.
       (when-let* ((canvas (get-buffer (agent-ui-canvas-buffer-name name))))

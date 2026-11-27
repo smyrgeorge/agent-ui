@@ -13,6 +13,8 @@ Everything the command line does can be done from Lisp, so your own code (a comm
 | `(agent-ui-append ID PATCH &key canvas section)` | Adds to a component's lists. |
 | `(agent-ui-remove ID &key canvas section)` | Removes a component. |
 | `(agent-ui-clear &key canvas section)` | Removes every component (and, for a whole canvas, its sections). |
+| `(agent-ui-set-title TITLE &key canvas)` | Gives the canvas TITLE, for its bar and its tab; nil or `""` takes it away. Returns the title it has now. |
+| `(agent-ui-canvas-title &optional BUFFER)` | The canvas's title: its lone panel's, else the one given it; nil if none. |
 | `(agent-ui-get ID &key canvas section)` | A component's properties now, a plist. |
 | `(agent-ui-components &key canvas section)` | The components in order, as `(:id ID :type TYPE)`. |
 | `(agent-ui-reveal ID &optional canvas)` | Brings a component into view, unfolding its section. |
@@ -87,6 +89,7 @@ sections too, when that component's countdown ends ([Finished components close](
 | `agent-ui-shown-functions` | In a canvas, with a component's id and the component, once it's shown (new or again). |
 | `agent-ui-removed-functions` | In a canvas, with a component's id once it's gone (removed, or its canvas killed). |
 | `agent-ui-changed-hook` | In a canvas, when its components change: shown, updated, appended to, removed, cleared. |
+| `agent-ui-title-changed-hook` | In a canvas, once its title changed: its lone panel's, or the one given it. |
 | `agent-ui-question-waiting-functions` | With the session's buffer, the canvas and the question's id, when a turn ends with a question waiting. |
 | `agent-ui-dashboard-open-hook` | In a project dashboard's canvas, once it has opened (not when it's only shown again). |
 | `agent-ui-bug-filed-functions` | With the issue's id, its title, whether it's new and the issues' directory, once a bug is filed. |

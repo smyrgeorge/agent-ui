@@ -93,6 +93,8 @@ needs another.
   split, the frame resized, a border dragged (once you let go).
 - Each view scrolls and is selected on its own, with a bar over it naming it. The session's own canvas reads
   `Canvas`; a canvas showing a single panel with a title has that title there instead of drawing it over the panel.
+  The agent can give a canvas a title for its bar, when it holds several things (`agent-ui title`, see
+  [The command line](command-line.md#a-canvass-title)).
 - Under the views is Agent UI's own bar: `Agent UI · 2 views` on the left and `agent-ui-pane-keys` (`q close`) on the
   right. With `agent-ui-pane-mode-line` set to t, the views at the bottom keep their buffer's own mode line instead.
   The session's mode line stays under the conversation.
@@ -192,6 +194,7 @@ A session's canvas is saved as it changes, and comes back when the session is re
   progress bar's times too.
 - Its components' sources aren't started again, so a command isn't run twice.
 - Closing a canvas, or its session, leaves what's saved. Clearing it saves it empty.
+- A title the agent gave it is saved with its components, and comes back with them.
 - Its other canvases are kept beside it (`ID@tests.json`) and come back with it.
 - A component of a type that's gone since (a discarded type) is left out.
 

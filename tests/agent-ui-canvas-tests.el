@@ -856,4 +856,74 @@ other buffer untouched (a session's start was replaced by a component)."
                               (agent-ui-test-auc-message #'agent-ui-show '(:type "meter")
                                                  :canvas (current-buffer)))))))
 
+;; doom-ht6.154
+(ert-deftest agent-ui-canvas/a-title-given ()
+  "A canvas showing several components, given a title: its bar and its
+tab say it (they said Canvas, or its name), but a lone panel's, more
+precise; taken back with \"\", or with its components when it's cleared;
+its newlines spaces; the same title again, nothing told."
+  (let ((panel (agent-ui-type "panel")))
+    (agent-ui-test-auc
+      (puthash 'panel panel agent-ui--types)
+      (let* ((told 0)
+             (agent-ui-title-changed-hook (list (lambda () (cl-incf told)))))
+        (agent-ui-show '(:id "a" :type "meter"))
+        (agent-ui-show '(:id "b" :type "meter"))
+        (should-not (agent-ui-canvas-title canvas))
+        (should-not (agent-ui-canvas-label canvas))
+        (should (equal (agent-ui-set-title "  Demo\nrun ") "Demo run"))
+        (should (= told 1))
+        (should (equal (agent-ui-canvas-title canvas) "Demo run"))
+        (should (equal (agent-ui-canvas-label canvas) "Agent UI: Demo run"))
+        (agent-ui-set-title "Demo run")
+        (should (= told 1))
+        ;; Drawn as before: it names the canvas, not a component.
+        (agent-ui-test-auc-flush)
+        (should (equal (agent-ui-test-auc-text) "0/10\n\n0/10\n\n"))
+        ;; A lone panel with a title: its title, as ever; gone, the given one.
+        (agent-ui-remove "a")
+        (agent-ui-remove "b")
+        (agent-ui-show '(:id "p" :type "panel" :title "Release" :children ((:id "m" :type "meter"))))
+        (should (equal (agent-ui-canvas-title canvas) "Release"))
+        (agent-ui-show '(:id "c" :type "meter"))
+        (should (equal (agent-ui-canvas-title canvas) "Demo run"))
+        ;; Taken back.
+        (should-not (agent-ui-set-title ""))
+        (should-not (agent-ui-canvas-title canvas))
+        ;; Told each time: the panel come and gone too.
+        (should (= told 4))
+        (agent-ui-set-title "Again")
+        (agent-ui-clear)
+        (should-not (agent-ui-canvas-title canvas))
+        (should-not (buffer-local-value 'agent-ui--given-title canvas))
+        (should (= told 6))))))
+
+(ert-deftest agent-ui-canvas/a-title-given-wrong-or-early ()
+  "A title that isn't text, or for a canvas going by a name of its own (a
+dashboard): refused. For a canvas not there yet: it's made, its pane not
+opened (its first component opens it); taken back from one not there:
+nothing made."
+  (agent-ui-test-auc
+    (should (string-match-p "give a title, text" (agent-ui-test-auc-message #'agent-ui-set-title 5)))
+    (with-current-buffer canvas (setq-local agent-ui-canvas-name "service"))
+    (should (string-match-p "goes by its name, service: it takes no title"
+                            (agent-ui-test-auc-message #'agent-ui-set-title "X")))
+    (should-not (agent-ui-canvas-title canvas))
+    (let ((other (make-temp-name "titled-")))
+      (unwind-protect
+          (progn
+            (should-not (agent-ui-set-title "" :canvas other))
+            (should-not (get-buffer (agent-ui-canvas-buffer-name other)))
+            (should (equal (agent-ui-set-title "Early" :canvas other) "Early"))
+            (let ((buffer (get-buffer (agent-ui-canvas-buffer-name other))))
+              (should buffer)
+              (should-not (memq buffer agent-ui-test-auc-displayed))
+              (should-not (agent-ui-canvas-shows-p buffer))
+              (should (equal (agent-ui-canvas-title buffer) "Early"))
+              (agent-ui-show '(:id "x" :type "meter") :canvas other)
+              (should (memq buffer agent-ui-test-auc-displayed))
+              (should (equal (agent-ui-canvas-title buffer) "Early"))))
+        (when (get-buffer (agent-ui-canvas-buffer-name other))
+          (kill-buffer (agent-ui-canvas-buffer-name other)))))))
+
 ;;; agent-ui-canvas-tests.el ends here
