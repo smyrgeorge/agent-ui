@@ -267,6 +267,7 @@ Nodes and edges, laid out in layers by Agent UI itself (no Graphviz needed). Nod
 "status"}`, with `status` `ok`, `error`, `warning` or `active` colouring a node; edges are `[from, to]` or `{"from",
 "to", "label"}`. In a graphical frame, boxes and curved arrows, left to right or, with `"direction": "down"`,
 downwards, shrunk to fit; in a pane too narrow, laid out downwards, or as text. As text, each node lists its arrows.
+At most `agent-ui-max-rows` nodes (500) and ten times as many edges.
 
 ```json
 {"id": "modules", "type": "graph", "title": "Modules",

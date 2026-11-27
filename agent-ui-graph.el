@@ -83,28 +83,35 @@
                                    (list :from (plist-get e :from) :to (plist-get e :to) :label (plist-get e :label)))
                                   (t (agent-ui--fail "graph: edge %d must be [from, to], or {\"from\", \"to\", \"label\"}" i))))))
     ;; A node listed twice: one, its later status and label taking over (it
-    ;; was drawn twice, its status lost); an edge listed twice, once.
-    (let ((merged nil))
+    ;; was drawn twice, its status lost); an edge listed twice, once.  Each
+    ;; found by its id, or itself, in a table (a scan of those before was
+    ;; O(n^2)).
+    (let ((merged nil) (cells (make-hash-table :test #'equal)) (seen (make-hash-table :test #'equal)))
       (dolist (n nodes)
-        (let ((old (cl-find (plist-get n :id) merged :key (lambda (m) (plist-get m :id)) :test #'equal)))
-          (if (not old)
-              (push n merged)
-            (setq merged (cl-substitute
-                          (list :id (plist-get n :id)
-                                :label (if (equal (plist-get n :label) (plist-get n :id))
-                                           (plist-get old :label)
-                                         (plist-get n :label))
-                                :status (if (eq (plist-get n :status) 'none) (plist-get old :status) (plist-get n :status)))
-                          old merged)))))
-      (setq nodes (nreverse merged)))
-    (setq edges (cl-remove-duplicates edges :test #'equal :from-end t))
-    ;; Nodes only edges name.
-    (dolist (e edges)
-      (dolist (id (list (plist-get e :from) (plist-get e :to)))
-        (unless (cl-find id nodes :key (lambda (n) (plist-get n :id)) :test #'equal)
-          (setq nodes (append nodes (list (list :id id :label id :status 'none)))))))
+        (let ((cell (gethash (plist-get n :id) cells)))
+          (if (not cell)
+              (puthash (plist-get n :id) (push n merged) cells)
+            (let ((old (car cell)))
+              (setcar cell (list :id (plist-get n :id)
+                                 :label (if (equal (plist-get n :label) (plist-get n :id))
+                                            (plist-get old :label)
+                                          (plist-get n :label))
+                                 :status (if (eq (plist-get n :status) 'none) (plist-get old :status) (plist-get n :status))))))))
+      (setq nodes (nreverse merged))
+      (setq edges (cl-loop for e in edges
+                           unless (gethash e seen) collect (puthash e e seen)))
+      ;; Nodes only edges name.
+      (let ((more nil))
+        (dolist (e edges)
+          (dolist (id (list (plist-get e :from) (plist-get e :to)))
+            (unless (gethash id cells)
+              (puthash id t cells)
+              (push (list :id id :label id :status 'none) more))))
+        (setq nodes (nconc nodes (nreverse more)))))
     (when (> (length nodes) agent-ui-max-rows)
       (agent-ui--fail "graph: at most %d nodes" agent-ui-max-rows))
+    (when (> (length edges) (* 10 agent-ui-max-rows))
+      (agent-ui--fail "graph: at most %d edges" (* 10 agent-ui-max-rows)))
     (plist-put (plist-put props :nodes nodes) :edges edges)))
 
 (defun agent-ui-graph-layout (nodes edges)
@@ -138,35 +145,51 @@ places."
                        (puthash to 'visiting state)
                        (push (cons to (reverse (gethash to out))) stack)))))))))))
     (let ((layer (make-hash-table :test #'equal))
-          (changed t))
+          (next (make-hash-table :test #'equal))
+          (parents (make-hash-table :test #'equal))
+          (waiting (make-hash-table :test #'equal))
+          (ready nil))
       (dolist (id ids) (puthash id 0 layer))
-      ;; Longest path: relax until nothing moves (no cycle left: it ends).
-      (while changed
-        (setq changed nil)
-        (dolist (edge dag)
-          (when (<= (gethash (cdr edge) layer) (gethash (car edge) layer))
-            (puthash (cdr edge) (1+ (gethash (car edge) layer)) layer)
-            (setq changed t))))
+      (dolist (edge dag)
+        (push (cdr edge) (gethash (car edge) next))
+        (push (car edge) (gethash (cdr edge) parents))
+        (puthash (cdr edge) (1+ (gethash (cdr edge) waiting 0)) waiting))
+      ;; Longest path: in a topological order (no cycle left), each node
+      ;; placed after all its parents (it was relaxed until nothing moved,
+      ;; going over every edge each time).
+      (dolist (id ids) (unless (gethash id waiting) (push id ready)))
+      (setq ready (nreverse ready))
+      (while ready
+        (let ((from (pop ready)))
+          (dolist (to (gethash from next))
+            (puthash to (max (gethash to layer 0) (1+ (gethash from layer))) layer)
+            (when (zerop (puthash to (1- (gethash to waiting)) waiting))
+              (push to ready)))))
       (let* ((depth (1+ (apply #'max 0 (hash-table-values layer))))
-             (layers (cl-loop for d below depth
-                              collect (seq-filter (lambda (id) (= (gethash id layer) d)) ids)))
+             (layers (let ((by (make-vector depth nil)))
+                       (dolist (id ids) (push id (aref by (gethash id layer))))
+                       (mapcar #'nreverse by)))
              (place (make-hash-table :test #'equal)))
         (cl-loop for l in layers
                  collect (let ((ordered
-                                (if (null (hash-table-keys place)) l
+                                (if (zerop (hash-table-count place)) l
                                   ;; By the mean place of the nodes pointing to it.
-                                  (cl-stable-sort
-                                   (copy-sequence l) #'<
-                                   :key (lambda (id)
-                                          (let ((ps (delq nil (mapcar (lambda (e) (and (equal (cdr e) id) (gethash (car e) place)))
-                                                                      dag))))
-                                            (if ps (/ (float (apply #'+ ps)) (length ps)) 1e9)))))))
+                                  (mapcar #'cdr
+                                          (cl-stable-sort
+                                           (mapcar (lambda (id)
+                                                     (let ((ps (delq nil (mapcar (lambda (p) (gethash p place))
+                                                                                 (gethash id parents)))))
+                                                       (cons (if ps (/ (float (apply #'+ ps)) (length ps)) 1e9) id)))
+                                                   l)
+                                           #'< :key #'car)))))
                            (cl-loop for id in ordered for i from 0 do (puthash id i place))
                            ordered))))))
 
-(defun agent-ui-graph--node (nodes id)
-  "The node of NODES with the id ID, or nil."
-  (cl-find id nodes :key (lambda (n) (plist-get n :id)) :test #'equal))
+(defun agent-ui-graph--by-id (nodes)
+  "A table of NODES by their ids."
+  (let ((table (make-hash-table :test #'equal)))
+    (dolist (n nodes) (puthash (plist-get n :id) n table))
+    table))
 
 (defun agent-ui-graph--text (props ctx)
   "PROPS' graph as text, for CTX."
@@ -176,19 +199,23 @@ places."
     (if (null nodes)
         (propertize "no nodes" 'face 'agent-ui-muted)
       (let* ((order (apply #'append (agent-ui-graph-layout nodes edges)))
+             (by-id (agent-ui-graph--by-id nodes))
+             (out (let ((table (make-hash-table :test #'equal)))
+                    (dolist (e (reverse edges)) (push e (gethash (plist-get e :from) table)))
+                    table))
              (name-width (min (apply #'max (mapcar (lambda (n) (string-width (plist-get n :label))) nodes)) (/ width 3))))
         (mapconcat
          (lambda (id)
-           (let* ((node (agent-ui-graph--node nodes id))
+           (let* ((node (gethash id by-id))
                   (face (cadr (assq (plist-get node :status) agent-ui-graph--statuses)))
                   (targets (mapcar (lambda (e)
-                                     (let ((to (agent-ui-graph--node nodes (plist-get e :to))))
+                                     (let ((to (gethash (plist-get e :to) by-id)))
                                        (concat (propertize (plist-get to :label)
                                                            'face (cadr (assq (plist-get to :status) agent-ui-graph--statuses)))
                                                (if (plist-get e :label)
                                                    (propertize (format " (%s)" (plist-get e :label)) 'face 'agent-ui-muted)
                                                  ""))))
-                                   (seq-filter (lambda (e) (equal (plist-get e :from) id)) edges)))
+                                   (gethash id out)))
                   (label (plist-get node :label))
                   ;; Its name wrapped in its column, its arrows and targets
                   ;; after its first line, wrapped after the arrow (they were
@@ -239,17 +266,26 @@ than MAX-HEIGHT pixels."
         (edges (plist-get props :edges)))
     (let* ((cw (plist-get ctx :char-width)) (lh (plist-get ctx :line-height))
            (layers (agent-ui-graph-layout nodes edges))
-           (box-w (lambda (id) (* cw (+ 2 (string-width (plist-get (agent-ui-graph--node nodes id) :label))))))
+           (by-id (agent-ui-graph--by-id nodes))
+           (box-w (lambda (id) (* cw (+ 2 (string-width (plist-get (gethash id by-id) :label))))))
            (box-h (* 2 lh))
            (gap-a (* 6 cw)) (gap-b (round (* 0.8 lh)))
            (where (make-hash-table :test #'equal))
            (depth (make-hash-table :test #'equal))
            (extents nil) (gaps nil)
+           ;; Each layer's widest label on an edge from it, to the next
+           ;; layer or a loop.
+           (room (make-vector (length layers) 0))
            (along 0) (across-max 0))
       (cl-loop for layer in layers for d from 0 do (dolist (id layer) (puthash id d depth)))
+      (dolist (e edges)
+        (let ((d (gethash (plist-get e :from) depth)))
+          (when (and (plist-get e :label) (memq (gethash (plist-get e :to) depth) (list d (1+ d))))
+            (aset room d (max (aref room d) (* 0.5 lh (string-width (plist-get e :label))))))))
       ;; Each layer a column (or a row, down); its nodes stacked across it.
       ;; Its extent along noted: the corridors between layers hold no box.
-      (dolist (layer layers)
+      (cl-loop
+       for layer in layers for d from 0 do
         (let ((size (if down box-h (apply #'max (mapcar box-w layer))))
               (across 0))
           (dolist (id layer)
@@ -259,22 +295,12 @@ than MAX-HEIGHT pixels."
           ;; The corridor after it as wide as its widest label from it (to
           ;; the next layer, or a loop; ~0.5 of a line a character) and 2
           ;; columns: 6 columns hid a longer label under the boxes.
-          (let ((gap (if down (* 2 gap-b)
-                       (max gap-a
-                            (+ (* 2 cw)
-                               (apply #'max 0
-                                      (mapcar (lambda (e)
-                                                (let ((d (gethash (plist-get e :from) depth)))
-                                                  (if (and (plist-get e :label) (member (plist-get e :from) layer)
-                                                           (memq (gethash (plist-get e :to) depth) (list d (1+ d))))
-                                                      (* 0.5 lh (string-width (plist-get e :label)))
-                                                    0)))
-                                              edges)))))))
+          (let ((gap (if down (* 2 gap-b) (max gap-a (+ (* 2 cw) (aref room d))))))
             (push (cons along (+ along size)) extents)
             (push gap gaps)
             (setq across-max (max across-max across)
                   along (+ along size gap)))))
-      (setq extents (nreverse extents) gaps (nreverse gaps))
+      (setq extents (vconcat (nreverse extents)) gaps (vconcat (nreverse gaps)))
       (let* ((skip-p (lambda (e) (> (- (gethash (plist-get e :to) depth) (gethash (plist-get e :from) depth)) 1)))
              ;; Back (a cycle's edge): to its own layer or an earlier one.
              (back-p (lambda (e) (and (not (equal (plist-get e :from) (plist-get e :to)))
@@ -318,7 +344,7 @@ than MAX-HEIGHT pixels."
                                      (list (+ (nth 0 box) lead) (+ (nth 1 box) arc) (nth 2 box) (nth 3 box)))
                                 where))
                      where)
-            (setq extents (mapcar (lambda (x) (cons (+ (car x) lead) (+ (cdr x) lead))) extents))
+            (setq extents (cl-map 'vector (lambda (x) (cons (+ (car x) lead) (+ (cdr x) lead))) extents))
             (cl-labels ((box (id) (gethash id where))
                         ;; A box's start and end along, its middle across.
                         (a-start (id) (if down (nth 1 (box id)) (nth 0 (box id))))
@@ -329,8 +355,9 @@ than MAX-HEIGHT pixels."
                         ;; last, its trailing gap's).
                         (after (d) (if (< d 0)
                                        (/ lead 2.0)
-                                     (let ((this (nth d extents)) (next (nth (1+ d) extents)))
-                                       (/ (+ (cdr this) (if next (car next) (+ (cdr this) (nth d gaps)))) 2.0))))
+                                     (let ((this (aref extents d))
+                                           (next (and (< (1+ d) (length extents)) (aref extents (1+ d)))))
+                                       (/ (+ (cdr this) (if next (car next) (+ (cdr this) (aref gaps d)))) 2.0))))
                         ;; A point at ALONG, ACROSS on the screen.
                         (pt (a c) (if down (format "%.1f,%.1f" c a) (format "%.1f,%.1f" a c))))
               (let ((routed -1))

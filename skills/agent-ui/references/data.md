@@ -93,7 +93,7 @@ Nodes and edges: `nodes` are names, or `{"id", "label", "status"}` (status ok, e
 `edges` are `[from, to]`, or `{"from", "to", "label"}`; a node only an edge names is one too. Laid out in layers by
 itself: boxes and arrows in the GUI (left to right, or `"direction": "down"`; in a pane too narrow for it, downwards,
 or as text), each node's arrows as text. For module dependencies, a state machine, a call graph (a few dozen nodes at
-most).
+most; more than 500 nodes or 5000 edges refused).
 
 ```sh
 agent-ui show '{"id":"deps","type":"graph","title":"Modules","nodes":["lexer","parser",{"id":"checker","status":"error"},"codegen"],"edges":[["lexer","parser"],["parser","checker"],["parser","codegen"],["checker","codegen"]]}'

@@ -215,6 +215,77 @@ a box not at a stack's edge, it went straight through the boxes there)."
     (should (equal (layout '("a" "b" "c" "d") '(("a" "d") ("b" "c")))
                    '(("a" "b") ("d" "c"))))))
 
+(ert-deftest agent-ui-components/graph-shapes ()
+  "A diamond, a cycle, edges listed twice, nodes apart: laid out and drawn as
+by the longest path to each node, a cycle's edge back left out."
+  (pcase-dolist (`(,component ,layers ,text ,arrows)
+                 '(((:type "graph" :nodes ("top" "left" "right" "bottom")
+                     :edges (("top" "left") ("top" "right") ("left" "bottom") ("right" "bottom")))
+                    (("top") ("left" "right") ("bottom"))
+                    "top    ─▶ left, right\nleft   ─▶ bottom\nright  ─▶ bottom\nbottom"
+                    4)
+                   ((:type "graph" :nodes ("a" "b" "c" "d") :edges (("a" "b") ("b" "c") ("c" "a") ("c" "d")))
+                    (("a") ("b") ("c") ("d"))
+                    "a ─▶ b\nb ─▶ c\nc ─▶ a, d\nd"
+                    4)
+                   ((:type "graph" :nodes ("a" "b" "c")
+                     :edges (("a" "b") ("b" "c") ("a" "b") (:from "b" :to "c" :label "x")
+                             (:from "b" :to "c" :label "x") ("a" "c")))
+                    (("a") ("b") ("c"))
+                    "a ─▶ b, c\nb ─▶ c, c (x)\nc"
+                    4)
+                   ((:type "graph" :nodes ("p" "q" "x" "y" "lonely") :edges (("y" "x") ("p" "q")))
+                    (("p" "y" "lonely") ("q" "x"))
+                    "p      ─▶ q\ny      ─▶ x\nlonely\nq\nx"
+                    2)))
+    (let ((checked (agent-ui-check "graph" component)))
+      (should (equal (agent-ui-graph-layout (plist-get checked :nodes) (plist-get checked :edges)) layers))
+      (should (equal (agent-ui-test-aue-draw component) text))
+      (should (= arrows (cl-count ?\n (replace-regexp-in-string "marker-end" "\n" (agent-ui-test-aue-svg component 120))))))))
+
+(ert-deftest agent-ui-components/graph-work-linear ()
+  "400 nodes and 3000 edges checked, laid out, drawn as text and in the GUI:
+each node and edge looked at a few times, not once for every other one (the
+layout and the drawings were O(V*E), the edges' de-duplication O(E^2): a
+second a drawing)."
+  (let* ((n 400) (m 3000)
+         ;; At random (the same each time): mostly forward, a few back
+         ;; (cycles), a few listed twice.
+         (seed 1)
+         (next (lambda () (setq seed (mod (+ (* seed 1103515245) 12345) 2147483648)) (mod (ash seed -8) n)))
+         (edges (cl-loop for k below m
+                         collect (let ((a (funcall next)) (b (funcall next)))
+                                   (if (zerop (mod k 50))
+                                       (list (format "n%d" (max a b)) (format "n%d" (min a b)))
+                                     (list (format "n%d" (min a b)) (format "n%d" (max a b)))))))
+         (component (list :type "graph" :nodes (cl-loop for i below n collect (format "n%d" i)) :edges edges))
+         (looks 0) (compares 0))
+    (cl-letf* ((get (symbol-function 'plist-get))
+               (same (symbol-function 'equal))
+               ((symbol-function 'plist-get)
+                (lambda (plist prop &optional predicate)
+                  ;; A node's or an edge's.
+                  (when (memq (car-safe plist) '(:id :from)) (cl-incf looks))
+                  (funcall get plist prop predicate)))
+               ((symbol-function 'equal) (lambda (a b) (cl-incf compares) (funcall same a b))))
+      (agent-ui-test-aue-draw component :width 80)
+      ;; Too big for the pane: laid out twice, drawn as text.  In a pane wide
+      ;; enough: the image.
+      (agent-ui-render component (agent-ui-context :width 120 :graphic t :char-width 8 :line-height 16))
+      (should (agent-ui-test-aue-svg component 20000)))
+    ;; Some 40 times, a few drawings in all (it was some 3000 times).
+    (should (< looks (* 100 (+ n m))))
+    (should (< compares (* 10 (+ n m))))))
+
+(ert-deftest agent-ui-components/graph-edges-capped ()
+  "At most 10 times `agent-ui-max-rows' edges (nodes at most that), counted
+once each: more refused, saying so (any number were laid out and drawn)."
+  (let ((agent-ui-max-rows 5)
+        (edges (lambda (k) (cl-loop for i below k collect (list :from "a" :to "b" :label (format "%d" i))))))
+    (should (agent-ui-check "graph" (list :type "graph" :edges (append (funcall edges 50) (funcall edges 10)))))
+    (should (string-match-p "at most 50 edges"
+                            (agent-ui-test-aue-error (list :type "graph" :edges (funcall edges 51)))))))
+
 (ert-deftest agent-ui-components/graph ()
   (let ((component '(:type "graph" :nodes ("lexer" "parser" (:id "checker" :status "error"))
                    :edges (("lexer" "parser") (:from "parser" :to "checker" :label "types") ("parser" "codegen")))))
