@@ -87,6 +87,44 @@ seconds."
       (agent-ui-show '(:id "w" :type "countdown" :until "2026-11-10T18:30:00Z"))
       (should (= (plist-get (agent-ui-get "w") :until) (float-time (parse-iso8601-time-string "2026-11-10T18:30:00Z")))))))
 
+(ert-deftest agent-ui-components/countdown-a-frame-draws-when-its-text-changes ()
+  "A countdown's frames draw it only when its text changes: running, once a
+second; ended hours ago, once a minute (it was drawn anew every 0.15 s,
+forever); drawn as it would be whole (doom-ht6.114)."
+  (agent-ui-test-aue-canvas
+    (let* ((now 1800000000.6)
+           (agent-ui-clock (lambda () now)))
+      (agent-ui-show '(:id "left" :type "countdown" :label "Resets in" :until 1800000300.0))
+      (agent-ui-show '(:id "ended" :type "countdown" :label "Window" :until 1799989000.0))
+      (with-current-buffer canvas (agent-ui--flush))
+      (save-window-excursion
+        (switch-to-buffer canvas)
+        (let ((drawn nil))
+          (cl-letf* ((text (symbol-function 'agent-ui-countdown--text))
+                     ((symbol-function 'agent-ui-countdown--text)
+                      (lambda (props &rest args)
+                        (push (plist-get props :label) drawn)
+                        (apply text props args))))
+            (dotimes (_ 5)
+              (agent-ui--frame canvas)
+              (setq now (+ now 0.15)))
+            (should (equal (sort drawn #'string<) '("Resets in" "Window")))
+            ;; A second on: the running one drawn again, the ended one not.
+            (setq drawn nil now 1800000001.7)
+            (dotimes (_ 5)
+              (agent-ui--frame canvas)
+              (setq now (+ now 0.15)))
+            (should (equal drawn '("Resets in")))
+            (should (string-search "4m 58s left" (substring-no-properties (agent-ui-test-aue--region "left"))))
+            ;; A minute on: both.
+            (setq drawn nil now 1800000060.6)
+            (agent-ui--frame canvas)
+            (should (equal (sort drawn #'string<) '("Resets in" "Window")))
+            (should (string-search "ended 3h 04m ago" (substring-no-properties (agent-ui-test-aue--region "ended"))))
+            (dolist (id '("left" "ended"))
+              (should (agent-ui-test-aue--same-drawing-p (agent-ui-test-aue--region id)
+                                                         (agent-ui-test-aue--drawn-whole id))))))))))
+
 (ert-deftest agent-ui-components/countdown-wrong ()
   (should (string-match-p "give since .* or until" (agent-ui-test-aue-error '(:type "countdown"))))
   (should (string-match-p "give since .* or until" (agent-ui-test-aue-error '(:type "countdown" :since 1 :until 2))))

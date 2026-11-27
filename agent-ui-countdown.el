@@ -31,7 +31,8 @@
 ;; timestamp ("2026-11-10T18:30:00Z"), epoch seconds, or seconds from now (a
 ;; number under a billion: until in that many, since that many ago), made a
 ;; time when shown (redrawn, it doesn't start again).  Animated: redrawn while
-;; its canvas is in a window only (`agent-ui-animated').
+;; its canvas is in a window only (`agent-ui-animated'), when its time as
+;; shown changes.
 ;;
 ;;   Rate limit resets  4m 12s left
 ;;   Build running      12m 40s
@@ -104,12 +105,12 @@ The time and what it is: elapsed, left, or \"ended ... ago\"."
                 (if (and (plist-get props :warn) (<= left (plist-get props :warn))) 'agent-ui-warning 'bold)
                 "left"))))))
 
-(defun agent-ui-countdown--text (props ctx)
-  "PROPS' countdown as text, for CTX.
+(defun agent-ui-countdown--text (props ctx &optional state)
+  "PROPS' countdown as text, for CTX, its STATE (else now's).
 Its label, then the time and its word: the time kept whole, the label cut
 first (4 columns at least, else left out), then the word left out (the
 whole line was cut: \"Rate limit resets in  4…\")."
-  (pcase-let* ((`(,time ,face ,word) (agent-ui-countdown--state props))
+  (pcase-let* ((`(,time ,face ,word) (or state (agent-ui-countdown--state props)))
                (width (plist-get ctx :width))
                (label (plist-get props :label))
                (word (and word (plist-get props :until)
@@ -121,9 +122,10 @@ whole line was cut: \"Rate limit resets in  4…\")."
         (concat (propertize (agent-ui-truncate label room) 'face 'agent-ui-muted) "  " shown)
       (agent-ui-truncate shown width))))
 
-(defun agent-ui-countdown--gui (props ctx)
-  "PROPS' countdown as an image, for CTX."
-  (pcase-let* ((`(,time ,face ,word) (agent-ui-countdown--state props))
+(defun agent-ui-countdown--gui (props ctx &optional state)
+  "PROPS' countdown as an image, for CTX, its STATE (else now's)."
+  (pcase-let* ((state (or state (agent-ui-countdown--state props)))
+               (`(,time ,face ,word) state)
                (cw (plist-get ctx :char-width))
                (lh (plist-get ctx :line-height))
                ;; 28 columns, wider for its label where the pane has room.
@@ -149,7 +151,7 @@ whole line was cut: \"Rate limit resets in  4…\")."
                (font (agent-ui--svg-font))
                (svg (svg-create w h)))
     (if (< (plist-get ctx :width) 16)
-        (agent-ui-countdown--text props ctx)
+        (agent-ui-countdown--text props ctx state)
       (svg-rectangle svg 0 0 w h :rx 6
                      :fill (agent-ui-blend (agent-ui-background) (agent-ui-color 'default) 0.07))
       (cl-loop for label in labels
@@ -163,6 +165,14 @@ whole line was cut: \"Rate limit resets in  4…\")."
         (svg-text svg word :x (- w cw) :y (* (+ 2.4 extra) lh) :text-anchor "end" :font-size (round word-size)
                   :font-family font :fill (agent-ui-color 'agent-ui-muted)))
       (propertize "countdown" 'display (agent-ui-svg-image svg)))))
+
+(defun agent-ui-countdown--drawn (draw props ctx)
+  "PROPS' countdown drawn by DRAW (its text's or image's), for CTX.
+In an animation's frames, drawn anew only when its time as shown changes
+\(`agent-ui-memo'): once a second, once a minute an hour past its end (a
+new image every 0.15 s, for hours after it ended)."
+  (let ((state (agent-ui-countdown--state props)))
+    (agent-ui-memo (list draw props) ctx (lambda () (funcall draw props ctx state)) state)))
 
 (agent-ui-define countdown
   "Time that matters while waiting, ticking: SINCE a start (the time
@@ -178,8 +188,8 @@ WARN seconds before the end in the warning colour. Past the end: \"ended
   :animated t
   :check #'agent-ui-countdown--check
   :prepare #'agent-ui-countdown--prepare
-  :text #'agent-ui-countdown--text
-  :gui #'agent-ui-countdown--gui)
+  :text (lambda (props ctx) (agent-ui-countdown--drawn #'agent-ui-countdown--text props ctx))
+  :gui (lambda (props ctx) (agent-ui-countdown--drawn #'agent-ui-countdown--gui props ctx)))
 
 
 (provide 'agent-ui-countdown)

@@ -122,7 +122,8 @@ SHOWN, it as it was shown, before updates and its sources' changes (its
 data left out: what a panel saved from it keeps); PART, in a section
 hosting a session's canvas, the session's other canvas it was shown on
 \(\"ask\"), nil for its own; MEMO, the drawings of its parts its
-animation's frames reuse (`agent-ui-memo'), until it's drawn otherwise."
+animation's frames reuse (`agent-ui-memo') and its last frame's, until
+it's drawn otherwise."
   id component start end drawn shown part memo)
 
 (defvar-local agent-ui--canvas-name nil "This canvas's name.")
@@ -633,21 +634,26 @@ ENTRY is its own."
          (ctx (agent-ui--entry-context entry ctx))
          (start (agent-ui--entry-start entry))
          (end (agent-ui--entry-end entry))
-         (places (agent-ui--places-in start end))
          (footer (run-hook-with-args-until-success 'agent-ui-footer-functions (agent-ui--entry-id entry)
-                                                   (plist-get ctx :width))))
-    (save-excursion
-      (delete-region start end)
-      (goto-char start)
-      ;; Its id in the context: a component's buttons may change it (a choice).
-      (insert (propertize (agent-ui--even (concat (agent-ui-render (agent-ui--entry-component entry)
-                                                                   (plist-put (copy-sequence ctx) :id (agent-ui--entry-id entry)))
-                                                  (when footer (concat "\n" footer))))
-                          'agent-ui-id (agent-ui--entry-id entry)))
-      ;; The end follows what's inserted at it; the start stays before it.
-      (set-marker end (point)))
-    (when places
-      (agent-ui--restore-places places start end))
+                                                   (plist-get ctx :width)))
+         ;; Its id in the context: a component's buttons may change it (a choice).
+         (text (concat (agent-ui-render (agent-ui--entry-component entry)
+                                        (plist-put (copy-sequence ctx) :id (agent-ui--entry-id entry)))
+                       (when footer (concat "\n" footer)))))
+    ;; A frame drawing it as the last one did (a countdown's time as shown
+    ;; the same): left as it is.
+    (unless (and agent-ui--memo (equal-including-properties text (gethash :drawn agent-ui--memo)))
+      (when agent-ui--memo
+        (puthash :drawn text agent-ui--memo))
+      (let ((places (agent-ui--places-in start end)))
+        (save-excursion
+          (delete-region start end)
+          (goto-char start)
+          (insert (propertize (agent-ui--even text) 'agent-ui-id (agent-ui--entry-id entry)))
+          ;; The end follows what's inserted at it; the start stays before it.
+          (set-marker end (point)))
+        (when places
+          (agent-ui--restore-places places start end))))
     (setf (agent-ui--entry-drawn entry)
           (list (agent-ui--entry-component entry) (plist-get ctx :width) (plist-get ctx :graphic) (and footer t)
                 (plist-get ctx :untitled)))))
@@ -656,6 +662,9 @@ ENTRY is its own."
   "EDITS (see `agent-ui-define''s :extend) done on ENTRY's drawing.
 In its place: its lines from its type's drawing's first, under HEAD lines (its
 title's), its end above TAIL lines (its actions')."
+  ;; Drawn otherwise than as an animation's frame: its frames' drawings
+  ;; drawn anew.
+  (setf (agent-ui--entry-memo entry) nil)
   (let ((head (or head 0))
         (tail (or tail 0))
         (inhibit-read-only t)
@@ -864,8 +873,9 @@ Its animation, stopped while it was in no window, started again."
   "The next frame of BUFFER's animated components, if it's in a window.
 Those animated at its last change looked at alone (not every component
 each frame), those still animated drawn again: their parts drawn the
-same as time passes as last drawn (`agent-ui-memo').  In no window, its
-timer stopped, started again once it's shown (`agent-ui--shown')."
+same as time passes as last drawn (`agent-ui-memo'), one drawn as the
+last frame drew it left as it is.  In no window, its timer stopped,
+started again once it's shown (`agent-ui--shown')."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (if (not (agent-ui--window))

@@ -191,4 +191,63 @@ the accent (blue), done success (green), failed error; not running yellow
   (should (string-match-p "status is running, done" (agent-ui-test-aue-error '(:type "timeline" :tasks ((:name "a" :start 0 :status "slow"))))))
   (should (string-match-p "has \"stop\"" (agent-ui-test-aue-error '(:type "timeline" :tasks ((:name "a" :start 0 :stop 3)))))))
 
+;; A running timeline's frames, the clock faked: drawn again only once a second.
+(ert-deftest agent-ui-components/timeline-a-frame-draws-once-a-second ()
+  "A running timeline (timestamps): its frames within a second draw it once
+\(they built a new SVG every 0.15 s, now a float clock), again once the
+second changes; drawn as it would be whole (doom-ht6.114)."
+  (agent-ui-test-aue-canvas
+    (let* ((t0 (float-time (date-to-time "2026-11-09T12:10:00Z")))
+           (now (+ t0 30.1))
+           (agent-ui-clock (lambda () now)))
+      (agent-ui-show '(:id "tl" :type "timeline"
+                       :tasks ((:name "build" :start "2026-11-09T12:10:00Z" :duration 8)
+                               (:name "deploy" :start "2026-11-09T12:10:08Z"))))
+      (with-current-buffer canvas (agent-ui--flush))
+      (save-window-excursion
+        (switch-to-buffer canvas)
+        (let ((drawn 0))
+          (cl-letf* ((text (symbol-function 'agent-ui-timeline--text))
+                     ((symbol-function 'agent-ui-timeline--text)
+                      (lambda (&rest args) (cl-incf drawn) (apply text args))))
+            (dotimes (_ 5)
+              (agent-ui--frame canvas)
+              (setq now (+ now 0.15)))
+            (should (= drawn 1))
+            ;; The next second: drawn again.
+            (setq now (+ t0 31.2))
+            (agent-ui--frame canvas)
+            (should (= drawn 2)))
+          (should (string-match-p "31s\\'" (substring-no-properties (agent-ui-test-aue--region "tl"))))
+          (should (agent-ui-test-aue--same-drawing-p (agent-ui-test-aue--region "tl")
+                                                     (agent-ui-test-aue--drawn-whole "tl"))))))))
+
+(ert-deftest agent-ui-components/timeline-gui-the-same-within-a-second ()
+  "A running timeline's SVG is the same all through a second (its bars'
+geometry moved every 0.15 s); a frame builds it once (doom-ht6.114)."
+  (let* ((t0 (float-time (date-to-time "2026-11-09T12:10:00Z")))
+         (now (+ t0 30.05))
+         (agent-ui-clock (lambda () now))
+         (component '(:type "timeline" :tasks ((:name "build" :start "2026-11-09T12:10:00Z" :duration 8)
+                                               (:name "deploy" :start "2026-11-09T12:10:08.250Z"))))
+         (svg (agent-ui-test-aue-svg component 60)))
+    (setq now (+ t0 30.95))
+    (should (equal (agent-ui-test-aue-svg component 60) svg))
+    (setq now (+ t0 31.05))
+    (should-not (equal (agent-ui-test-aue-svg component 60) svg))
+    ;; In an animation's frames: built once a second.
+    (let ((agent-ui--memo (make-hash-table :test #'equal))
+          (built 0)
+          (ctx (agent-ui-context :width 60 :graphic t :char-width 8 :line-height 16)))
+      (cl-letf* ((gui (symbol-function 'agent-ui-timeline--gui))
+                 ((symbol-function 'agent-ui-timeline--gui)
+                  (lambda (&rest args) (cl-incf built) (apply gui args))))
+        (dotimes (i 6)
+          (setq now (+ t0 31.05 (* i 0.15)))
+          (agent-ui-render component (plist-put (copy-sequence ctx) :tick i)))
+        (should (= built 1))
+        (setq now (+ t0 32.05))
+        (agent-ui-render component ctx)
+        (should (= built 2))))))
+
 ;;; agent-ui-timeline-tests.el ends here

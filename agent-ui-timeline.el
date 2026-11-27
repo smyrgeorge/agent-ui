@@ -107,9 +107,20 @@ parses it."
       (agent-ui--fail "timeline: tasks must all use seconds or all timestamps"))
     (plist-put props :tasks tasks)))
 
+(defun agent-ui-timeline--now (from)
+  "The clock now, for an axis from FROM: in whole seconds, or tens, ...
+A step a ten-thousandth of the axis at most, so a bar grows by less than
+a pixel at a time (its end at the float clock: a new drawing every frame)."
+  (let* ((now (funcall agent-ui-clock))
+         (step 1))
+    (while (>= (- now from) (* 10000 step))
+      (setq step (* 10 step)))
+    (* step (ffloor (/ (float now) step)))))
+
 (defun agent-ui-timeline--span (props)
   "The (FROM . TO) of PROPS' tasks.
-Running ones end now (or at the latest end)."
+Running ones end now (or at the latest end), now in whole seconds
+\(`agent-ui-timeline--now')."
   (let* ((tasks (plist-get props :tasks))
          (starts (mapcar (lambda (task) (plist-get task :start)) tasks))
          (from (apply #'min starts))
@@ -117,7 +128,7 @@ Running ones end now (or at the latest end)."
          ;; Now only while a task given timestamps runs (no end): finished,
          ;; the axis stretched to now (yesterday's run over 22 hours).
          (now (if (seq-some (lambda (task) (and (plist-get task :stamped) (null (plist-get task :end)))) tasks)
-                  (funcall agent-ui-clock)
+                  (agent-ui-timeline--now from)
                 ;; The latest start too: a running task starting after the
                 ;; last end lay past the axis (outside the SVG).
                 (apply #'max from (append starts ends))))
@@ -258,6 +269,14 @@ Running ones end now (or at the latest end)."
                                       :fill muted :text-anchor "end")))
         (agent-ui-chart--image svg)))))
 
+(defun agent-ui-timeline--drawn (draw props ctx)
+  "PROPS' timeline drawn by DRAW (its text's or image's), for CTX.
+In an animation's frames, drawn anew only when its span changes
+\(`agent-ui-memo'): a task running, once a second (a new image every
+0.15 s)."
+  (agent-ui-memo (list draw props) ctx (lambda () (funcall draw props ctx))
+                 (and (plist-get props :tasks) (agent-ui-timeline--span props))))
+
 (agent-ui-define timeline
   "Tasks as bars on a time axis: {\"name\", \"start\", \"end\" or
 \"duration\", \"status\"}, START and END seconds or timestamps; a task
@@ -274,8 +293,8 @@ test shards, a trace's spans; update or append tasks as they go."
               (seq-some (lambda (task) (and (eq (plist-get task :status) 'running) (plist-get task :stamped)))
                         (plist-get props :tasks)))
   :check #'agent-ui-timeline--check
-  :text #'agent-ui-timeline--text
-  :gui #'agent-ui-timeline--gui)
+  :text (lambda (props ctx) (agent-ui-timeline--drawn #'agent-ui-timeline--text props ctx))
+  :gui (lambda (props ctx) (agent-ui-timeline--drawn #'agent-ui-timeline--gui props ctx)))
 
 
 (provide 'agent-ui-timeline)

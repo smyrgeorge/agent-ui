@@ -53,8 +53,9 @@ Components that ask have a few keys of their own, listed in [Components](compone
   size changes. While the canvas is in no window, they're drawn at `agent-ui-default-width` columns.
 - **Animated components** (a spinner, a bar without an end) are redrawn only while one is shown in a window: in none, the
   animation stops until the canvas is shown again. Each frame redraws only what moves: a panel's other children and a
-  step's unfolded body stay as last drawn. The spinner is a dot, `●`, whose colour glows brighter and dimmer
-  (`agent-ui-spinner-frames`, `agent-ui-spinner-pulse`).
+  step's unfolded body stay as last drawn, and a countdown or a running timeline is drawn again only when what it shows
+  changes (once a second; an hour past a countdown's end, once a minute). The spinner is a dot, `●`, whose colour glows
+  brighter and dimmer (`agent-ui-spinner-frames`, `agent-ui-spinner-pulse`).
 - **Glyphs.** In a graphical frame, a character the default font lacks (`✎`, `⏵`) comes from another font, often
   wider or narrower than a column and taller than a line. The canvas draws it as large as a line holds and adjusts the
   space beside it to match, so borders and the `│` between columns stay in place and every line keeps the same height.
