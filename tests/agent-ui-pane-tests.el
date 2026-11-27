@@ -535,6 +535,43 @@ short ones stacked beside the tall one), no empty lines under them."
           (should (= (window-body-height cell)
                      (with-current-buffer (window-buffer cell) (count-lines (point-min) (point-max))))))))))
 
+(ert-deftest agent-ui-pane/a-window-change-measures-only-what-changed ()
+  "Window changes with nothing changed in the views (C-x o, a popup): no view
+measured again, no component checked (each view's whole buffer was laid
+out, each component looked at, at every one); a component added to one
+view: that one measured again alone. Their heights the same."
+  (agent-ui-test-aupn
+    (let ((agent-ui-pane-min-lines 3)
+          (tests (agent-ui-sub-canvas name "tests"))
+          measured checked)
+      (agent-ui-test-aupn-show name)
+      (agent-ui-show '(:id "x" :type "text" :text "1\n2\n3\n4\n5") :canvas tests)
+      (agent-ui--pane-fit-now)
+      (agent-ui--pane-sync)
+      (let ((heights (mapcar #'window-pixel-height (agent-ui--pane-cells (selected-frame))))
+            (wanted (buffer-local-value 'agent-ui--pane-height session))
+            (size (symbol-function 'window-text-pixel-size))
+            (ids (symbol-function 'agent-ui--animated-ids)))
+        (cl-letf (((symbol-function 'window-text-pixel-size)
+                   (lambda (&optional window &rest args)
+                     (push window measured)
+                     (apply size window args)))
+                  ((symbol-function 'agent-ui--animated-ids)
+                   (lambda () (push (current-buffer) checked) (funcall ids))))
+          (dotimes (_ 3)
+            (agent-ui--pane-sync-h (selected-frame)))
+          (should-not measured)
+          (should-not checked)
+          (should (equal (mapcar #'window-pixel-height (agent-ui--pane-cells (selected-frame))) heights))
+          (should (equal (buffer-local-value 'agent-ui--pane-height session) wanted))
+          ;; One view changed: it alone measured again.
+          (agent-ui-show '(:id "y" :type "text" :text "6") :canvas tests)
+          (agent-ui--pane-fit-now)
+          (agent-ui--pane-sync)
+          (should measured)
+          (should (equal (delete-dups measured)
+                         (list (get-buffer-window (agent-ui-test-aupn-canvas name "tests"))))))))))
+
 (ert-deftest agent-ui-pane/laid-out-again-from-a-view-touches-no-other-buffer ()
   "A new view laid out while one is selected (its window made again, the
 selected one deleted, another selected meanwhile): the new component drawn in

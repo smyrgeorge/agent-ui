@@ -760,8 +760,12 @@ a window kept its start)."
   (dolist (cell cells)
     (when (window-live-p cell)
       (with-current-buffer (window-buffer cell)
+        ;; Its lines counted as far as the window has room for, not all.
         (when (and (> (window-start cell) (point-min))
-                   (<= (count-lines (point-min) (point-max)) (window-body-height cell)))
+                   (save-excursion
+                     (goto-char (point-min))
+                     (forward-line (window-body-height cell))
+                     (eobp)))
           (set-window-start cell (point-min) t))))))
 
 (defun agent-ui--pane-show-in (cell view session)
@@ -885,15 +889,26 @@ By column, left to right, each top to bottom."
               (sort (cdr column) (lambda (a b) (< (nth 1 (window-pixel-edges a)) (nth 1 (window-pixel-edges b))))))
             (sort columns (lambda (a b) (< (car a) (car b)))))))
 
-(defun agent-ui--pane-cell-need (cell)
-  "The pixels CELL, a view's window, needs.
+(defun agent-ui--pane-cell-need (cell limit)
+  "The pixels CELL, a view's window, needs, its text LIMIT at most.
 Its view's text as shown (its dirty components drawn first), and the bars
-and divider around it."
+and divider around it.  The text is measured again only if it changed,
+or CELL's width, font or LIMIT did (a window change elsewhere in the
+frame laid out each view whole): else as last measured, kept in CELL's
+`agent-ui-pane-need' parameter."
   (with-current-buffer (window-buffer cell)
-    (when (derived-mode-p 'agent-ui-canvas-mode)
+    (when (and (derived-mode-p 'agent-ui-canvas-mode)
+               (or agent-ui--dirty agent-ui--dirty-sections))
       (agent-ui--flush))
-    (+ (cdr (window-text-pixel-size cell (point-min) (point-max)))
-       (- (window-pixel-height cell) (window-body-height cell t)))))
+    (let* ((key (list (buffer-modified-tick) (window-body-width cell t)
+                      (window-font-width cell) (window-font-height cell) limit))
+           (last (window-parameter cell 'agent-ui-pane-need))
+           (text (if (equal (car last) key)
+                     (cdr last)
+                   (let ((text (cdr (window-text-pixel-size cell (point-min) (point-max) nil limit))))
+                     (set-window-parameter cell 'agent-ui-pane-need (cons key text))
+                     text))))
+      (+ text (- (window-pixel-height cell) (window-body-height cell t))))))
 
 (defun agent-ui--pane-fit (window session)
   "SESSION's Agent UI, in WINDOW's pane, fitted to what it shows.
@@ -903,11 +918,13 @@ own in its column, if that changed since it was last given its height."
               (cells (agent-ui--pane-cells (window-frame window) session))
               ((agent-ui--pane-in-place-p window cells)))
     (let* ((columns (agent-ui--pane-columns cells))
-           (needs (mapcar (lambda (column) (mapcar #'agent-ui--pane-cell-need column)) columns))
            (pane (+ (window-pixel-height window) (window-pixel-height area)))
            (line (frame-char-height (window-frame window)))
            (least (* agent-ui-pane-min-lines line))
            (most (max least (min (round (* (agent-ui--pane-share session) pane)) (- pane least))))
+           ;; A view's text laid out as far as the most it can be shown.
+           (needs (mapcar (lambda (column) (mapcar (lambda (cell) (agent-ui--pane-cell-need cell most)) column))
+                          columns))
            (height (if (buffer-local-value 'agent-ui-pane-full session)
                        most
                      (min most (max least (apply #'max (mapcar (lambda (n) (apply #'+ n)) needs))))))
