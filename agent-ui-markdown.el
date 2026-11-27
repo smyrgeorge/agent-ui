@@ -59,6 +59,9 @@ replaces (`agent-ui-markdown--put-diagrams')."
 (defun agent-ui-markdown--put-diagrams (diagrams ctx)
   "Replace the placeholders of DIAGRAMS in the current buffer by them.
 They are drawn for CTX (`agent-ui-mermaid-draw')."
+  (when diagrams
+    ;; Loaded when a diagram is drawn: the mermaid type's file.
+    (require 'agent-ui-mermaid))
   (cl-loop for diagram in diagrams
            for i from 0
            do (goto-char (point-min))

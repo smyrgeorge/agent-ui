@@ -84,6 +84,9 @@
 
 (add-to-list 'load-path agent-ui-test-root)
 (require 'agent-ui)
+;; Every type's file, loaded when first used otherwise: not while a test
+;; has `agent-ui--types' bound to a copy (the type would be in it only).
+(agent-ui-load-types)
 (agent-ui-mode 1)
 
 ;; ====== TOOLS ======
@@ -198,6 +201,20 @@ Else all of it as one, its SKILL.md then its references (by name)."
         (goto-char (point-max))
         (insert-file-contents f))
       (buffer-string))))
+
+(defun agent-ui-test-fresh (form)
+  "FORM's value, read, from a fresh Emacs (batch, this one's load path).
+Agent UI loaded, its mode on, before FORM: as at Emacs's start."
+  (with-temp-buffer
+    (let ((status (apply #'call-process (expand-file-name invocation-name invocation-directory)
+                         nil '(t nil) nil "-Q" "--batch"
+                         (append (mapcan (lambda (dir) (list "-L" dir)) load-path)
+                                 (list "--eval" (prin1-to-string
+                                                 `(progn (require 'agent-ui)
+                                                         (agent-ui-mode 1)
+                                                         (prin1 ,form))))))))
+      (should (eql status 0))
+      (car (read-from-string (buffer-string))))))
 
 (provide 'agent-ui-test-helper)
 

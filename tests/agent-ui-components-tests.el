@@ -27,6 +27,22 @@
             (should (equal (list name width line (string-width line))
                            (list name width line (min (string-width line) (max width 30)))))))))))
 
+(ert-deftest agent-ui-components/types-loaded-when-used ()
+  "No type's file is loaded at Emacs's start (Agent UI loaded, its mode
+on): 0.3 s, for types a session may never show.  The catalog names them
+all meanwhile; each is loaded the first time it's used, its commands
+there before (a key of the canvas's)."
+  (should (equal (agent-ui-test-fresh
+                  '(list (seq-filter (lambda (entry) (featurep (cdr entry))) agent-ui--type-features)
+                         (featurep 'vui)
+                         (length (agent-ui-types))
+                         (commandp 'agent-ui-table-sort)
+                         (and (string-match-p "hi" (agent-ui-render '(:type "text" :text "hi")
+                                                                    (agent-ui-context :width 40)))
+                              t)
+                         (seq-filter (lambda (entry) (featurep (cdr entry))) agent-ui--type-features)))
+                 '(nil nil 30 t t ((text . agent-ui-text))))))
+
 ;; doom-ht6.29
 (ert-deftest agent-ui-components/no-issues-board ()
   "The issues board is gone (Beads' own list shows the same): an issues

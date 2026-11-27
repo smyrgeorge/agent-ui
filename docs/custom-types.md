@@ -70,6 +70,19 @@ They return the text to insert and don't touch the buffer, so a type can be test
 Emacs's only thread, on each change, so keep it quick. A drawing that signals an error shows the error in the
 component's place.
 
+### Loaded when first used
+
+Agent UI's own types aren't loaded with it: each type's file is loaded the first time a component of it is shown,
+checked or drawn, so Emacs's start doesn't wait for 30 files. Yours can be too. With the type in `dial.el` on your
+`load-path` (ending with `(provide 'dial)`), this in your init file names it in the catalog and loads the file only
+when a dial is first used:
+
+```elisp
+(agent-ui-autoload-type 'dial 'dial)
+```
+
+`agent-ui-load-types` loads every type not loaded yet.
+
 ### Helpers
 
 - Text: `agent-ui-pad`, `agent-ui-truncate`, `agent-ui-wrap`, `agent-ui-wrap-hanging` (a list item's rest under its

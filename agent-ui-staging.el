@@ -211,7 +211,8 @@ name), told once it's reviewed.  Returns (:type NAME :file FILE :status
 \"waiting\" :note TEXT).  Signals `agent-ui-error' if it's refused;
 then nothing of it stays."
   (let ((name (agent-ui--check-forms (agent-ui--read-forms code))))
-    (when (gethash name agent-ui--types)
+    ;; `agent-ui-types': a built-in type not loaded yet too.
+    (when (memq name (agent-ui-types))
       (agent-ui--fail "define: %s is a type already (built in or kept): name yours otherwise" name))
     (make-directory agent-ui-staging-directory t)
     (let ((file (expand-file-name (format "%s.el" name) agent-ui-staging-directory)))

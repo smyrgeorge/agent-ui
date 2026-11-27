@@ -373,6 +373,8 @@ how to install it."
 
 (defun agent-ui-doctor--math ()
   "A tool typesetting formulas: MathJax (Node's mathjax-full), else LaTeX."
+  ;; Its finding the tool: the math type's, not loaded until one is shown.
+  (require 'agent-ui-math nil t)
   (let ((tool (cond ((fboundp 'agent-ui-math--tool) (agent-ui-math--tool))
                     ((and (executable-find "latex") (executable-find "dvisvgm")) 'latex))))
     (cond

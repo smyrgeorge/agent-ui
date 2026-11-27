@@ -23,41 +23,32 @@
 ;;; Commentary:
 
 ;; Agent UI's component types, a file each (agent-ui-TYPE.el), each defined
-;; with `agent-ui-define' (agent-ui-core.el).
+;; with `agent-ui-define' (agent-ui-core.el).  None is loaded here: each
+;; type's file is loaded the first time the type is used (a component of it
+;; shown, checked, drawn, `agent-ui-autoload-type').  Loading them all took
+;; 0.3 s of Emacs's start, for types a session may never show.
 
 ;;; Code:
 
-(require 'agent-ui-text)
-(require 'agent-ui-markdown)
-(require 'agent-ui-progress)
-(require 'agent-ui-steps)
-(require 'agent-ui-table)
-(require 'agent-ui-chart)
-(require 'agent-ui-image)
-(require 'agent-ui-html)
-(require 'agent-ui-diff)
-(require 'agent-ui-choice)
-(require 'agent-ui-todo)
-(require 'agent-ui-confirm)
-(require 'agent-ui-form)
-(require 'agent-ui-rank)
-(require 'agent-ui-slider)
-(require 'agent-ui-tags)
-(require 'agent-ui-gauge)
-(require 'agent-ui-countdown)
-(require 'agent-ui-math)
-(require 'agent-ui-mermaid)
-(require 'agent-ui-files)
-(require 'agent-ui-stats)
-(require 'agent-ui-log)
-(require 'agent-ui-activity)
-(require 'agent-ui-timeline)
-(require 'agent-ui-graph)
-(require 'agent-ui-code)
-(require 'agent-ui-heatmap)
-(require 'agent-ui-panel)
-;; Its options are components of the others, laid out as a panel's row: last.
-(require 'agent-ui-compare)
+(require 'agent-ui-core)
+
+(dolist (type '(activity chart choice code compare confirm countdown diff files form
+                gauge graph heatmap html image log markdown math mermaid panel
+                progress rank slider stats steps table tags text timeline todo))
+  (agent-ui-autoload-type type (intern (format "agent-ui-%s" type))))
+
+;; What of theirs is used before any of them is shown: a key of the canvas,
+;; what a user's configuration calls.
+(autoload 'agent-ui-table-sort "agent-ui-table"
+  "Sort the table at point by the column at point; again, the other way." t)
+(autoload 'agent-ui-html-browse "agent-ui-html"
+  "Open PAGE (a file's name or a URL) in the browser.")
+(autoload 'agent-ui-mermaid-render "agent-ui-mermaid"
+  "Draw SOURCE, a Mermaid diagram, as an SVG with mmdc, in the background.")
+(autoload 'agent-ui-mermaid-theme-key "agent-ui-mermaid"
+  "How diagrams are drawn now: dark or light, as the selected frame.")
+(autoload 'agent-ui-mermaid-theme-changed "agent-ui-mermaid"
+  "Draw each diagram again, in the colours of the theme now.")
 
 (provide 'agent-ui-components)
 

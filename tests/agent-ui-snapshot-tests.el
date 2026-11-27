@@ -244,31 +244,17 @@ canvas keeps them."
                    (agent-ui-link agent-ui-default-canvas "c")))
     (should-error (agent-ui-open-link "agent-ui://canvas/no-such-canvas#x") :type 'user-error)))
 
-(defun agent-ui-test-aush-fresh (form)
-  "FORM's value, read, from a fresh Emacs (batch, this one's load path).
-Agent UI loaded, its mode on, before FORM."
-  (with-temp-buffer
-    (let ((status (apply #'call-process (expand-file-name invocation-name invocation-directory)
-                         nil '(t nil) nil "-Q" "--batch"
-                         (append (mapcan (lambda (dir) (list "-L" dir)) load-path)
-                                 (list "--eval" (prin1-to-string
-                                                 `(progn (require 'agent-ui)
-                                                         (agent-ui-mode 1)
-                                                         (prin1 ,form))))))))
-      (should (eql status 0))
-      (car (read-from-string (buffer-string))))))
-
 (ert-deftest agent-ui-snapshot/links-handled-browse-url-not-loaded ()
   "The mode on doesn't load browse-url (url, auth-source, eieio with it:
 0.2 s of Emacs's start); its links' handler comes once it's loaded, not
 if the mode was turned off meanwhile. It loaded it before (the first
 value t)."
-  (should (equal (agent-ui-test-aush-fresh
+  (should (equal (agent-ui-test-fresh
                   '(list (featurep 'browse-url)
                          (progn (require 'browse-url)
                                 (equal (browse-url-select-handler "agent-ui://canvas/x#y") #'agent-ui-open-link))))
                  '(nil t)))
-  (should-not (agent-ui-test-aush-fresh
+  (should-not (agent-ui-test-fresh
                '(progn (agent-ui-mode -1)
                        (require 'browse-url)
                        (member agent-ui--link-handler browse-url-handlers)))))

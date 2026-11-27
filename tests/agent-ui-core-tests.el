@@ -707,4 +707,33 @@ alone where the canvas answers its buttons itself (doom-ht6.124)."
         (setq-local agent-ui-answer-function #'ignore)
         (should (equal (hover) "RET: Refresh the data"))))))
 
+;; ====== A TYPE LOADED WHEN FIRST USED ======
+
+(ert-deftest agent-ui-core/a-type-loaded-when-first-used ()
+  "A type autoloaded (`agent-ui-autoload-type') is named by
+`agent-ui-types' before its file is loaded, its file loaded the first
+time it's looked up; undefined, it's forgotten."
+  (let* ((dir (agent-ui-test-tmp-file "autoload-type/"))
+         (feature (intern (make-temp-name "agent-ui-test-lazy-")))
+         (load-path (cons dir load-path))
+         (agent-ui--types (make-hash-table :test #'eq))
+         (agent-ui--type-features nil))
+    (with-temp-file (expand-file-name (format "%s.el" feature) dir)
+      (insert ";;; -*- lexical-binding: t -*-\n"
+              (prin1-to-string '(agent-ui-define lazy-x "A lazy one."
+                                  :text (lambda (_props _ctx) "lazy, drawn")))
+              "\n" (prin1-to-string `(provide ',feature)) "\n"))
+    (should (eq (agent-ui-autoload-type 'lazy-x feature) 'lazy-x))
+    (should (equal (agent-ui-types) '(lazy-x)))
+    (should-not (featurep feature))
+    (should (string-match-p "lazy, drawn" (agent-ui-render '(:type "lazy-x") (agent-ui-context :width 40))))
+    (should (featurep feature))
+    (should (equal (agent-ui-types) '(lazy-x)))
+    (agent-ui-undefine 'lazy-x)
+    (should-not (agent-ui-types))
+    (should-not agent-ui--type-features)
+    (should (string-match-p "unknown type \"lazy-x\""
+                            (agent-ui-error-message
+                             (should-error (agent-ui-type "lazy-x") :type 'agent-ui-error))))))
+
 ;;; agent-ui-core-tests.el ends here

@@ -120,6 +120,11 @@ buffer's): while a request is answered, the agent's.")
 (defvar agent-ui--types (make-hash-table :test #'eq)
   "The component types, by name (a symbol).")
 
+(defvar agent-ui--type-features nil
+  "The component types defined by loading a feature: (NAME . FEATURE)...
+FEATURE is required the first time NAME is looked up, if it isn't loaded
+yet (`agent-ui-autoload-type').")
+
 ;; ====== ERRORS ======
 
 (defun agent-ui--fail (format-string &rest args)
@@ -284,22 +289,52 @@ Defining a type again replaces it."
                        :whole ,(plist-get args :whole)
                        :file (or load-file-name buffer-file-name)))
 
+(defun agent-ui-autoload-type (name feature)
+  "Have the component type NAME defined by requiring FEATURE when it's needed.
+
+Its file is loaded the first time NAME is looked up (`agent-ui-type': a
+component of it shown, checked, drawn), not before: Agent UI's own types
+are, each its file, so that Emacs's start doesn't wait for 30 of them.
+`agent-ui-types' names it meanwhile.  Returns NAME."
+  (setf (alist-get name agent-ui--type-features) feature)
+  name)
+
+(defun agent-ui--type-get (name)
+  "Return the component type NAME (a symbol), nil if there's none.
+Its file is loaded first if it's one of `agent-ui--type-features' not
+loaded yet."
+  (or (gethash name agent-ui--types)
+      (when-let* ((feature (alist-get name agent-ui--type-features))
+                  ((not (featurep feature))))
+        (require feature)
+        (gethash name agent-ui--types))))
+
+(defun agent-ui-load-types ()
+  "Load the files of the component types not loaded yet (`agent-ui-autoload-type')."
+  (pcase-dolist (`(,_ . ,feature) agent-ui--type-features)
+    (require feature)))
+
 (defun agent-ui-undefine (name)
   "Forget the component type NAME."
+  (setq agent-ui--type-features (assq-delete-all name agent-ui--type-features))
   (remhash name agent-ui--types))
 
 (defun agent-ui-types ()
-  "The component types' names, sorted."
-  (sort (hash-table-keys agent-ui--types)
+  "The component types' names, sorted, those whose file isn't loaded yet too."
+  (sort (delete-dups
+         (append (hash-table-keys agent-ui--types)
+                 (cl-loop for (name . feature) in agent-ui--type-features
+                          unless (featurep feature) collect name)))
         (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
 
 (defun agent-ui-type (type)
   "The component type TYPE: an `agent-ui-type', its name (a symbol or a string).
+Its file is loaded first if it isn't yet (`agent-ui-autoload-type').
 Signals `agent-ui-error' if there's none."
   (cond
    ((agent-ui-type-p type) type)
    ((and (or (symbolp type) (stringp type)) type
-         (gethash (if (stringp type) (intern type) type) agent-ui--types)))
+         (agent-ui--type-get (if (stringp type) (intern type) type))))
    ((null type)
     (agent-ui--fail "no type given; types: %s"
                     (mapconcat #'symbol-name (agent-ui-types) ", ")))
