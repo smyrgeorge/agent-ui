@@ -5,6 +5,14 @@ Emacs restarts. Its data is fetched afresh each time it opens, and none of it is
 suits a dashboard you want for a project (a service's CI and errors, a release's state), while the canvas is for what
 the agent shows as it works.
 
+![A project panel: a service's figures, its error budget, its latency, its CI runs and its last errors](images/panel.png)
+
+Agent UI's repository has two demos in its own [`.agent-ui/panels/`](../.agent-ui/panels/), each a full example of
+a panel that runs a command every second and reads its output: [`cpu`](../.agent-ui/panels/cpu.el) (how busy the
+machine is, its load, its last minute, its busiest processes) and [`memory`](../.agent-ui/panels/memory.el) (where the
+memory goes, its pressure, swap, the compressor, the processes holding the most), on macOS and Linux. Open the
+repository in Emacs and `M-x agent-ui-open-panel`, or copy one into your project's `.agent-ui/panels/`.
+
 | Key or command | What it does |
 |---|---|
 | `M-x agent-ui-open-panel` | Open one of the current project's panels, in a window of its own. |

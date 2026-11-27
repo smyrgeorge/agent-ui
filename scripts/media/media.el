@@ -17,6 +17,7 @@
 ;;   figures   a canvas of figures: stats, gauge, charts, heatmap, timeline
 ;;   content   a canvas of changes: files, graph, diff, code, log, mermaid
 ;;   asking    a choice answered, a ranking reordered: asking.gif
+;;   panel     a project's dashboard, opened from its repository: panel.png
 ;;
 ;; Its progress, lines starting with "media:", go to stderr.
 
@@ -342,6 +343,66 @@ STILL: its last frame also saved as STILL.png."
        (7.0 . ,(lambda () (setq done t)))))
     (lambda () done)))
 
+;; The panel: a project's dashboard, kept in its repository
+;; (.agent-ui/panels/service.el), opened as you open one: its file read, its
+;; :ui drawn, its :fetch filling it (with a stand-in's data here: no
+;; network).  Its file is trusted first, as you would when asked.
+
+(defun media--panel-form ()
+  "The panel file's form: a service's traffic, latency, CI and errors."
+  `(agent-ui-panel
+    :version 1
+    :ui (:type "panel" :id "service" :title "checkout-service"
+         :children ((:type "panel" :id "top" :layout "row" :border :false :weights (3 2)
+                     :children ((:type "stats" :id "traffic" :title "Last hour")
+                                (:type "gauge" :id "budget" :title "Error budget" :value 0 :max 100 :unit "%"
+                                 :label "used this month"
+                                 :thresholds ((:at 0 :face "success") (:at 60 :face "warning")
+                                              (:at 85 :face "error")))))
+                    (:type "panel" :id "mid" :layout "row" :border :false :weights (2 3)
+                     :children ((:type "chart" :id "latency" :title "p95 latency, last 12h" :unit "ms"
+                                 :height 6)
+                                (:type "table" :id "ci" :title "CI on main"
+                                 :columns ("Run" "Commit" "Status" "Took"))))
+                    (:type "log" :id "errors" :title "Errors")))
+    :every 30
+    :fetch (lambda (panel)
+             (agent-ui-panel-update
+              panel "traffic"
+              :figures '((:label "Requests" :value 1240 :unit "/min" :change "+8%")
+                         (:label "Errors" :value 0.4 :unit "%" :change -0.2 :good "down")
+                         (:label "p95" :value 182 :unit "ms" :change -14 :good "down")))
+             (agent-ui-panel-update panel "budget" :value 37)
+             (agent-ui-panel-update
+              panel "latency"
+              :labels '("08" "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19")
+              :values '(170 165 190 240 310 220 196 188 175 184 179 182))
+             (agent-ui-panel-update
+              panel "ci"
+              :rows '(("#1432" "fix: retry payments" "running" "2m 10s")
+                      ("#1431" "feat: gift cards" "passed" "4m 12s")
+                      ("#1430" "chore: bump deps" "failed" "3m 48s")
+                      ("#1429" "fix: tax rounding" "passed" "4m 05s")))
+             (agent-ui-panel-update
+              panel "errors"
+              :lines "11:58:12 ERROR payments: gateway timeout after 30s (order 88213)
+12:03:40 WARN  cart: slow query, 1.4s
+12:07:05 ERROR payments: gateway timeout after 30s (order 88297)
+12:11:31 INFO  payments: retry policy deployed (#1432)"))))
+
+(defun media-panel ()
+  "A project's dashboard, opened from its repository."
+  (let* ((root (file-name-as-directory (expand-file-name "shop" media-tmp)))
+         (file (expand-file-name ".agent-ui/panels/service.el" root)))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file
+      (insert ";;; service.el --- Agent UI panel: the service  -*- lexical-binding: t; -*-\n")
+      (pp (media--panel-form) (current-buffer)))
+    (agent-ui-panel-trust file)
+    (let ((canvas (agent-ui-open-panel-here "service" root)))
+      ;; Filled: its CI table has rows (its row is an image in the GUI).
+      (lambda () (plist-get (agent-ui-get "ci" :canvas canvas) :rows)))))
+
 ;; The release: an agent-shell session with the stand-in agent, asked to
 ;; release a project; as it runs the tests and the build, its canvases fill
 ;; in (as the agent would show them, through Lisp here), a tick apart.
@@ -484,12 +545,13 @@ STILL: its last frame also saved as STILL.png."
            (make-directory media-out t)
            (media--setup)
            (dolist (scene (or (split-string (or (getenv "MEDIA_SCENES") "") " " t)
-                              '("release" "figures" "content" "asking")))
+                              '("release" "figures" "content" "asking" "panel")))
              (pcase scene
                ("release" (media-gif "release" #'media-release nil 2.5 "session"))
                ("figures" (media-still "figures" #'media-figures))
                ("content" (media-still "content" #'media-content))
                ("asking" (media-gif "asking" #'media-asking '(1200 . 340) 1.5))
+               ("panel" (media-still "panel" #'media-panel '(1200 . 620)))
                (_ (media--say "no scene %s" scene))))
            (kill-emacs 0))
        (error (media--say "error: %s" (error-message-string err))

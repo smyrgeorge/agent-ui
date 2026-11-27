@@ -6,7 +6,7 @@
 # scripts/media/media.el for the scenes.
 #
 #   scripts/media.sh                    every scene
-#   scripts/media.sh figures asking     those named (release, figures, content, asking)
+#   scripts/media.sh figures asking     those named (release, figures, content, asking, panel)
 #
 # Needs macOS (screencapture), ffmpeg, and the dependencies in .deps/ (make
 # deps; make media-deps adds doom-themes, the screenshots' theme). The

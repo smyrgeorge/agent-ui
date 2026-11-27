@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="540" viewBox="0 0 840 540" role="img" aria-labelledby="title desc">
+  <title id="title">How Agent UI works</title>
+  <desc id="desc">The coding agent calls bin/agent-ui from its shell, or the same operations as MCP tools through agent-ui-mcp.el, which calls bin/agent-ui. The command reaches Emacs through emacsclient; Emacs draws the session's canvas. Your answers and the canvas's buttons go into the session's prompt, back to the agent.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a3"/>
+    </marker>
+    <style>
+      .title { font: 600 17px ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #bbc2cf; }
+      .mono { font: 600 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #bbc2cf; }
+      .sub { font: 13px ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #8a93a3; }
+      .label { font: 12.5px ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #a9b1c0; }
+      .label-mono { font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #a9b1c0; }
+      .edge { fill: none; stroke: #8a93a3; stroke-width: 1.6; }
+      .node { fill: #21242b; stroke-width: 1.6; }
+    </style>
+  </defs>
+
+  <rect x="0.5" y="0.5" width="839" height="539" rx="14" fill="#282c34" stroke="#3f444a"/>
+
+  <!-- The agent -->
+  <rect class="node" x="260" y="36" width="320" height="64" rx="10" stroke="#c678dd"/>
+  <text class="title" x="420" y="63" text-anchor="middle">Coding agent</text>
+  <text class="sub" x="420" y="84" text-anchor="middle">in its agent-shell session</text>
+
+  <!-- The command and the MCP server -->
+  <rect class="node" x="40" y="170" width="320" height="64" rx="10" stroke="#51afef"/>
+  <text class="mono" x="200" y="197" text-anchor="middle">bin/agent-ui</text>
+  <text class="sub" x="200" y="218" text-anchor="middle">one command, JSON in and out</text>
+
+  <rect class="node" x="460" y="170" width="320" height="64" rx="10" stroke="#51afef"/>
+  <text class="mono" x="620" y="197" text-anchor="middle">agent-ui-mcp.el</text>
+  <text class="sub" x="620" y="218" text-anchor="middle">the same operations as MCP tools</text>
+
+  <!-- Emacs -->
+  <rect class="node" x="40" y="300" width="320" height="64" rx="10" stroke="#98be65"/>
+  <text class="title" x="200" y="327" text-anchor="middle">Emacs</text>
+  <text class="sub" x="200" y="348" text-anchor="middle">answers each request through its server</text>
+
+  <!-- The canvas, a progress bar in it -->
+  <rect class="node" x="40" y="430" width="320" height="80" rx="10" stroke="#ecbe7b"/>
+  <text class="title" x="200" y="457" text-anchor="middle">The session's canvas</text>
+  <text class="sub" x="200" y="477" text-anchor="middle">progress, tables, charts, questions</text>
+  <rect x="110" y="489" width="180" height="7" rx="3.5" fill="#3f444a"/>
+  <rect x="110" y="489" width="118" height="7" rx="3.5" fill="#51afef"/>
+
+  <!-- The prompt -->
+  <rect class="node" x="460" y="438" width="320" height="64" rx="10" stroke="#da8548"/>
+  <text class="title" x="620" y="465" text-anchor="middle">The session's prompt</text>
+  <text class="sub" x="620" y="486" text-anchor="middle">your answers, the buttons' prompts</text>
+
+  <!-- Edges -->
+  <path class="edge" d="M380,100 V136 H200 V166" marker-end="url(#arrow)"/>
+  <text class="label" x="290" y="129" text-anchor="middle">show, update, append</text>
+
+  <path class="edge" d="M460,100 V136 H620 V166" marker-end="url(#arrow)"/>
+  <text class="label" x="540" y="129" text-anchor="middle">MCP tools</text>
+
+  <path class="edge" d="M460,202 H364" marker-end="url(#arrow)"/>
+  <text class="label" x="410" y="195" text-anchor="middle">each call</text>
+
+  <path class="edge" d="M200,234 V296" marker-end="url(#arrow)"/>
+  <text class="label-mono" x="212" y="270">emacsclient</text>
+
+  <path class="edge" d="M200,364 V426" marker-end="url(#arrow)"/>
+  <text class="label" x="212" y="400">drawn, then updated in place</text>
+
+  <path class="edge" d="M360,470 H456" marker-end="url(#arrow)"/>
+  <text class="label" x="408" y="463" text-anchor="middle">answers</text>
+
+  <path class="edge" d="M780,470 H808 V68 H584" marker-end="url(#arrow)"/>
+  <text class="label" x="696" y="61" text-anchor="middle">its next turn</text>
+</svg>

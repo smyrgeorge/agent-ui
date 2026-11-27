@@ -12,24 +12,63 @@ one is updated in place as the work goes on, instead of scrolling away in the co
 > Agent UI is young and under active development. Expect rough edges, and please
 > [report what you find](https://github.com/smyrgeorge/agent-ui/issues).
 
-## Why
+## Features
 
-An agent's reply is a stream of text. What it's doing (a plan being worked through, a build running, tests passing
-and failing, a question waiting for you) has a shape that a stream of text doesn't hold well. Agent UI gives that
-shape a place: the agent shows a component once, then changes it as things change. The conversation keeps the words.
-
-- **30 component types**: `progress`, `steps`, `table`, `chart`, `stats`, `gauge`, `heatmap`, `timeline`, `graph`,
-  `mermaid`, `diff`, `code`, `files`, `log`, `activity`, `markdown`, `math`, `image`, `html`, `panel`, and more.
-- **Questions with real answers**: `choice`, `confirm`, `form`, `rank`, `slider`, `compare`, a plan to approve, rows
-  to pick. The answer goes back into the session's prompt.
-- **One canvas per session**, beside its conversation. It closes with the session and comes back when the session is
-  resumed.
+- **30 component types**, to show and to ask ([the list](#components)), each updated in place as the work goes on.
+- **Questions with real answers**: pick an option, confirm, fill in a form, rank, approve a plan, accept changes, pick
+  rows. The answer goes back into the session's prompt.
+- **One canvas per session**, at the bottom of its pane. It closes with the session and comes back when the session is
+  resumed. A second subject gets a canvas of its own beside it.
 - **Driven from the agent's shell** with one command (`bin/agent-ui`, JSON in and out), or as **MCP tools**.
-- **Sources**: a component can follow a command, a file or a poll by itself, so a progress bar keeps moving while the
+- **Sources**: a component follows a command, a file or a poll by itself, so a progress bar keeps moving while the
   agent waits on a long build.
-- **Project panels**: dashboards kept in a repository (`.agent-ui/panels/`), opened on demand.
-- **Types of your own**: the agent can define a new component type when none fits. You review it before it's kept.
-- Works in a terminal too: everything has a text drawing, and the GUI adds SVG charts, gauges and images.
+- **[Project panels](#project-panels)**: dashboards kept in a repository, opened on demand, their data fetched afresh.
+- **Types of your own**: the agent defines a new component type when none fits. You review it before it's kept.
+- **In the conversation too**: a component saved as an SVG for the agent's reply, a canvas exported as a PDF.
+- **Works in a terminal**: everything has a text drawing, and a graphical frame adds SVG charts, gauges and images.
+- **A doctor**: `M-x agent-ui-doctor` checks what Agent UI needs and says how to fix what's missing.
+
+## Components
+
+To show:
+
+- `progress`: a bar, with its rate and the time left
+- `steps`: a checklist whose steps change state
+- `table`: rows that fit the width, filled in by key
+- `stats`: a row of figures with their change
+- `gauge`: one value against its range and target
+- `chart`: lines, bars, a histogram or a sparkline
+- `heatmap`: a grid coloured by value or state
+- `timeline`: tasks as bars on a time axis
+- `countdown`: time elapsed or left, ticking
+- `graph`: nodes and edges, laid out for you
+- `mermaid`: a Mermaid diagram
+- `diff`: changes, by file and hunk
+- `code`: a snippet, with notes on marked lines
+- `files`: files and their state, flat or as a tree
+- `log`: output coloured by level
+- `activity`: what a script or an agent is doing now
+- `tags`: chips with counts
+- `text`: a paragraph
+- `markdown`: Markdown, drawn as agent-shell draws replies
+- `math`: LaTeX formulas, typeset
+- `image`: a picture, from a file or a URL
+- `html`: a web page, as a card
+- `panel`: several components together, in rows and columns
+
+To ask:
+
+- `choice`: pick one option, or several
+- `confirm`: yes or no, before something risky
+- `form`: several fields filled in at once
+- `rank`: items put in order
+- `slider`: a number in a range
+- `compare`: alternatives side by side, to pick from
+- `todo`: a checklist you and the agent both tick
+
+And three ways to ask with what's already shown: `steps` with `approve` (a plan to approve), `diff` with `accept`
+(changes to accept), `select` on a `table`, `files` or `tags` (rows, files or chips to pick). Each type, its properties
+and an example: [Component types](docs/components.md).
 
 ## Screenshots
 
@@ -135,18 +174,63 @@ $AGENT_UI clear
 
 Every reply is JSON: `{"ok":true,"id":"build"}`, or `{"ok":false,"error":"..."}` saying exactly what's wrong.
 
+## Project panels
+
+A project panel is a dashboard kept in a project's repository: a service's traffic and CI, a release's state, whatever
+you want to see again for that project. It opens on demand in a window of its own, fetches its data afresh when it
+opens and every so often while it's shown, and keeps none of it. The canvas is for what the agent shows as it works; a
+panel is for what you come back to.
+
+![A project panel: a service's figures, its error budget, its latency, its CI runs and its last errors](docs/images/panel.png)
+
+**Making one.** Each panel is a file, `.agent-ui/panels/NAME.el`, committed with the project. It holds what the panel
+shows (`:ui`, components as the agent shows them, written as a plist) and the code that fills it (`:fetch`, run every
+`:every` seconds):
+
+```elisp
+;;; service.el --- Agent UI panel: the service  -*- lexical-binding: t; -*-
+(agent-ui-panel
+ :version 1
+ :ui (:type "panel" :id "service" :title "checkout-service"
+      :children ((:type "table" :id "ci" :title "CI on main" :columns ("Run" "Commit" "Status"))))
+ :every 30
+ :fetch (lambda (panel)
+          (agent-ui-panel-run panel '("gh" "run" "list" "-L" "5" "--json" "number,displayTitle,conclusion")
+            (lambda (runs)
+              (agent-ui-panel-update panel "ci"
+                :rows (mapcar (lambda (run)
+                                (list (format "#%s" (alist-get 'number run))
+                                      (alist-get 'displayTitle run)
+                                      (or (alist-get 'conclusion run) "running")))
+                              runs)))
+            :component "ci")))
+```
+
+`agent-ui-panel-run` runs a command without making Emacs wait, and hands its output (parsed, when it's JSON) to your
+function; `agent-ui-panel-update` changes a component as `agent-ui update` does. The easiest way to make a panel is to
+ask your agent ("make a panel with our CI runs and the error rate"): it writes the file, checks it with
+`agent-ui check NAME` and opens it for you. `S` on a component of a canvas saves it as a panel too, for its `:fetch` to
+be written.
+
+**Using it.** `M-x agent-ui-open-panel` lists the project's panels and opens the one you pick. In a panel, `r` reads
+its file again and reruns it, `E` saves it as a PDF, `q` closes it. A panel's code comes from a repository, so before
+it first runs you're asked (`y` run it, `p` trust the project, `v` view the file first, `n` not now); the answer is
+remembered for that file's content, and asked again once it changes. A hidden panel fetches nothing. The agent lists
+the panels (`agent-ui panels`), opens one (`agent-ui open NAME`) and reads its data (`agent-ui get --panel NAME`).
+
+**Two demos** come with this repository, in [`.agent-ui/panels/`](.agent-ui/panels/):
+[`cpu`](.agent-ui/panels/cpu.el) (how busy the machine is, its load, its last minute, the processes using it most) and
+[`memory`](.agent-ui/panels/memory.el) (where the memory goes, its pressure, swap, the compressor's work, the processes
+holding the most). Both fetch every second, on macOS and Linux, each from one command run without waiting. Open this
+repository in Emacs and `M-x agent-ui-open-panel`, or copy one into your project's `.agent-ui/panels/`.
+
+More: [Project panels](docs/panels.md).
+
 ## How it works
 
-```mermaid
-flowchart TD
-    agent[Coding agent] -->|show, update, append| cli[bin/agent-ui]
-    agent -->|MCP tools| mcp[agent-ui-mcp.el]
-    mcp --> cli
-    cli -->|emacsclient| emacs[Emacs]
-    emacs --> canvas[The session canvas]
-    canvas -->|answers, actions| prompt[The session prompt]
-    prompt --> agent
-```
+![The agent calls bin/agent-ui from its shell, or the same operations as MCP tools; the command reaches Emacs
+through emacsclient; Emacs draws the session's canvas; your answers and the buttons' prompts go into the session's
+prompt, back to the agent](docs/images/how-it-works.svg)
 
 Each agent-shell session starts its agent with `AGENT_UI_SESSION` in its environment, so every request finds that
 session's canvas. A component is a JSON object (`type`, `id`, its type's properties), checked against its type before
