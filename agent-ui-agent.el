@@ -410,6 +410,10 @@ of no session: the session working in its project, the latest."
                                 (agent-ui--session-buffer nil default-directory))))))
     ;; What it says of its component, of a section's: its id, not its key.
     (setq prompt (agent-ui--unkeyed prompt (agent-ui--key-section key)))
+    ;; A canvas holding its prompts (an untrusted dashboard's): into the
+    ;; prompt, for the user to read, never sent at once.
+    (when (and canvas agent-ui-actions-held)
+      (setq submit nil))
     (if (and canvas agent-ui-answer-function (not hosted))
         (funcall agent-ui-answer-function prompt submit key)
       (agent-ui--act-in session prompt submit))))

@@ -487,8 +487,8 @@ frozen)."
     (should (equal (agent-ui-render '(:type "plain") (agent-ui-context)) "body"))))
 
 (ert-deftest agent-ui-core/an-action-s-own-help ()
-  "An action with a help: hovered, RET: HELP, not the prompt it puts; one
-without, its prompt as before."
+  "An action with a help: hovered, its help, then the prompt it puts (what
+the agent gets, doom-ht6.124); one without, its prompt as before."
   (agent-ui-test-aui
     (agent-ui-define plain "Text." :text (lambda (_p _c) "body"))
     (let ((text (agent-ui-render '(:type "plain"
@@ -496,7 +496,7 @@ without, its prompt as before."
                                              (:label "Retry" :prompt "Run it again")))
                                  (agent-ui-context))))
       (should (equal (get-text-property (string-search "⏵ Worktree" text) 'help-echo text)
-                     "RET: open its worktree"))
+                     "RET: open its worktree: put into the prompt \"worktree\""))
       (should (equal (get-text-property (string-search "⏵ Retry" text) 'help-echo text)
                      "RET: put into the prompt \"Run it again\"")))))
 
@@ -694,5 +694,17 @@ font); again when the default font changes."
 terminal's: its cells), at its own size if no taller than a line."
   (should (equal (agent-ui--glyph-measure ?✎ nil nil) '(1)))
   (should (equal (agent-ui--glyph-measure ?日 'bold nil) '(2))))
+
+(ert-deftest agent-ui-core/an-action-s-help-names-its-prompt ()
+  "An action's hover: its help and its prompt (what the agent gets); its help
+alone where the canvas answers its buttons itself (doom-ht6.124)."
+  (let ((action '(:label "Go" :help "Refresh the data" :prompt "Do something else" :submit t)))
+    (cl-flet ((hover ()
+                (let ((text (agent-ui--actions (list action) 80)))
+                  (get-text-property (string-search "Go" text) 'help-echo text))))
+      (with-temp-buffer
+        (should (string-match-p "Refresh the data.*send \"Do something else\"" (hover)))
+        (setq-local agent-ui-answer-function #'ignore)
+        (should (equal (hover) "RET: Refresh the data"))))))
 
 ;;; agent-ui-core-tests.el ends here

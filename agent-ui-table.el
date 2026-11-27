@@ -552,10 +552,7 @@ the whole table, its header, \"no rows yet\" and what's left out too."
                                                                       (list 'keymap agent-ui-button-map)
                                                                       (list 'mouse-face 'highlight)
                                                                       (list 'help-echo
-                                                                            (if-let* ((help (plist-get open :help)))
-                                                                                (concat "RET: " help)
-                                                                              (format "RET: %s \"%s\"" (if submit "send" "put into the prompt")
-                                                                                      (truncate-string-to-width prompt 60 nil nil "…"))))))
+                                                                            (agent-ui-action-help prompt submit (plist-get open :help)))))
                                                     (push (list row-start end (car prop) (cadr prop)) marks)))
                                             (when (plist-get layout :pick)
                                               (let ((end (point))

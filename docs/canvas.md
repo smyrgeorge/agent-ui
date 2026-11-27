@@ -133,7 +133,7 @@ prompt when pressed, for you to read and send.
 
 - `RET` or a click on a button puts its prompt into the session's prompt. With `"submit": true`, the prompt is sent at
   once.
-- Hovering a button shows the prompt it puts there or sends. One with a `help` shows that instead.
+- Hovering a button shows the prompt it puts there or sends, after its `help` if it has one.
 - A component has at most 6 actions, checked when it's shown.
 - A question's buttons (a choice's, a comparison's, a rank's) sit beside its Answer button, on its row, until it's
   answered.

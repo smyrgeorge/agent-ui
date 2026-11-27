@@ -552,6 +552,27 @@ Called with an action's PROMPT and SUBMIT when its button is pressed, in
 the buffer of the button (agent-ui-agent.el: into its canvas's
 session's prompt).")
 
+(defvar-local agent-ui-actions-held nil
+  "Non-nil in a canvas whose buttons' prompts are never sent at once.
+There, a button's prompt is put into the session's prompt, for the user
+to read and send, whatever its submit says: a project dashboard not
+trusted (agent-ui-dashboards.el), its buttons a repository's file's.")
+
+(defun agent-ui-action-help (prompt submit help)
+  "An action's hover text: what RET does with its PROMPT (sent if SUBMIT).
+Its prompt is named, after its own HELP if it has one: the prompt is what
+the agent gets, whatever HELP says.  HELP alone in a canvas handling its
+buttons itself (`agent-ui-answer-function'), where no prompt goes to an
+agent.  In a canvas holding its prompts (`agent-ui-actions-held'), it
+says it's put into the prompt."
+  (let ((does (format "%s \"%s\"" (if (and submit (not agent-ui-actions-held))
+                                       "send"
+                                     "put into the prompt")
+                      (truncate-string-to-width prompt 60 nil nil "…"))))
+    (cond ((and help (bound-and-true-p agent-ui-answer-function)) (concat "RET: " help))
+          (help (format "RET: %s: %s" help does))
+          (t (concat "RET: " does)))))
+
 (defun agent-ui-check-actions (actions)
   "ACTIONS, a component's: an error saying what's wrong, else themselves."
   (unless (and (listp actions) (not (agent-ui--plist-p actions)))
@@ -579,9 +600,9 @@ session's prompt).")
   "Draw ACTIONS as a row of buttons.
 
 ACTIONS as a row of buttons, broken to WIDTH (`agent-ui-button-row'); nil
-if there are none (or they're wrong).  Hovered, each says what it does: its
-own :help (a canvas handling its buttons itself, `agent-ui-answer-function':
-RET: HELP), else the prompt it puts into the session's prompt, or sends."
+if there are none (or they're wrong).  Hovered, each says what it does
+\=(`agent-ui-action-help'): the prompt it puts into the session's prompt,
+or sends, after its own :help."
   (when (and actions (ignore-errors (agent-ui-check-actions actions)))
     (agent-ui-button-row
      (mapcar
@@ -590,10 +611,7 @@ RET: HELP), else the prompt it puts into the session's prompt, or sends."
               (submit (eq (plist-get action :submit) t)))
           (agent-ui-button (propertize (concat "⏵ " (plist-get action :label)) 'face 'agent-ui-action)
                            (lambda () (funcall agent-ui-action-function prompt submit))
-                           (if-let* ((help (plist-get action :help)))
-                               (concat "RET: " help)
-                             (format "RET: %s \"%s\"" (if submit "send" "put into the prompt")
-                                     (truncate-string-to-width prompt 60 nil nil "…"))))))
+                           (agent-ui-action-help prompt submit (plist-get action :help)))))
       actions)
      width)))
 

@@ -82,7 +82,8 @@ Emacs, in its own pane (the MCP tools `dashboards` and `open`). Its reply's `tru
 let its code run once they select it (it waits till then, said on it), the file as it was read: don't edit it meanwhile
 (changed, nothing runs until they press `r`). `--dashboard NAME` (the tools' `dashboard`) makes any operation work on an
 open dashboard: `agent-ui list --dashboard service`, `agent-ui get --dashboard service`. Its components' buttons
-(`actions`) put their prompt into the project's agent session, the latest. The user can also save a component of a
+(`actions`) put their prompt into the project's agent session, the latest (sent, with `submit`, only once the
+dashboard is trusted). The user can also save a component of a
 canvas as a dashboard (`S`): its file written with the component as it was first shown and an empty `:fetch`, for you to
 fill in.
 

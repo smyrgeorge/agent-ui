@@ -28,7 +28,7 @@ past the width); clickable either way."
 ;; RET or a click on a row: its prompt, its cells filled in.
 (ert-deftest agent-ui-components/table-rows-opened-on-one-line ()
   "ROW-OPEN: the row itself a button (no button drawn), its prompt's {0} its
-first cell; its help hovered. NOWRAP: a cell too wide cut, …, the row a
+first cell; its help hovered, its prompt with it. NOWRAP: a cell too wide cut, …, the row a
 line. A row-open not an action: refused."
   (let* ((component '(:type "table" :columns ("" "") :nowrap t
                     :rows (("abc1234" "A commit whose subject is far too long for the pane it is in")
@@ -43,7 +43,7 @@ line. A row-open not an action: refused."
     (let* ((at (string-search "def5678" text))
            (pressed nil)
            (agent-ui-action-function (lambda (prompt submit) (setq pressed (list prompt submit)))))
-      (should (equal (get-text-property at 'help-echo text) "RET: show this commit"))
+      (should (equal (get-text-property at 'help-echo text) "RET: show this commit: put into the prompt \"def5678\""))
       (funcall (get-text-property at 'agent-ui-action text))
       (should (equal pressed '("def5678" nil)))))
   ;; Wrapped without NOWRAP.

@@ -482,6 +482,9 @@ pick from.  Returns its canvas."
         (with-current-buffer canvas
           (setq default-directory root
                 agent-ui-dashboards--state dashboard
+                ;; Its buttons a repository's: their prompts never sent at
+                ;; once until it's trusted (see its start).
+                agent-ui-actions-held t
                 ;; Its tab says its name, its title in its border
                 ;; (agent-ui-canvas.el, A LONE PANEL'S TITLE).
                 agent-ui-canvas-name (plist-get read :name))
@@ -678,8 +681,7 @@ asked), a yes for the file lets nothing run, remembers nothing."
   (let ((file (agent-ui-dashboards--file dashboard))
         (root (agent-ui-dashboards--root dashboard))
         (hash (agent-ui-dashboards--sha256 dashboard)))
-    (or (agent-ui-dashboard-project-trusted-p root)
-        (agent-ui-dashboard-trusted-p file hash)
+    (or (agent-ui-dashboards--trusted-p dashboard)
         (and agent-ui-dashboard-may-ask
              (let ((answer nil))
                (while (not answer)
@@ -704,6 +706,12 @@ asked), a yes for the file lets nothing run, remembers nothing."
                    (?v (view-file-other-window file))
                    (_ (setq answer 'no))))
                (eq answer 'yes))))))
+
+(defun agent-ui-dashboards--trusted-p (dashboard)
+  "Whether DASHBOARD is trusted: its project, or its file as read."
+  (or (agent-ui-dashboard-project-trusted-p (agent-ui-dashboards--root dashboard))
+      (agent-ui-dashboard-trusted-p (agent-ui-dashboards--file dashboard)
+                                    (agent-ui-dashboards--sha256 dashboard))))
 
 (defun agent-ui-dashboards--changed-p (dashboard)
   "Whether DASHBOARD's file changed since it was read (or is gone)."
@@ -848,6 +856,15 @@ was asked about, its question come out of nowhere.  Closed while it asks,
 nothing run.  UNASKED (opened by an agent, from a timer): the user not
 asked; to be, it waits, said on it, until they select it."
   (setf (agent-ui-dashboards--waiting dashboard) nil)
+  ;; No code to let run: its buttons send their prompts if its file or its
+  ;; project is trusted (else only put them into the prompt).
+  (when (and (agent-ui-dashboards--live-p dashboard)
+             (not (agent-ui-dashboards--code-p form (agent-ui-dashboards--ui dashboard))))
+    (with-current-buffer (agent-ui-dashboards--canvas dashboard)
+      (let ((held (not (agent-ui-dashboards--trusted-p dashboard))))
+        (unless (eq held agent-ui-actions-held)
+          (setq agent-ui-actions-held held)
+          (agent-ui--dirty-all)))))
   (when (and (agent-ui-dashboards--live-p dashboard)
              (agent-ui-dashboards--code-p form (agent-ui-dashboards--ui dashboard))
              (or (let ((agent-ui-dashboard-may-ask (and agent-ui-dashboard-may-ask (not unasked))))
@@ -862,6 +879,9 @@ asked; to be, it waits, said on it, until they select it."
                                               "not run, not let: r asks again"))))
              (agent-ui-dashboards--live-p dashboard))
     (agent-ui-dashboards--well dashboard "its code")
+    ;; Let run: trusted, its buttons as they say.
+    (with-current-buffer (agent-ui-dashboards--canvas dashboard)
+      (setq agent-ui-actions-held nil))
     (let ((script (condition-case err
                       (let ((default-directory (agent-ui-dashboards--root dashboard)))
                         (eval form t))
