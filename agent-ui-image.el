@@ -59,13 +59,19 @@ FILE and the callback (tests replace it).")
   "URLs being downloaded (fetching), or that failed.
 Failed: (:error MESSAGE :time TIME).")
 
+(defvar agent-ui-image--files (make-hash-table :test #'equal)
+  "URLs' downloaded files, by their cache file name without extension.
+Each looked for in its folder once, then remembered (it was listed twice
+each drawing); looked for again once it's gone.")
+
 ;; ====== FROM A URL ======
 
 (defun agent-ui-image-curl (url file callback)
   "Download URL into FILE with curl, in the background.
 Then CALLBACK with nil, or what went wrong."
   (if (not (executable-find "curl"))
-      (funcall callback "curl isn't installed")
+      ;; Later: not inside the drawing that asked for it.
+      (run-at-time 0 nil callback "curl isn't installed")
     (let ((output (generate-new-buffer " *agent-ui-image*")))
       (make-process
        :name "agent-ui-image" :buffer output :noquery t :connection-type 'pipe
@@ -92,26 +98,54 @@ Then CALLBACK with nil, or what went wrong."
 (defun agent-ui-image--cached (url)
   "Return URL's image file, if it was downloaded.
 Not its download still going, or cut short (its .part)."
-  (when (file-directory-p agent-ui-image-cache-directory)
-    (seq-find (lambda (file) (not (string-suffix-p ".part" file)))
-              (directory-files agent-ui-image-cache-directory t
-                               (concat "\\`" (sha1 url) "\\.[a-z]+\\'")))))
+  (let* ((stem (agent-ui-image--stem url))
+         (file (gethash stem agent-ui-image--files)))
+    (if (and file (file-exists-p file))
+        file
+      (remhash stem agent-ui-image--files)
+      (when-let* (((file-directory-p agent-ui-image-cache-directory))
+                  (file (seq-find (lambda (file) (not (string-suffix-p ".part" file)))
+                                  (directory-files agent-ui-image-cache-directory t
+                                                   (concat "\\`" (sha1 url) "\\.[a-z]+\\'")))))
+        (puthash stem file agent-ui-image--files)))))
+
+(defun agent-ui-image--shows-p (component url)
+  "Non-nil if COMPONENT shows URL's image.
+It, or a child of its (a panel's), or an option's (a compare's)."
+  (or (and (equal (plist-get component :type) "image") (equal (plist-get component :url) url))
+      (seq-some (lambda (child) (and (agent-ui--plist-p child) (agent-ui-image--shows-p child url)))
+                (append (plist-get component :children)
+                        (mapcar (lambda (option) (and (agent-ui--plist-p option) (plist-get option :component)))
+                                (plist-get component :options))))))
+
+(defun agent-ui-image--redraw (url)
+  "Redraw the components showing URL's image, everywhere.
+Marked dirty, drawn by the redraw timer; their animation's drawings
+forgotten (`agent-ui-memo'): they showed it before."
+  (dolist (canvas (agent-ui-canvases))
+    (with-current-buffer canvas
+      (agent-ui--dirty
+       (cl-loop for id in agent-ui--order
+                for entry = (gethash id agent-ui--entries)
+                when (agent-ui-image--shows-p (agent-ui--entry-component entry) url)
+                do (setf (agent-ui--entry-memo entry) nil)
+                and collect id)))))
 
 (defun agent-ui-image--fetched (url part error)
   "Handle the end of URL's download into PART.
 ERROR is what went wrong (nil: none): kept under its type's
-extension if it's an image; the canvases redrawn."
+extension if it's an image; the components showing it redrawn."
   (let* ((type (and (not error) (file-exists-p part) (image-type-from-file-header part)))
          (error (or error (unless type "not an image"))))
     (if error
         (progn (puthash url (list :error error :time (float-time)) agent-ui-image--fetches)
                (ignore-errors (delete-file part)))
-      (rename-file part (concat (agent-ui-image--stem url) "."
-                                (pcase type ('jpeg "jpg") ('xpm "xpm") (_ (symbol-name type))))
-                   t)
+      (let ((file (concat (agent-ui-image--stem url) "."
+                          (pcase type ('jpeg "jpg") ('xpm "xpm") (_ (symbol-name type))))))
+        (rename-file part file t)
+        (puthash (agent-ui-image--stem url) file agent-ui-image--files))
       (remhash url agent-ui-image--fetches))
-    (dolist (canvas (agent-ui-canvases))
-      (agent-ui-canvas-redraw canvas))))
+    (agent-ui-image--redraw url)))
 
 (defun agent-ui-image--fetch (url)
   "Start downloading URL, unless it is already."

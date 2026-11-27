@@ -217,4 +217,89 @@ it an option (doom-ht6.71)."
   (should (string-match-p "url is an http(s) address, not \"file:///a.png\""
                           (agent-ui-test-aue-error '(:type "image" :url "file:///a.png")))))
 
+;; doom-ht6.115
+(ert-deftest agent-ui-components/image-downloaded-redraws-its-own ()
+  "A download done: only the components showing its URL (a panel's child,
+a compare's option too) marked to be drawn again, through the redraw timer; not every
+component of every canvas, at once."
+  (let* ((agent-ui-image-cache-directory (file-name-as-directory (make-temp-file (agent-ui-test-tmp-file "images-") t)))
+         (agent-ui-image--fetches (make-hash-table :test #'equal))
+         (done nil) (redraws 0)
+         (agent-ui-image-fetch-function (lambda (_url file callback) (setq done (list file callback))))
+         (url "https://example.com/a.png")
+         (other (make-temp-name "image-other-")))
+    (agent-ui-test-aue-canvas
+      (unwind-protect
+          (progn
+            (agent-ui-show (list :id "img" :type "image" :url url))
+            (agent-ui-show (list :id "p" :type "panel" :children (list (list :id "c" :type "image" :url url))))
+            (agent-ui-show (list :id "q" :type "compare" :question "Which?"
+                                 :options (list (list :label "A" :component (list :type "image" :url url))
+                                                '(:label "B" :component (:type "text" :text "b")))))
+            (agent-ui-show '(:id "else" :type "image" :url "https://example.com/b.png"))
+            (agent-ui-show '(:id "t" :type "text" :text "y") :canvas other)
+            (dolist (buffer (agent-ui-canvases))
+              (with-current-buffer buffer (agent-ui--flush)))
+            (agent-ui-image--fetch url)
+            (with-temp-file (car done) (set-buffer-multibyte nil) (insert "\211PNG\r\n\032\n"))
+            (cl-letf (((symbol-function 'agent-ui-canvas-redraw) (lambda (&rest _) (cl-incf redraws))))
+              (funcall (cadr done) nil))
+            (should (= redraws 0))
+            (with-current-buffer canvas
+              (should (equal (sort (copy-sequence agent-ui--dirty) #'string<) '("img" "p" "q"))))
+            (with-current-buffer (agent-ui--buffer other)
+              (should-not agent-ui--dirty)))
+        (kill-buffer (agent-ui--buffer other))
+        (delete-directory agent-ui-image-cache-directory t)))))
+
+(ert-deftest agent-ui-components/image-no-curl-no-orphan ()
+  "Without curl, an image from a URL drawn in a canvas: its text there once.
+Its download's end handled after the drawing, not inside it (the canvas
+redrawn inside it, a drawing inside a drawing, could leave a copy of it
+behind)."
+  (let* ((agent-ui-image-cache-directory (file-name-as-directory (make-temp-file (agent-ui-test-tmp-file "images-") t)))
+         (agent-ui-image--fetches (make-hash-table :test #'equal))
+         (agent-ui-image-fetch-function #'agent-ui-image-curl)
+         (executable-find (symbol-function 'executable-find))
+         (depth 0) (deepest 0)
+         (nest (lambda (draw &rest args)
+                 (setq deepest (max deepest (cl-incf depth)))
+                 (unwind-protect (apply draw args) (cl-decf depth)))))
+    (cl-letf (((symbol-function 'executable-find)
+               (lambda (command &rest args) (unless (equal command "curl") (apply executable-find command args))))
+              ((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
+      (agent-ui-test-aue-canvas
+        (unwind-protect
+            (progn
+              (advice-add 'agent-ui--draw-here :around nest)
+              (agent-ui-show '(:id "img" :type "image" :url "https://example.com/c.png" :alt "the chart"))
+              (with-current-buffer canvas
+                (agent-ui--flush)
+                (agent-ui-test-timers-run)
+                (agent-ui--flush)
+                (should (= deepest 1))
+                (should (= (how-many "the chart" (point-min) (point-max)) 1))
+                (should (string-match-p "curl isn't installed" (buffer-string)))))
+          (advice-remove 'agent-ui--draw-here nest)
+          (delete-directory agent-ui-image-cache-directory t))))))
+
+(ert-deftest agent-ui-components/image-cached-remembered ()
+  "A URL's image file looked for in the cache directory once, then
+remembered; looked for again once it's gone."
+  (let* ((agent-ui-image-cache-directory (file-name-as-directory (make-temp-file (agent-ui-test-tmp-file "images-") t)))
+         (url "https://example.com/d.png")
+         (file (concat agent-ui-image-cache-directory (sha1 url) ".png"))
+         (listed 0))
+    (unwind-protect
+        (progn
+          (with-temp-file file (insert "x"))
+          (advice-add 'directory-files :before (lambda (&rest _) (cl-incf listed)) '((name . count)))
+          (dotimes (_ 3)
+            (should (equal (agent-ui-image--cached url) file)))
+          (should (= listed 1))
+          (delete-file file)
+          (should-not (agent-ui-image--cached url)))
+      (advice-remove 'directory-files 'count)
+      (delete-directory agent-ui-image-cache-directory t))))
+
 ;;; agent-ui-image-tests.el ends here
