@@ -1047,10 +1047,11 @@ It is the frame's last; it shows its view."
 
 (defun agent-ui--pane-delete-view-window (cell)
   "CELL, a view's window taken out, deleted.
-The frame's main window (all but its side windows: C-x 1 in it, a side
-window that stays), or a window that can't go: made a window like any
-instead.  Deleted ignoring its parameters (its own `delete-window'), but
-never the frame's main window: Emacs's own check is skipped then."
+The frame's main window (all but its side windows:
+\\[delete-other-windows] in it, a side window that stays), or a window
+that can't go: made a window like any instead.  Deleted ignoring its
+parameters (its own `delete-window'), but never the frame's main
+window: Emacs's own check is skipped then."
   (if (eq cell (window-main-window (window-frame cell)))
       (agent-ui--pane-unattach cell)
     (condition-case nil
