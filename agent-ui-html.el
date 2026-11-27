@@ -119,13 +119,15 @@ Scripts, styles and tags are left out, its entities read, its spaces one."
          (page (or file (plist-get props :url)))
          (width (plist-get ctx :width))
          ;; Why it can't be read (a folder too: reading it failed).
-         (why (and file (cond ((not (file-readable-p file)) "not found")
-                              ((not (file-regular-p file)) "not a file"))))
+         (why (and file (agent-ui-with-file-as-on-disk
+                          (cond ((not (file-readable-p file)) "not found")
+                                ((not (file-regular-p file)) "not a file")))))
          (read (and file (not why)
                     (agent-ui-html--text-of
                      (with-temp-buffer
                        (let ((coding-system-for-read 'utf-8))
-                         (insert-file-contents file nil 0 agent-ui-html-max-bytes))
+                         (agent-ui-with-file-as-on-disk
+                           (insert-file-contents file nil 0 agent-ui-html-max-bytes)))
                        (buffer-string)))))
          (title (or (car read) (if file (file-name-nondirectory file) page)))
          (open (lambda () (funcall agent-ui-open-page-function page))))

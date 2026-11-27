@@ -306,6 +306,15 @@ Signals `agent-ui-error' if there's none."
     ((pred symbolp) (format "%S" (symbol-name value)))
     (_ (truncate-string-to-width (format "%S" value) 40 nil nil "…"))))
 
+(defmacro agent-ui-with-file-as-on-disk (&rest body)
+  "BODY with files read as they are on disk, through no file handler.
+A component's file is the agent's: no handler of Emacs's runs on it (a
+.gpg decrypted, pinentry asked; a compressed one's tool), its bytes
+read as they are."
+  (declare (indent 0) (debug t))
+  `(let ((file-name-handler-alist nil))
+     ,@body))
+
 (defun agent-ui--check-value (type prop value)
   "Check VALUE of PROP, a property of TYPE.
 
@@ -323,10 +332,14 @@ VALUE of PROP, a property of TYPE (its name), as the type gets it; signals
                                 (agent-ui--show-value value))))
       (pcase kind
         ('string (if (stringp value) value (bad)))
-        ;; Absolute: relative to the agent's directory.
-        ('file (if (and (stringp value) (not (string-empty-p value)))
-                   (expand-file-name value agent-ui-file-directory)
-                 (bad)))
+        ;; Absolute: relative to the agent's directory.  A local one: a
+        ;; remote one's read would connect (TRAMP: ssh, sudo) from a drawing.
+        ('file (cond ((not (and (stringp value) (not (string-empty-p value)))) (bad))
+                     ((file-remote-p value)
+                      (agent-ui--fail "%s: %s must be a local file, not a remote one: %s"
+                                      type (substring (symbol-name (agent-ui-prop-key prop)) 1)
+                                      (agent-ui--show-value value)))
+                     (t (expand-file-name value agent-ui-file-directory))))
         ('number (if (numberp value) value (bad)))
         ('integer (if (integerp value) value (bad)))
         ('boolean (pcase value ('t t) ((or :false 'nil) nil) (_ (bad))))

@@ -68,6 +68,33 @@ nothing (a LaTeX preview), its setup file isn't downloaded, nothing asked
       (dolist (b (buffer-list))
         (when (string-prefix-p " *org-src-fontification:" (buffer-name b)) (kill-buffer b))))))
 
+(ert-deftest agent-ui-components/a-file-read-as-it-is-on-disk ()
+  "A component's file: a remote one refused (TRAMP would connect from a
+drawing); a local one read as its bytes, through no file handler (a .gpg
+decrypted, a password asked) (doom-ht6.138)."
+  (dolist (remote '("/ssh:prod:/etc/app/secrets.env" "/sudo::/etc/sudoers"))
+    (should (string-match-p "a local file"
+                            (agent-ui-test-aue-error (list :type "code" :file remote)))))
+  (let* ((dir (make-temp-file (agent-ui-test-tmp-file "handled-") t))
+         (file (expand-file-name "secret.handled" dir))
+         (called nil)
+         (file-name-handler-alist
+          (cons (cons "\\.handled\\'" (lambda (op &rest args)
+                                         (push op called)
+                                         (let ((inhibit-file-name-handlers
+                                                (cons (car (car file-name-handler-alist))
+                                                      inhibit-file-name-handlers))
+                                               (file-name-handler-alist (cdr file-name-handler-alist)))
+                                           (apply op args))))
+                file-name-handler-alist)))
+    (let ((file-name-handler-alist nil))
+      (with-temp-file file (insert "on disk\n")))
+    (let ((text (agent-ui-test-aue-draw (list :type "code" :file file))))
+      (should (string-search "on disk" text)))
+    (should-not (memq 'insert-file-contents called))
+    (agent-ui-test-aue-draw (list :type "html" :file file))
+    (should-not (memq 'insert-file-contents called))))
+
 (ert-deftest agent-ui-components/code-long-line-keeps-its-note ()
   "A mark's note is shown whole at widths 40 to 80: after its line if both
 fit, else under it, wrapped (the line was cut with its note: \"{  ← …\")."

@@ -117,24 +117,25 @@ name (\": not found\"), or nil."
       ;; gutter), nor CRLF's returns (^M).
       (cons (replace-regexp-in-string "\r$" "" (string-trim-right code "[\r\n]+")) nil)
     (let ((file (plist-get props :file)))
-      (cond
-       ((not (and file (file-readable-p file))) (cons "" ": not found"))
-       ;; A folder (readable too): reading it failed.
-       ((not (file-regular-p file)) (cons "" ": not a file"))
-       (t
-        (with-temp-buffer
-          (insert-file-contents file)
-          (let* ((from (plist-get props :from))
-                 (to (or (plist-get props :to) (+ from 19)))
-                 (count (count-lines (point-min) (point-max))))
-            (if (> from count)
-                ;; Said (it was an empty line, numbered FROM).
-                (cons "" (format ": lines %d–%d are past its end (%d line%s)" from to count (if (= count 1) "" "s")))
-              (goto-char (point-min))
-              (forward-line (1- from))
-              (let ((start (point)))
-                (forward-line (- to from -1))
-                (cons (string-trim-right (buffer-substring start (point)) "\n") nil))))))))))
+      (agent-ui-with-file-as-on-disk
+        (cond
+         ((not (and file (file-readable-p file))) (cons "" ": not found"))
+         ;; A folder (readable too): reading it failed.
+         ((not (file-regular-p file)) (cons "" ": not a file"))
+         (t
+          (with-temp-buffer
+            (insert-file-contents file)
+            (let* ((from (plist-get props :from))
+                   (to (or (plist-get props :to) (+ from 19)))
+                   (count (count-lines (point-min) (point-max))))
+              (if (> from count)
+                  ;; Said (it was an empty line, numbered FROM).
+                  (cons "" (format ": lines %d–%d are past its end (%d line%s)" from to count (if (= count 1) "" "s")))
+                (goto-char (point-min))
+                (forward-line (1- from))
+                (let ((start (point)))
+                  (forward-line (- to from -1))
+                  (cons (string-trim-right (buffer-substring start (point)) "\n") nil)))))))))))
 
 (defun agent-ui-code--check (props)
   "Signal an error unless PROPS describe a valid code component."

@@ -165,7 +165,7 @@ never shows it: its URL is named, nothing downloaded)."
   (let ((file (plist-get props :file))
         (url (plist-get props :url)))
     (cond
-     (file (cons file (unless (file-readable-p file) "not found")))
+     (file (cons file (unless (agent-ui-with-file-as-on-disk (file-readable-p file)) "not found")))
      ((agent-ui-image--cached url) (cons (agent-ui-image--cached url) nil))
      ((not fetch) (cons nil nil))
      (t
@@ -225,7 +225,7 @@ fits there whole, else on lines under it, wrapped (it was cut with
 By its first bytes (a PNG named
 \"shot\" is one, a text file named a.png isn't), else by its name for an
 SVG (its <svg can come past them); nil if it's none."
-  (let ((type (or (image-type-from-file-header file)
+  (let ((type (or (agent-ui-with-file-as-on-disk (image-type-from-file-header file))
                   (and (fboundp 'image-supported-file-p)
                        (eq (image-supported-file-p file) 'svg) 'svg))))
     (and type (image-type-available-p type) type)))

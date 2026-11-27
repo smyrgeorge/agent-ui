@@ -4,8 +4,9 @@ Agent UI has 30 component types. `agent-ui types` lists them, and `agent-ui type
 with an example. Every component also takes the properties common to all types (`id`, `type`, `title`, `caption`,
 `source`, `actions`, `close`, `with`), described in [The command line](command-line.md#a-component).
 
-A property of kind `file` is relative to the agent's directory. Where a component shows something that can be opened
-(a file, an image, a page), `RET` or a click on it opens it.
+A property of kind `file` is relative to the agent's directory. It's a local file (a remote one, `/ssh:...`, is
+refused), read as it is on disk: no file handler of Emacs's runs on it (a `.gpg` file isn't decrypted). Where a
+component shows something that can be opened (a file, an image, a page), `RET` or a click on it opens it.
 
 ## All types
 
