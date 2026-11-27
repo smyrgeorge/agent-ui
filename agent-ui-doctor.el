@@ -62,7 +62,7 @@
 (defvar package-alist)
 (declare-function agent-ui-math--tool "agent-ui-math")
 (declare-function package-desc-version "package" (cl-x) t)
-(declare-function package-version-join "package" (vlist))
+(declare-function package-version-join "package" (vlist) t)
 
 ;; ====== VARIABLES ======
 
