@@ -347,10 +347,10 @@ widths, alignments, buttons beside or under)."
          ;; others').  Else, more rows than drawn: only those drawn
          ;; converted, sorted by their sort column's cells alone (all
          ;; converted, thousands of rows took most of each drawing).
-         (all (when (or (plist-get props :select) (<= total agent-ui-max-rows))
-                (mapcar convert (plist-get props :rows))))
-         (rows (cond (all (seq-take (if sort (agent-ui-table--sorted all sort descending) all)
-                                    agent-ui-max-rows))
+         (converted (when (or (plist-get props :select) (<= total agent-ui-max-rows))
+                      (mapcar convert (plist-get props :rows))))
+         (rows (cond (converted (seq-take (if sort (agent-ui-table--sorted converted sort descending) converted)
+                                          agent-ui-max-rows))
                      ;; Each row as (its sort cell . the row), sorted by its first.
                      (sort (mapcar (lambda (pair) (funcall convert (cdr pair)))
                                    (seq-take (agent-ui-table--sorted
@@ -402,7 +402,7 @@ widths, alignments, buttons beside or under)."
           :answer-of (when (plist-get props :select)
                        (let ((answers (make-hash-table :test #'eq)))
                          (cl-mapc (lambda (row answer) (puthash row answer answers))
-                                  all (agent-ui-table--row-answers all (agent-ui-table--answer-index props)))
+                                  converted (agent-ui-table--row-answers converted (agent-ui-table--answer-index props)))
                          answers))
           :props props :select (plist-get props :select)
           :pick (and (plist-get props :select) (not (plist-get props :answered)) (not (plist-get ctx :still))))))
