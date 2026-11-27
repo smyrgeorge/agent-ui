@@ -67,4 +67,7 @@ Once a bug is filed:
   and directory).
 - The agent's reply is `{"ok": true, "issue": ID, "new": true}`; when the report was added to a similar open bug,
   `new` is false and a `note` says so.
+- `agent-ui bug` gives Emacs 120 seconds to file it (other operations, 30): your tracker's tools can take long. The
+  agent's same report again within `agent-ui-bug-same-within` seconds (600) isn't filed again: the reply names the
+  issue it was filed as, with a `note`.
 - `agent-ui-bug-filed-functions` run with the issue's id, its title, whether it's new and the issues' directory.

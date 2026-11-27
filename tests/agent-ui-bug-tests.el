@@ -31,6 +31,9 @@ window shown, no sessions; the filing stood in for: what it was given in
           (hooked nil)
           (answer '(:id "lib-1" :new t :dir "/lib/"))
           (agent-ui-bug-report-url nil)
+          ;; Each report filed (the same one twice: see its own test).
+          (agent-ui-bug-same-within 0)
+          (agent-ui--bugs-filed (make-hash-table :test #'equal))
           (agent-ui-bug-function (lambda (title description library new)
                                    (push (list title description library new) filed)
                                    (if (stringp answer) (error "%s" answer) answer)))
@@ -178,6 +181,23 @@ a similar open one); not filed: why, and the report; a wrong one: why."
       (should (string-prefix-p "# Agent UI: x\n\ny\n" (plist-get reply :report))))
     (should (equal (agent-ui-test-aub-request "{\"description\":\"y\"}")
                    '(:ok :false :error "bug: title is required (text)")))))
+
+(ert-deftest agent-ui-bug/the-same-report-filed-once ()
+  "The agent's same report again (it was told Emacs didn't answer, filing
+took long): not filed again, the issue it was filed as said; another
+report, filed (doom-ht6.146)."
+  (agent-ui-test-aub
+    (let ((agent-ui-bug-same-within 600))
+      (should (equal (agent-ui-test-aub-request "{\"title\":\"x\",\"description\":\"y\"}")
+                     '(:ok t :issue "lib-1" :new t)))
+      (setq answer '(:id "lib-2" :new t :dir "/lib/"))
+      (let ((reply (agent-ui-test-aub-request "{\"title\":\"x\",\"description\":\"y\"}")))
+        (should (equal (plist-get reply :issue) "lib-1"))
+        (should (string-match-p "already filed" (plist-get reply :note))))
+      (should (= (length filed) 1))
+      (should (equal (plist-get (agent-ui-test-aub-request "{\"title\":\"z\",\"description\":\"y\"}") :issue)
+                     "lib-2"))
+      (should (= (length filed) 2)))))
 
 ;; ====== THE USER'S WAY ======
 

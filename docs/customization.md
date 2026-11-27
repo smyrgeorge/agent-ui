@@ -114,6 +114,7 @@ A few settings are plain variables rather than user options; they're marked *(va
 | Option | Default | What it does |
 |---|---|---|
 | `agent-ui-bug-function` *(variable)* | `nil` | Files a bug in your own tracker ([Bugs in Agent UI](bugs.md#filing-into-your-own-tracker)). nil: every report is given back, to file by hand. |
+| `agent-ui-bug-same-within` | `600` | Seconds within which the agent's same report isn't filed again: the reply names the issue it was filed as. 0: each one filed. |
 | `agent-ui-bug-report-url` | `"https://github.com/smyrgeorge/agent-ui/issues"` | Where to report bugs by hand, named when one can't be filed. |
 | `agent-ui-open-issue-function` | `agent-ui-bug-show-issue` | Opens a bug just filed (`RET` right after `b`), given its id and its issues' directory: by default, a URL in the browser, else it's said. Set it along with `agent-ui-bug-function`. |
 

@@ -441,6 +441,9 @@ its reply with the report (agent-ui-bug.el, the filing stood in for)."
     (agent-ui-test-aur-with-server
       (let* ((answer '(:id "lib-1" :new t :dir "/lib/"))
              (agent-ui-bug-filed-functions nil)
+             ;; The same report filed each time (see agent-ui-bug's own test).
+             (agent-ui-bug-same-within 0)
+             (agent-ui--bugs-filed (make-hash-table :test #'equal))
              (agent-ui-bug-function (lambda (&rest _) (if (stringp answer) (error "%s" answer) answer))))
         (should (equal (agent-ui-test-aur-run '("bug" "{\"title\":\"x\",\"description\":\"y\"}"))
                        '(0 . "{\"ok\":true,\"issue\":\"lib-1\",\"new\":true}")))
@@ -535,5 +538,22 @@ its reply with the report (agent-ui-bug.el, the filing stood in for)."
         (should (= status 3))
         (should (equal (plist-get reply :error) "no emacsclient to reach Emacs with"))
         (should (equal (car checks) '("emacsclient" "fail")))))))
+
+(ert-deftest agent-ui-request/a-bug-given-time-to-be-filed ()
+  "bin/agent-ui bug waits longer for Emacs than other operations (filing
+runs bd, git: past 30 s, the agent was told Emacs didn't answer, and filed
+it again) (doom-ht6.146)."
+  (let* ((dir (make-temp-file (agent-ui-test-tmp-file "client-") t))
+         (client (expand-file-name "emacsclient" dir))
+         (args (expand-file-name "args" dir)))
+    (with-temp-file client
+      (insert (format "#!/bin/sh\necho \"$@\" >> %s\nexit 1\n" (shell-quote-argument args))))
+    (set-file-modes client #o755)
+    (let ((process-environment (cons (concat "EMACSCLIENT=" client) process-environment)))
+      (agent-ui-test-aur-run '("bug" "{\"title\":\"x\",\"description\":\"y\"}"))
+      (agent-ui-test-aur-run '("list")))
+    (let ((runs (split-string (with-temp-buffer (insert-file-contents args) (buffer-string)) "\n" t)))
+      (should (string-match-p "--timeout=120 " (nth 0 runs)))
+      (should (string-match-p "--timeout=30 " (nth 1 runs))))))
 
 ;;; agent-ui-request-tests.el ends here

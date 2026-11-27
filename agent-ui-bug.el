@@ -67,6 +67,17 @@ Where to report Agent UI's bugs by hand, said when one can't be filed
 \(a web page's address); nil: none yet."
   :type '(choice (const nil) string) :group 'agent-ui)
 
+(defcustom agent-ui-bug-same-within 600
+  "Seconds within which the agent's same report isn't filed again.
+The same report again (its title, description, what was expected, the
+workaround, its component and repro): the issue it was filed as said, as
+when the agent, told Emacs didn't answer (filing took long), tries again.
+0: each one filed."
+  :type 'natnum :group 'agent-ui)
+
+(defvar agent-ui--bugs-filed (make-hash-table :test #'equal)
+  "The agent's reports filed lately: each's key, (TIME . FILED).")
+
 (defcustom agent-ui-open-issue-function #'agent-ui-bug-show-issue
   "Open a bug just filed.
 
@@ -314,22 +325,45 @@ copied, to report by hand."
 
 ;; ====== THE AGENT'S WAY: bin/agent-ui bug ======
 
+(defun agent-ui--bug-key (props)
+  "The key of the agent's report PROPS: what it tells, not how to file it."
+  (and (agent-ui--plist-p props)
+       (sha1 (prin1-to-string (mapcar (lambda (key) (plist-get props key))
+                                      '(:title :description :expected :workaround :component :repro))))))
+
+(defun agent-ui--bug-filed-lately (key)
+  "What the report KEY was filed as, if it was within `agent-ui-bug-same-within'."
+  (when-let* ((key key)
+              (seen (gethash key agent-ui--bugs-filed)))
+    (if (< (- (float-time) (car seen)) agent-ui-bug-same-within)
+        (cdr seen)
+      (remhash key agent-ui--bugs-filed)
+      nil)))
+
 (defun agent-ui-bug-reply (props canvas)
   "Return the reply to the agent's bug.
 
 The reply to the agent's bug (PROPS, for its CANVAS): filed, or not
-filed with the report written, to give the user."
-  (condition-case err
-      (let ((filed (agent-ui-file-bug props :canvas canvas :by "the agent"
-                                      :session (bound-and-true-p agent-ui--request-canvas)
-                                      :cwd (bound-and-true-p agent-ui--request-cwd))))
-        (message "Agent UI: the agent %s %s: %s"
-                 (if (plist-get filed :new) "filed" "added to the similar open bug")
-                 (plist-get filed :id) (plist-get filed :title))
-        (append (list :ok t :issue (plist-get filed :id) :new (if (plist-get filed :new) t :false))
-                (unless (plist-get filed :new)
-                  (list :note "A similar bug is open: your report was added to its notes (\"new\": true files it anyway)"))))
-    (agent-ui-bug-not-filed (list :ok :false :error (nth 1 err) :report (nth 2 err)))))
+filed with the report written, to give the user.  The same report again
+within `agent-ui-bug-same-within': not filed again, the issue said."
+  (let* ((key (agent-ui--bug-key props))
+         (lately (agent-ui--bug-filed-lately key)))
+    (if lately
+        (list :ok t :issue (plist-get lately :id) :new :false
+              :note (format "This report was already filed, as %s: not filed again" (plist-get lately :id)))
+      (condition-case err
+          (let ((filed (agent-ui-file-bug props :canvas canvas :by "the agent"
+                                          :session (bound-and-true-p agent-ui--request-canvas)
+                                          :cwd (bound-and-true-p agent-ui--request-cwd))))
+            (when (and key (> agent-ui-bug-same-within 0))
+              (puthash key (cons (float-time) filed) agent-ui--bugs-filed))
+            (message "Agent UI: the agent %s %s: %s"
+                     (if (plist-get filed :new) "filed" "added to the similar open bug")
+                     (plist-get filed :id) (plist-get filed :title))
+            (append (list :ok t :issue (plist-get filed :id) :new (if (plist-get filed :new) t :false))
+                    (unless (plist-get filed :new)
+                      (list :note "A similar bug is open: your report was added to its notes (\"new\": true files it anyway)"))))
+        (agent-ui-bug-not-filed (list :ok :false :error (nth 1 err) :report (nth 2 err)))))))
 
 
 (provide 'agent-ui-bug)

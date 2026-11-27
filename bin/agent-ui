@@ -219,9 +219,14 @@ lisp_dir=${lisp_dir//\"/\\\"}
 # else), there even when the rest of Agent UI failed to load.
 answer=agent-ui-request
 [ "$op" = doctor ] && answer=agent-ui-doctor-request
+# How long Emacs may take: a bug's filing runs its issues' tools (bd, git),
+# longer than 30 s at times (then told Emacs didn't answer, the agent filed
+# it again).
+timeout=30
+[ "$op" = bug ] && timeout=120
 ask() {  # ask: Emacs answers the request (its reply in $dir/reply)
   rm -f "$dir/reply"
-  out=$("${EMACSCLIENT:-emacsclient}" --timeout=30 --eval \
+  out=$("${EMACSCLIENT:-emacsclient}" --timeout=$timeout --eval \
           "(if (fboundp '$answer) ($answer \"$lisp_dir\") 'agent-ui-not-loaded)" 2>&1)
   status=$?
 }
