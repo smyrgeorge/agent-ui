@@ -151,6 +151,20 @@ Only for an agent that takes one; nil stays nil when it doesn't."
 (defvar agent-ui--kept-loaded nil
   "Non-nil once the types the user kept were loaded.")
 
+(defconst agent-ui--link-handler '("\\`agent-ui:" . agent-ui-open-link)
+  "Agent UI's entry in `browse-url-handlers': its links opened in Emacs.")
+
+(defun agent-ui--link-handler-add (&optional _file)
+  "Add `agent-ui--link-handler' to `browse-url-handlers', once it's there.
+
+Until `browse-url' is loaded, this waits in `after-load-functions' (FILE
+a file just loaded), put there by `agent-ui-mode': loading it for this
+\(url, auth-source, eieio with it) took 0.2 s of Emacs's start, and the
+first link opened loads it anyway."
+  (when (featurep 'browse-url)
+    (remove-hook 'after-load-functions #'agent-ui--link-handler-add)
+    (add-to-list 'browse-url-handlers agent-ui--link-handler)))
+
 ;;;###autoload
 (define-minor-mode agent-ui-mode
   "Tie Agent UI to `agent-shell' and to Emacs's windows.
@@ -175,8 +189,8 @@ sessions; the canvas's views follow their session's pane."
         (add-hook 'window-state-change-functions #'agent-ui--pane-sync-h)
         (add-to-list 'window-persistent-parameters '(agent-ui-pane . writable))
         (add-to-list 'mode-line-misc-info agent-ui--question-mode-line-entry t)
-        (require 'browse-url)
-        (add-to-list 'browse-url-handlers '("\\`agent-ui:" . agent-ui-open-link))
+        (add-hook 'after-load-functions #'agent-ui--link-handler-add)
+        (agent-ui--link-handler-add)
         (when agent-ui-mcp
           (agent-ui--mcp-register))
         (agent-ui--command-executable)
@@ -193,8 +207,9 @@ sessions; the canvas's views follow their session's pane."
     (setq window-persistent-parameters
           (assq-delete-all 'agent-ui-pane window-persistent-parameters))
     (setq mode-line-misc-info (delete agent-ui--question-mode-line-entry mode-line-misc-info))
+    (remove-hook 'after-load-functions #'agent-ui--link-handler-add)
     (when (boundp 'browse-url-handlers)
-      (setq browse-url-handlers (delete '("\\`agent-ui:" . agent-ui-open-link) browse-url-handlers)))
+      (setq browse-url-handlers (delete agent-ui--link-handler browse-url-handlers)))
     (agent-ui--mcp-unregister)
     (setq agent-ui-agent-mcp nil)))
 
