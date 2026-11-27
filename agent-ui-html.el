@@ -77,23 +77,41 @@
 (defun agent-ui-html--text-of (html)
   "HTML's title and its text: (TITLE . TEXT).
 Scripts, styles and tags are left out, its entities read, its spaces one."
-  (let ((case-fold-search t)
-        (title nil))
-    (when (string-match "<title[^>]*>\\(\\(?:.\\|\n\\)*?\\)</title>" html)
-      (setq title (match-string 1 html)))
-    (dolist (re '("<script\\b\\(?:.\\|\n\\)*?</script>" "<style\\b\\(?:.\\|\n\\)*?</style>"
-                  "<head\\b\\(?:.\\|\n\\)*?</head>" "<!--\\(?:.\\|\n\\)*?-->"))
-      (setq html (replace-regexp-in-string re " " html)))
-    ;; Blocks as lines; tags gone.
-    (setq html (replace-regexp-in-string "<\\(?:br\\|/p\\|/h[1-6]\\|/li\\|/tr\\|/div\\)\\b[^>]*>" "\n" html))
-    (setq html (replace-regexp-in-string "<[^>]*>" " " html))
-    ;; Its entities read once; its title on one line (its newlines kept, it
-    ;; was two).
-    (cl-flet ((spaces (s) (string-trim (replace-regexp-in-string "[ \t\r]+" " " s))))
-      (cons (and title (spaces (replace-regexp-in-string "[\n\r]+" " " (agent-ui-html--entities title))))
-            (string-join (seq-remove #'string-empty-p
-                                     (mapcar #'spaces (split-string (agent-ui-html--entities html) "\n")))
-                         "\n")))))
+  (with-temp-buffer
+    (insert html)
+    (let ((case-fold-search t)
+          (title nil))
+      ;; Its title and its blocks found by their tags, not matched whole: a
+      ;; lazy regexp over a block of a few hundred KB overflowed the regexp
+      ;; matcher's stack.
+      (goto-char (point-min))
+      (when (re-search-forward "<title[^>]*>" nil t)
+        (let ((start (point)))
+          (when (search-forward "</title>" nil t)
+            (setq title (buffer-substring-no-properties start (match-beginning 0))))))
+      ;; Scripts, styles, the head and comments gone: one the read cut runs
+      ;; to the end (a head left open stays, its close often left out).
+      (pcase-dolist (`(,open ,close ,to-end) '(("<script\\b" "</script>" t) ("<style\\b" "</style>" t)
+                                               ("<head\\b" "</head>" nil) ("<!--" "-->" t)))
+        (goto-char (point-min))
+        (while (re-search-forward open nil t)
+          (let ((start (match-beginning 0))
+                (end (if (search-forward close nil t) (point) (and to-end (point-max)))))
+            (if (not end)
+                (goto-char (point-max))
+              (delete-region start end)
+              (insert " ")))))
+      (setq html (buffer-string))
+      ;; Blocks as lines; tags gone.
+      (setq html (replace-regexp-in-string "<\\(?:br\\|/p\\|/h[1-6]\\|/li\\|/tr\\|/div\\)\\b[^>]*>" "\n" html))
+      (setq html (replace-regexp-in-string "<[^>]*>" " " html))
+      ;; Its entities read once; its title on one line (its newlines kept, it
+      ;; was two).
+      (cl-flet ((spaces (s) (string-trim (replace-regexp-in-string "[ \t\r]+" " " s))))
+        (cons (and title (spaces (replace-regexp-in-string "[\n\r]+" " " (agent-ui-html--entities title))))
+              (string-join (seq-remove #'string-empty-p
+                                       (mapcar #'spaces (split-string (agent-ui-html--entities html) "\n")))
+                           "\n"))))))
 
 (defun agent-ui-html--text (props ctx)
   "PROPS' page as text, for CTX."

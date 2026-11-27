@@ -51,4 +51,39 @@ they were), and its title on one line (it kept its newlines)."
                            "“Done”… © 2026 &unknown; &#0; <tag>")))
     (should (equal (agent-ui-html--entities "&AMP; &amp;amp; &#65;&#x42;") "&AMP; &amp; AB"))))
 
+;; doom-ht6.118
+(ert-deftest agent-ui-components/html-big-blocks ()
+  "An HTML card with a script or a style block of a few hundred KB (a
+self-contained report) shows its title and text (the regexp matcher's stack
+overflowed on them)."
+  (let ((code (apply #'concat (make-list 40000 "var a = 1;\n"))))
+    (dolist (html (list (concat "<html><head><title>Run report</title><style>" code
+                                "</style></head><body><h1>Passed: 12</h1>\n<p>Failed: 0</p></body></html>")
+                        (concat "<html><head><title>Run report</title></head><body><h1>Passed: 12</h1>"
+                                "<SCRIPT type=\"module\">" code "</Script><p>Failed: 0</p></body></html>")))
+      (let ((file (agent-ui-test-aue-html html)))
+        (should (equal (agent-ui-test-aue-draw (list :type "html" :file file) :width 300)
+                       (concat "◫ Run report\n" (abbreviate-file-name file) "\n"
+                               "Passed: 12\nFailed: 0")))))))
+
+;; doom-ht6.118
+(ert-deftest agent-ui-components/html-unterminated-blocks ()
+  "An HTML card whose script, comment or title the read cut before its close
+shows the text before it: the block runs to the end, the title is the file's
+name (the regexp matcher's stack overflowed on them)."
+  (let ((code (apply #'concat (make-list 60000 "var a = 1;\n"))))
+    (dolist (html (list (concat "<html><head><title>Run report</title></head><body>"
+                                "<p>Passed: 12</p><script>" code)
+                        (concat "<html><head><title>Run report</title></head><body>"
+                                "<p>Passed: 12</p><!-- " code)))
+      (let ((file (agent-ui-test-aue-html html)))
+        (should (equal (agent-ui-test-aue-draw (list :type "html" :file file) :width 300)
+                       (concat "◫ Run report\n" (abbreviate-file-name file) "\n" "Passed: 12")))))
+    (let ((file (agent-ui-test-aue-html
+                 (concat "<html><head><title>Run report<script>" (substring code 0 400000)
+                         "</script></head><body><p>Passed: 12</p>"))))
+      (should (equal (agent-ui-test-aue-draw (list :type "html" :file file) :width 300)
+                     (concat "◫ " (file-name-nondirectory file) "\n" (abbreviate-file-name file) "\n"
+                             "Passed: 12"))))))
+
 ;;; agent-ui-html-tests.el ends here
