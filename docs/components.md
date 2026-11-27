@@ -495,7 +495,8 @@ note if `note`. Answer sends `Answer to rank ID (QUESTION): in this order: C, A,
 
 A number you tune in a range (a threshold, a timeout): `label`, `min`, `max`, `step` (1), `unit`, and `value` where it
 starts, drawn as a track with the knob at its value. Set sends `Answer to slider ID (LABEL): 42 ms`. With `live`, each
-value is sent once the knob rests, as `Slider ID (LABEL) set to 42 ms`, and there's no Set button.
+value is sent once the knob rests, as `Slider ID (LABEL) set to 42 ms`, and there's no Set button. It's sent without
+taking you to the session: the window you're in stays selected.
 
 ```json
 {"id": "timeout", "type": "slider", "title": "Before I retry", "label": "Timeout",

@@ -1078,6 +1078,12 @@ the last ones."
         (set-text-properties (1- end) end (text-properties-at 0 button) cut)))
     cut))
 
+(defvar agent-ui-act-unfocused nil
+  "Non-nil while a prompt is sent to a session other than by a key press.
+A live slider's timer, a type's review: agent-shell then neither selects
+nor shows the session's window (`agent-shell-insert''s :no-focus): the
+user, typing elsewhere, keeps their window and their keys.")
+
 (defvar agent-ui-pressed nil
   "The component whose button's action is running.
 

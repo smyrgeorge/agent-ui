@@ -441,7 +441,8 @@ of no session: the session working in its project, the latest."
       (agent-ui--act-in session prompt submit))))
 
 (defun agent-ui--act-in (session prompt submit)
-  "PROMPT into SESSION's prompt (sent if SUBMIT), as `agent-ui--act' says."
+  "PROMPT into SESSION's prompt (sent if SUBMIT), as `agent-ui--act' says.
+Not by a key press (`agent-ui-act-unfocused'): its window not selected."
   (unless (buffer-live-p session)
     (user-error "%s" (if (bound-and-true-p agent-ui-dashboards--state)
                          "No agent-shell session in this dashboard's project"
@@ -451,7 +452,8 @@ of no session: the session working in its project, the latest."
   (cond
    ((not (and (fboundp 'agent-shell-prompt-queue) (agent-ui--session-busy-p session submit)))
     (save-current-buffer
-      (agent-shell-insert :text prompt :submit submit :shell-buffer session)))
+      (apply #'agent-shell-insert :text prompt :submit submit :shell-buffer session
+             (when agent-ui-act-unfocused (list :no-focus t)))))
    (submit
     (with-current-buffer session
       (agent-shell-prompt-queue prompt))
@@ -472,7 +474,9 @@ What became of a type its agent made (`agent-ui-type-reviewed-functions');
 no such session (gone, or a restart since): nothing."
   (when-let* ((session (and canvas (car (agent-ui--canvas-session canvas)))))
     (condition-case err
-        (agent-ui--act-in session text t)
+        ;; The user is in the review: their window stays theirs.
+        (let ((agent-ui-act-unfocused t))
+          (agent-ui--act-in session text t))
       (error (message "Agent UI: %s couldn't be told: %s" (buffer-name session) (error-message-string err))))))
 
 (add-hook 'agent-ui-type-reviewed-functions #'agent-ui--tell-type-reviewed)

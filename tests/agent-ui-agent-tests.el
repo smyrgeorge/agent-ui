@@ -303,8 +303,9 @@ the prompt of the session that made it, sent; none: nothing (doom-ht6.127)."
            (inserted nil))
       (cl-letf (((symbol-function 'agent-shell-insert) (lambda (&rest args) (push args inserted))))
         (agent-ui--tell-type-reviewed 'dial "Agent UI: the user kept your type dial." name)
+        ;; Its window not selected: the user is in the review.
         (should (equal inserted (list (list :text "Agent UI: the user kept your type dial."
-                                            :submit t :shell-buffer session))))
+                                            :submit t :shell-buffer session :no-focus t))))
         (agent-ui--tell-type-reviewed 'dial "gone" "No such session")
         (agent-ui--tell-type-reviewed 'dial "none" nil)
         (should (= (length inserted) 1))))))
@@ -344,6 +345,28 @@ the prompt of the session that made it, sent; none: nothing (doom-ht6.127)."
           (should (string-match-p "no agent-shell session"
                                   (cadr (should-error (agent-ui-button-press) :type 'user-error)))))))))
 
+
+(ert-deftest agent-ui-agent/a-live-slider-sends-without-the-focus ()
+  "A live slider's value, sent from a timer once its knob rests: into its
+session's prompt with no focus (agent-shell neither selects nor shows its
+window: the user typing elsewhere keeps their window, doom-ht6.128); a
+button pressed: as before."
+  (agent-ui-test-aua
+    (let* ((session (agent-ui-test-aua-session "Claude Agent @ live" "/tmp/live/"))
+           (name (agent-ui--session-name session))
+           (agent-ui-slider-live-delay 0.05)
+           (inserted nil))
+      (agent-ui-show '(:id "th" :type "slider" :min 0 :max 10 :value 5 :live t) :canvas name)
+      (cl-letf (((symbol-function 'agent-shell-insert) (lambda (&rest args) (push args inserted))))
+        (with-current-buffer (agent-ui-canvas-buffer-name name)
+          (agent-ui--flush)
+          (goto-char (point-min))
+          (search-forward "●")
+          (agent-ui-slider-right))
+        (let ((end (+ (float-time) 0.5)))
+          (while (and (not inserted) (< (float-time) end)) (accept-process-output nil 0.02))))
+      (should (equal (car inserted) (list :text "Slider th (value) set to 6" :submit t :shell-buffer session
+                                          :no-focus t))))))
 
 (defun agent-ui-test-aua-press (canvas label)
   "The button LABEL in CANVAS's buffer, pressed."

@@ -131,8 +131,10 @@ PROPS and CTX are the component's."
                                (when (buffer-live-p canvas)
                                  (with-current-buffer canvas
                                    ;; Its component the one acting (a
-                                   ;; section's session's), not point's.
-                                   (let ((agent-ui-pressed (plist-get ctx :id)))
+                                   ;; section's session's), not point's;
+                                   ;; from a timer: the user's window kept.
+                                   (let ((agent-ui-pressed (plist-get ctx :id))
+                                         (agent-ui-act-unfocused t))
                                      (funcall agent-ui-action-function
                                               (format "Slider %s (%s) set to %s" (plist-get ctx :id)
                                                       (or (plist-get props :label) "value")
