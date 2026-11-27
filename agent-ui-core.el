@@ -331,7 +331,8 @@ VALUE of PROP, a property of TYPE (its name), as the type gets it; signals
         ('integer (if (integerp value) value (bad)))
         ('boolean (pcase value ('t t) ((or :false 'nil) nil) (_ (bad))))
         ;; Inside them, false stays :false (a table's cell shows it).
-        ('list (if (listp value) value (bad)))
+        ;; A proper list: an append of a number made one dotted.
+        ('list (if (proper-list-p value) value (bad)))
         ('any value)
         (`(choice . ,choices)
          (let ((sym (cond ((stringp value) (intern-soft value))

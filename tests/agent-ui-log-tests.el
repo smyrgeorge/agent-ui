@@ -169,6 +169,25 @@ line appended, the same as drawn whole, no stale cut left (doom-ht6.69)."
   (should (equal (plist-get (agent-ui-append-to '(:type "log" :lines ("a")) '(:lines ("b" "c"))) :lines) '("a" "b" "c")))
   (should (string-match-p "only lines" (agent-ui-error-message (should-error (agent-ui-append-to '(:type "log") '(:show 3)) :type 'agent-ui-error)))))
 
+(ert-deftest agent-ui-components/log-appended-a-number-refused ()
+  "A number or a boolean appended to a log's lines: refused, the log as it
+was, drawn, the canvas still saved as JSON; a chart's times too
+\(doom-ht6.132)."
+  (agent-ui-test-aue-canvas
+    (agent-ui-show '(:id "build" :type "log" :lines ("compiling" "linking")))
+    (dolist (lines '(42 t :false))
+      (should (string-match-p "lines is text or a list"
+                              (agent-ui-error-message
+                               (should-error (agent-ui-append "build" (list :lines lines)) :type 'agent-ui-error)))))
+    (should (equal (plist-get (agent-ui-get "build") :lines) '("compiling" "linking")))
+    (with-current-buffer canvas
+      (agent-ui--flush)
+      (should-not (string-search "⚠" (buffer-string))))
+    (agent-ui-show '(:id "c" :type "chart" :values (1 2) :times (100 200)))
+    (should-error (agent-ui-append "c" '(:times 300)) :type 'agent-ui-error)
+    (should (equal (plist-get (agent-ui-get "c") :times) '(100 200)))
+    (should (json-serialize (vconcat (mapcar #'agent-ui-to-json (agent-ui-components)))))))
+
 (ert-deftest agent-ui-components/log-wrong ()
   (should (string-match-p "line 1's level \"loud\" is none of error, warning, info, debug"
                           (agent-ui-test-aue-error '(:type "log" :lines ((:level "loud" :text "x"))))))

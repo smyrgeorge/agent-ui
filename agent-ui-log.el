@@ -197,7 +197,9 @@ ENTRY is text, {level, text}, or one in columns; one in columns as
 (defun agent-ui-log--check (props)
   "Check PROPS of a log (its lines, its sources); return PROPS."
   (let ((raw (plist-get props :lines)))
-    (unless (or (stringp raw) (listp raw))
+    ;; A proper list: a number appended to it made it dotted, an error at
+    ;; each drawing and the canvas's save.
+    (unless (or (stringp raw) (proper-list-p raw))
       (agent-ui--fail "log: lines is text or a list"))
     (when (listp raw)
       (cl-loop for e in raw
