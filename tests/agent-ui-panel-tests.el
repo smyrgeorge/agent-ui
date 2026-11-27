@@ -428,4 +428,37 @@ that can't be cut (scaled): sides as tall, drawn."
     (should (string-suffix-p " │" (substring-no-properties chart-line)))
     (should (= (agent-ui-panel--pixels chart-line 8) (* 30 8)))))
 
+(ert-deftest agent-ui-components/panel-a-frame-draws-only-its-animated-children ()
+  "A panel animated by a child: its frames draw that child again, the others
+\(code, a table) as last drawn, not anew; the panel drawn as it would be
+whole (doom-ht6.113)."
+  (agent-ui-test-aue-canvas
+    (agent-ui-show '(:id "p" :type "panel"
+                     :children ((:id "bar" :type "progress" :title "Build")
+                                (:id "src" :type "code" :code "int x = 1;" :language "c")
+                                (:id "t" :type "table" :columns ("A" "B") :rows (("1" "2"))))))
+    (with-current-buffer canvas (agent-ui--flush))
+    (save-window-excursion
+      (switch-to-buffer canvas)
+      (let ((drawn nil))
+        (cl-letf* ((render (symbol-function 'agent-ui-render))
+                   ((symbol-function 'agent-ui-render)
+                    (lambda (component ctx)
+                      (push (plist-get component :type) drawn)
+                      (funcall render component ctx))))
+          (dotimes (_ 5) (agent-ui--frame canvas)))
+        (should (= (seq-count (lambda (type) (equal type "progress")) drawn) 5))
+        (should (<= (seq-count (lambda (type) (equal type "code")) drawn) 1))
+        (should (<= (seq-count (lambda (type) (equal type "table")) drawn) 1)))
+      (should (agent-ui-test-aue--same-drawing-p (agent-ui-test-aue--region "p")
+                                                 (agent-ui-test-aue--drawn-whole "p")))
+      ;; Changed: its children drawn anew.
+      (agent-ui-update "p" '(:children ((:id "bar" :type "progress" :title "Build")
+                                        (:id "src" :type "code" :code "int y = 2;" :language "c"))))
+      (agent-ui--flush)
+      (agent-ui--frame canvas)
+      (should (string-search "int y = 2;" (substring-no-properties (agent-ui-test-aue--region "p"))))
+      (should (agent-ui-test-aue--same-drawing-p (agent-ui-test-aue--region "p")
+                                                 (agent-ui-test-aue--drawn-whole "p"))))))
+
 ;;; agent-ui-panel-tests.el ends here

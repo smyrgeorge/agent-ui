@@ -51,8 +51,10 @@ Components that ask have a few keys of their own, listed in [Components](compone
 - **Redrawing** a component leaves the cursor and each window's scroll where they were.
 - **Width.** Components fit the canvas window's width. They're drawn again when the window changes size or the font's
   size changes. While the canvas is in no window, they're drawn at `agent-ui-default-width` columns.
-- **Animated components** (a spinner, a bar without an end) are redrawn only while one is shown in a window. The spinner
-  is a dot, `●`, whose colour glows brighter and dimmer (`agent-ui-spinner-frames`, `agent-ui-spinner-pulse`).
+- **Animated components** (a spinner, a bar without an end) are redrawn only while one is shown in a window: in none, the
+  animation stops until the canvas is shown again. Each frame redraws only what moves: a panel's other children and a
+  step's unfolded body stay as last drawn. The spinner is a dot, `●`, whose colour glows brighter and dimmer
+  (`agent-ui-spinner-frames`, `agent-ui-spinner-pulse`).
 - **Glyphs.** In a graphical frame, a character the default font lacks (`✎`, `⏵`) comes from another font, often
   wider or narrower than a column and taller than a line. The canvas draws it as large as a line holds and adjusts the
   space beside it to match, so borders and the `│` between columns stay in place and every line keeps the same height.

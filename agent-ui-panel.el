@@ -193,20 +193,27 @@ if wider, or its width unknown."
 (defun agent-ui-panel--child (child ctx width)
   "Return CHILD drawn at WIDTH, its key in its context CTX.
 Its own buttons: in its panel's section, if it's in one; its text marked
-as its (`agent-ui-child'), where a deeper child hasn't marked it."
-  (let ((text (agent-ui-render child (plist-put (plist-put (copy-sequence ctx) :width width)
-                                                :id (if (plist-get child :id)
-                                                        (agent-ui--key (plist-get child :id)
-                                                                       (agent-ui--key-section (plist-get ctx :id)))
-                                                      (plist-get ctx :id))))))
-    (when-let* ((id (plist-get child :id)))
-      (let ((pos 0))
-        (while (< pos (length text))
-          (let ((next (or (next-single-property-change pos 'agent-ui-child text) (length text))))
-            (unless (get-text-property pos 'agent-ui-child text)
-              (put-text-property pos next 'agent-ui-child id text))
-            (setq pos next)))))
-    text))
+as its (`agent-ui-child'), where a deeper child hasn't marked it.  A
+child whose type isn't animated: in an animation's frames, as last drawn
+\(`agent-ui-memo')."
+  (let* ((ctx (plist-put (plist-put (copy-sequence ctx) :width width)
+                         :id (if (plist-get child :id)
+                                 (agent-ui--key (plist-get child :id)
+                                                (agent-ui--key-section (plist-get ctx :id)))
+                               (plist-get ctx :id))))
+         (draw (lambda ()
+                 (let ((text (agent-ui-render child ctx)))
+                   (when-let* ((id (plist-get child :id)))
+                     (let ((pos 0))
+                       (while (< pos (length text))
+                         (let ((next (or (next-single-property-change pos 'agent-ui-child text) (length text))))
+                           (unless (get-text-property pos 'agent-ui-child text)
+                             (put-text-property pos next 'agent-ui-child id text))
+                           (setq pos next)))))
+                   text))))
+    (if (ignore-errors (agent-ui-type-animated (agent-ui-type (plist-get child :type))))
+        (funcall draw)
+      (agent-ui-memo child ctx draw))))
 
 (defun agent-ui-panel--line-height (line)
   "Return the height LINE is shown at, in pixels, if an image in it says.

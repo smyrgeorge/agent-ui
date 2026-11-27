@@ -691,6 +691,44 @@ showed another buffer goes back to it; a frame's last window stays."
     (agent-ui-remove "s")
     (should-not (buffer-local-value 'agent-ui--animation-timer canvas))))
 
+(ert-deftest agent-ui-canvas/animation-stopped-while-hidden ()
+  "A frame checks only the components animated, not every one; in no window,
+the canvas's animation stops, and starts again once it's shown
+\(doom-ht6.113)."
+  (agent-ui-test-auc
+    (agent-ui-define blinker "Animated while ON." :props ((on boolean "Animated"))
+      :animated (lambda (props) (eq (plist-get props :on) t))
+      :text (lambda (_props _ctx) "blink"))
+    (dotimes (i 3)
+      (agent-ui-show (list :id (format "m%d" i) :type "meter")))
+    (agent-ui-show '(:id "b" :type "blinker"))
+    (agent-ui-show '(:id "s" :type "spinner"))
+    (should (timerp (buffer-local-value 'agent-ui--animation-timer canvas)))
+    (save-window-excursion
+      (switch-to-buffer canvas)
+      (let ((checked nil))
+        (cl-letf* ((check (symbol-function 'agent-ui-check))
+                   ((symbol-function 'agent-ui-check)
+                    (lambda (type component)
+                      (push (plist-get component :type) checked)
+                      (funcall check type component))))
+          (agent-ui--frame canvas)
+          (agent-ui--frame canvas))
+        (should-not (member "blinker" checked))
+        (should (equal (agent-ui-test-auc-text) "0/10\n\n0/10\n\n0/10\n\nblink\n\nspin 2\n\n"))))
+    ;; In no window: its timer stopped, nothing drawn.
+    (agent-ui--frame canvas)
+    (should-not (buffer-local-value 'agent-ui--animation-timer canvas))
+    (should (string-suffix-p "spin 2\n\n" (agent-ui-test-auc-text)))
+    ;; Shown again: started again.
+    (save-window-excursion
+      (switch-to-buffer canvas)
+      (with-current-buffer canvas
+        (run-hook-with-args 'window-buffer-change-functions (selected-window)))
+      (should (timerp (buffer-local-value 'agent-ui--animation-timer canvas)))
+      (agent-ui--frame canvas)
+      (should (string-suffix-p "spin 3\n\n" (agent-ui-test-auc-text))))))
+
 (ert-deftest agent-ui-canvas/timers-stopped-when-killed ()
   (agent-ui-test-auc
     (agent-ui-show '(:id "s" :type "spinner"))

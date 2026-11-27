@@ -121,8 +121,9 @@ UNTITLED: its title not drawn, `agent-ui-canvas-title');
 SHOWN, it as it was shown, before updates and its sources' changes (its
 data left out: what a panel saved from it keeps); PART, in a section
 hosting a session's canvas, the session's other canvas it was shown on
-\(\"ask\"), nil for its own."
-  id component start end drawn shown part)
+\(\"ask\"), nil for its own; MEMO, the drawings of its parts its
+animation's frames reuse (`agent-ui-memo'), until it's drawn otherwise."
+  id component start end drawn shown part memo)
 
 (defvar-local agent-ui--canvas-name nil "This canvas's name.")
 (defvar-local agent-ui--entries nil "This canvas's components, by id.")
@@ -130,6 +131,8 @@ hosting a session's canvas, the session's other canvas it was shown on
 (defvar-local agent-ui--dirty nil "Ids of the components to redraw.")
 (defvar-local agent-ui--redraw-timer nil)
 (defvar-local agent-ui--animation-timer nil)
+(defvar-local agent-ui--animated nil
+  "This canvas's animated components' ids, as of its last change.")
 (defvar-local agent-ui--tick 0 "Counts animation frames.")
 (defvar-local agent-ui--width nil "The width its components were drawn at.")
 (defvar-local agent-ui--cell nil
@@ -198,6 +201,7 @@ Its commands are its parts' (quoted: defined in the files after this one)."
               cursor-in-non-selected-windows nil)
   (setq agent-ui--entries (make-hash-table :test #'equal))
   (add-hook 'window-size-change-functions #'agent-ui--size-changed nil t)
+  (add-hook 'window-buffer-change-functions #'agent-ui--shown nil t)
   (add-hook 'text-scale-mode-hook #'agent-ui--text-scaled nil t)
   (add-hook 'kill-buffer-hook #'agent-ui--stop-timers nil t))
 
@@ -621,6 +625,10 @@ is current (another's text replaced by it, else)."
   "Draw ENTRY again (see `agent-ui--draw') for CTX, in the current canvas.
 ENTRY is its own."
   (agent-ui--drawn-at ctx)
+  ;; Drawn otherwise than as an animation's frame: its frames' drawings
+  ;; drawn anew.
+  (unless agent-ui--memo
+    (setf (agent-ui--entry-memo entry) nil))
   (let* ((inhibit-read-only t)
          (ctx (agent-ui--entry-context entry ctx))
          (start (agent-ui--entry-start entry))
@@ -829,35 +837,59 @@ drawn again, for their new cells.  Their windows' size in pixels stays:
 
 (defun agent-ui--animate ()
   "Start the current canvas's animation timer if a component is animated.
-Or if a section runs; stop it if none is."
-  (if (or (agent-ui--animated-ids) (agent-ui--running-sections))
+Or if a section runs; stop it if none is.  Its animated components kept
+\(`agent-ui--animated'): its frames look at them alone."
+  (setq agent-ui--animated (agent-ui--animated-ids))
+  (if (or agent-ui--animated (agent-ui--running-sections))
       (unless agent-ui--animation-timer
         (let ((buffer (current-buffer)))
           (setq agent-ui--animation-timer
                 (run-with-timer agent-ui-animation-interval agent-ui-animation-interval
                                 #'agent-ui--frame buffer))))
-    (when (timerp agent-ui--animation-timer)
-      (cancel-timer agent-ui--animation-timer))
-    (setq agent-ui--animation-timer nil)))
+    (agent-ui--stop-animation)))
+
+(defun agent-ui--stop-animation ()
+  "Stop the current canvas's animation timer."
+  (when (timerp agent-ui--animation-timer)
+    (cancel-timer agent-ui--animation-timer))
+  (setq agent-ui--animation-timer nil))
+
+(defun agent-ui--shown (window)
+  "WINDOW shows the canvas now (its `window-buffer-change-functions').
+Its animation, stopped while it was in no window, started again."
+  (with-current-buffer (window-buffer window)
+    (agent-ui--animate)))
 
 (defun agent-ui--frame (buffer)
-  "The next frame of BUFFER's animated components, if it's in a window."
-  (if (not (buffer-live-p buffer))
-      nil
+  "The next frame of BUFFER's animated components, if it's in a window.
+Those animated at its last change looked at alone (not every component
+each frame), those still animated drawn again: their parts drawn the
+same as time passes as last drawn (`agent-ui-memo').  In no window, its
+timer stopped, started again once it's shown (`agent-ui--shown')."
+  (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (let ((ids (agent-ui--animated-ids))
-            (sections (agent-ui--running-sections)))
-        (if (or ids sections)
-            (when (agent-ui--window)
-              (cl-incf agent-ui--tick)
-              (let ((ctx (agent-ui--context)))
-                (dolist (id ids)
-                  (agent-ui--draw (gethash id agent-ui--entries) ctx))
-                (dolist (section sections)
-                  (agent-ui--draw-section section ctx))
-                (when sections
-                  (agent-ui--fold-refresh))))
-          (agent-ui--animate))))))
+      (if (not (agent-ui--window))
+          (agent-ui--stop-animation)
+        (let ((ids (setq agent-ui--animated
+                         (seq-filter (lambda (id)
+                                       (when-let* ((entry (gethash id agent-ui--entries)))
+                                         (agent-ui-animated-p (agent-ui--entry-component entry))))
+                                     agent-ui--animated)))
+              (sections (agent-ui--running-sections)))
+          (if (not (or ids sections))
+              (agent-ui--animate)
+            (cl-incf agent-ui--tick)
+            (let ((ctx (agent-ui--context)))
+              (dolist (id ids)
+                (let* ((entry (gethash id agent-ui--entries))
+                       (agent-ui--memo (or (agent-ui--entry-memo entry)
+                                           (setf (agent-ui--entry-memo entry)
+                                                 (make-hash-table :test #'equal)))))
+                  (agent-ui--draw entry ctx)))
+              (dolist (section sections)
+                (agent-ui--draw-section section ctx))
+              (when sections
+                (agent-ui--fold-refresh)))))))))
 
 (defun agent-ui--stop-timers ()
   "Stop the current canvas's timers, and its components with them.

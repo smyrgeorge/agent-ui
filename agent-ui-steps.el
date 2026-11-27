@@ -313,11 +313,13 @@ OPEN are those unfolded; CTX is where the step is drawn."
 
 (defun agent-ui-steps--body (step depth ctx)
   "Return STEP's body drawn under it (Markdown), within CTX.
-Indented past its icon, DEPTH deep."
+Indented past its icon, DEPTH deep.  In an animation's frames (a step
+running), as last drawn (`agent-ui-memo')."
   (let* ((indent (make-string (+ 2 (* 2 depth)) ?\s))
          (width (max 10 (- (plist-get ctx :width) (length indent))))
-         (text (agent-ui-render (list :type "markdown" :markdown (plist-get step :body))
-                                (plist-put (copy-sequence ctx) :width width))))
+         (body (list :type "markdown" :markdown (plist-get step :body)))
+         (ctx (plist-put (copy-sequence ctx) :width width))
+         (text (agent-ui-memo body ctx (lambda () (agent-ui-render body ctx)))))
     (mapconcat (lambda (line) (if (string-empty-p line) line (concat indent line)))
                (split-string (string-trim-right text) "\n") "\n")))
 

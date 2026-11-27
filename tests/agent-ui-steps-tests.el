@@ -447,4 +447,27 @@ A body not text: refused."
     (should (string-match-p "\n  .*one\n  .*two" open)))
   (should (string-match-p "body" (agent-ui-test-aue-error '(:type "steps" :steps ((:name "a" :body 3)))))))
 
+(ert-deftest agent-ui-components/steps-a-frame-keeps-open-bodies ()
+  "Steps running, a body unfolded: its frames draw the body (Markdown) once,
+not each frame; the steps drawn as they would be whole (doom-ht6.113)."
+  (agent-ui-test-aue-canvas
+    (agent-ui-show '(:id "s" :type "steps" :open ("a")
+                     :steps ((:name "a" :status "done" :body "Why: **this**.\n\n- one\n- two")
+                             (:name "b" :status "running"))))
+    (with-current-buffer canvas (agent-ui--flush))
+    (save-window-excursion
+      (switch-to-buffer canvas)
+      (let ((drawn nil))
+        (cl-letf* ((render (symbol-function 'agent-ui-render))
+                   ((symbol-function 'agent-ui-render)
+                    (lambda (component ctx)
+                      (push (plist-get component :type) drawn)
+                      (funcall render component ctx))))
+          (dotimes (_ 5) (agent-ui--frame canvas)))
+        (should (= (seq-count (lambda (type) (equal type "steps")) drawn) 5))
+        (should (<= (seq-count (lambda (type) (equal type "markdown")) drawn) 1)))
+      (should (string-search "Why: this." (substring-no-properties (agent-ui-test-aue--region "s"))))
+      (should (agent-ui-test-aue--same-drawing-p (agent-ui-test-aue--region "s")
+                                                 (agent-ui-test-aue--drawn-whole "s"))))))
+
 ;;; agent-ui-steps-tests.el ends here

@@ -505,6 +505,26 @@ of TYPE: an error saying what's wrong, else itself."
           (and animated t)))
     (error nil)))
 
+(defvar agent-ui--memo nil
+  "The drawings an animation's frame reuses: a hash table, or nil.
+Bound by a canvas while it draws a frame of an animated component, to
+the drawings of its parts kept from its earlier frames (`agent-ui-memo').")
+
+(defun agent-ui-memo (key ctx draw)
+  "Return what DRAW, called with no arguments, draws of KEY in CTX.
+For a part of a component drawn the same as time passes (a panel's child
+not animated, a step's body): an animation's frames draw it once, then
+reuse it (`agent-ui--memo'; by KEY and CTX, its :tick aside), not each
+frame (a table, code, Markdown drawn anew every 0.15 s).  Drawn anew
+otherwise."
+  (if (not agent-ui--memo)
+      (funcall draw)
+    (let ((key (cons key (cl-loop for (k v) on ctx by #'cddr
+                                  unless (eq k :tick) append (list k v)))))
+      ;; A copy: what's drawn may be changed by what it's drawn into.
+      (copy-sequence (or (gethash key agent-ui--memo)
+                         (puthash key (funcall draw) agent-ui--memo))))))
+
 (defun agent-ui--cap (text)
   "TEXT, cut at `agent-ui-max-chars' with a line saying what was left out:
 at the end of the last line that fits (a line longer than it all: in it)."

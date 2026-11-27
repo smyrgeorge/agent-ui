@@ -47,7 +47,7 @@ The type's name is a symbol of `a-z`, `0-9` and `-`. Its documentation string is
 | `:example` | A component of the type, as a plist. It's checked when the type is defined and shown in the catalog, where the agent copies it. |
 | `:text` | `(lambda (PROPS CTX) ...)`: draws it as text, returning a string, maybe with faces. Required. |
 | `:gui` | The same, for a graphical frame: a string, typically with an SVG image on it. Optional; without it, `:text` draws in both. |
-| `:animated` | `t`, or `(lambda (PROPS) ...)`: whether it's redrawn as time passes, CTX's `:tick` counting up. |
+| `:animated` | `t`, or `(lambda (PROPS) ...)`: whether it's redrawn as time passes, CTX's `:tick` counting up. A type without it is drawn the same as time passes: in a panel's frames, a child of that type is drawn as last time. |
 | `:check` | `(lambda (PROPS) ...)`: checks what a property's kind can't, such as a list's items or properties that go together. It returns PROPS, maybe normalized, or signals `agent-ui-error` (with `agent-ui--fail`). What it returns is drawn; what's kept is the component as given. |
 | `:append` | `(lambda (COMPONENT PATCH) ...)`: how `agent-ui append` adds to it, such as a table's rows replaced by key. Without it, each list is appended to. |
 | `:prepare` | `(lambda (COMPONENT) ...)`: the component as it's kept, each time it's shown or changed. It's for what the component notes as time passes, such as when a step started. Called again on its own result, it must change nothing. |
