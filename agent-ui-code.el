@@ -75,14 +75,30 @@ LANGUAGE is a mode's name without -mode: python, c, emacs-lisp.  See
       (and file
            (agent-ui-code--major-mode (assoc-default file auto-mode-alist #'string-match)))))
 
+(defconst agent-ui-code--inert
+  '((org-inhibit-startup . t)
+    (org-src-fontify-natively . nil)
+    (org-resource-download-policy . nil)
+    (markdown-fontify-code-blocks-natively . nil))
+  "What a mode runs on the agent's text, turned off while it highlights it.
+Org's and Markdown's source blocks highlighted in their language call any
+X-mode their text names (a minor mode: cua, auto-save-visited turned on
+for all of Emacs); Org's startup options run code (a LaTeX preview,
+synchronous), its setup files are downloaded (asked first).  Each bound
+only if its mode's loaded (resolving the mode loads it): bound before,
+its library's own value would be lost after.")
+
 (defun agent-ui-code--highlight (code mode)
-  "CODE highlighted by MODE (its faces as face properties); CODE if none."
+  "CODE highlighted by MODE (its faces as face properties); CODE if none.
+Nothing of CODE run by MODE (`agent-ui-code--inert')."
   (if (not mode)
       code
     (with-temp-buffer
       (insert code)
-      (delay-mode-hooks (ignore-errors (funcall mode)))
-      (ignore-errors (font-lock-ensure))
+      (let ((inert (seq-filter (lambda (binding) (boundp (car binding))) agent-ui-code--inert)))
+        (cl-progv (mapcar #'car inert) (mapcar #'cdr inert)
+          (delay-mode-hooks (ignore-errors (funcall mode)))
+          (ignore-errors (font-lock-ensure))))
       ;; font-lock-face as face: shown outside its buffer.
       (let ((pos (point-min)))
         (while (< pos (point-max))

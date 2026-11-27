@@ -35,6 +35,39 @@ on), nor one doing something of its own (a special mode) (doom-ht6.49)."
   (should (eq (agent-ui-code--mode nil "a.py") (agent-ui-code--major-mode (assoc-default "a.py" auto-mode-alist #'string-match)))))
 
 ;; doom-nwj.69
+(ert-deftest agent-ui-components/code-in-org-runs-nothing-of-it ()
+  "Code in Org, highlighted: its source blocks' languages turn on no mode
+(cua, auto-save-visited: for all of Emacs), its startup options run
+nothing (a LaTeX preview), its setup file isn't downloaded, nothing asked
+\(doom-ht6.137)."
+  (let ((cua-mode nil) (auto-save-visited-mode nil) (previewed nil) (fetched nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'org-latex-preview) (lambda (&rest _) (setq previewed t)))
+                  ((symbol-function 'url-retrieve-synchronously) (lambda (&rest _) (setq fetched t) nil))
+                  ((symbol-function 'yes-or-no-p) (lambda (&rest _) (error "Asked")))
+                  ((symbol-function 'y-or-n-p) (lambda (&rest _) (error "Asked")))
+                  ((symbol-function 'read-char-choice) (lambda (&rest _) (error "Asked")))
+                  ((symbol-function 'read-multiple-choice) (lambda (&rest _) (error "Asked"))))
+          ;; Its source blocks: no mode turned on.
+          (agent-ui-test-aue-draw
+           '(:type "code" :language "org"
+             :code "* A heading\n#+begin_src cua\nx\n#+end_src\n#+begin_src auto-save-visited\nx\n#+end_src\n"))
+          (should-not cua-mode)
+          (should-not auto-save-visited-mode)
+          ;; Its startup options, its setup file: nothing run, nothing asked
+          ;; (it would fail), still highlighted as Org.
+          (let ((text (agent-ui-render
+                       '(:type "code" :language "org"
+                         :code "#+STARTUP: latexpreview\n#+SETUPFILE: https://example.invalid/x.setup\n* A heading\n$x^2$\n")
+                       (agent-ui-context :width 60))))
+            (should-not previewed)
+            (should-not fetched)
+            (should (get-text-property (string-search "A heading" text) 'face text))))
+      (when cua-mode (cua-mode -1))
+      (when auto-save-visited-mode (auto-save-visited-mode -1))
+      (dolist (b (buffer-list))
+        (when (string-prefix-p " *org-src-fontification:" (buffer-name b)) (kill-buffer b))))))
+
 (ert-deftest agent-ui-components/code-long-line-keeps-its-note ()
   "A mark's note is shown whole at widths 40 to 80: after its line if both
 fit, else under it, wrapped (the line was cut with its note: \"{  ← …\")."
