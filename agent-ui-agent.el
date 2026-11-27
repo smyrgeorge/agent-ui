@@ -135,6 +135,14 @@ working in CWD or above it, the deepest, then the most recently used."
                (car (cl-stable-sort matches #'>
                                     :key (lambda (b) (length (agent-ui--session-cwd b))))))))))
 
+(defun agent-ui--project-session (root)
+  "Return the latest session working in the project at ROOT.
+One working at ROOT or under it; never one working above it (a session in
+~ isn't the project's), nil if none."
+  (let ((root (file-name-as-directory (expand-file-name root))))
+    (seq-find (lambda (b) (string-prefix-p root (agent-ui--session-cwd b)))
+              (agent-ui--sessions))))
+
 (defun agent-ui-session-canvas (session cwd)
   "Return the canvas for an agent's request.
 
@@ -421,7 +429,7 @@ of no session: the session working in its project, the latest."
                        ;; Its component's: a section's hosted session's.
                        (or (agent-ui--key-session (current-buffer) key)
                            (and (bound-and-true-p agent-ui-dashboards--state)
-                                (agent-ui--session-buffer nil default-directory))))))
+                                (agent-ui--project-session default-directory))))))
     ;; What it says of its component, of a section's: its id, not its key.
     (setq prompt (agent-ui--unkeyed prompt (agent-ui--key-section key)))
     ;; A canvas holding its prompts (an untrusted dashboard's): into the

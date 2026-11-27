@@ -1068,6 +1068,40 @@ trusted: sent as it says (doom-ht6.124)."
                   (kill-buffer canvas)))
             (kill-buffer session)))))))
 
+(ert-deftest agent-ui-dashboards/its-buttons-never-to-a-session-above-it ()
+  "A dashboard's button: to the latest session working in its project, at its
+root or under it; never to one working above it (~), none then: said
+\(doom-ht6.126)."
+  (agent-ui-test-aud '(("act" . "(agent-ui-dashboard :ui (:type \"text\" :id \"t\" :text \"2 failed\" :actions ((:label \"Fix them\" :prompt \"Fix the 2 failing tests\"))))\n"))
+    (let* ((above (generate-new-buffer "Claude Agent @ home"))
+           (sub (generate-new-buffer "Claude Agent @ sub"))
+           (sessions (list above))
+           (inserted nil))
+      (with-current-buffer above (setq default-directory (file-name-directory (directory-file-name root))))
+      (with-current-buffer sub (setq default-directory (file-name-as-directory (expand-file-name "sub" root))))
+      (cl-letf (((symbol-function 'agent-ui--sessions) (lambda () sessions))
+                ((symbol-function 'agent-shell-cwd) (lambda () default-directory))
+                ((symbol-function 'agent-shell-insert) (lambda (&rest args) (push args inserted))))
+        (save-window-excursion
+          (let ((canvas (agent-ui-open-dashboard "act" root)))
+            (unwind-protect
+                (with-current-buffer canvas
+                  (agent-ui--flush)
+                  (goto-char (point-min))
+                  (search-forward "⏵ Fix them")
+                  (goto-char (match-beginning 0))
+                  ;; Only one above it: none of its own.
+                  (should (string-match-p "No agent-shell session in this dashboard's project"
+                                          (cadr (should-error (agent-ui-button-press) :type 'user-error))))
+                  (should-not inserted)
+                  ;; One working under its root: that one, though the one above is more recent.
+                  (setq sessions (list above sub))
+                  (agent-ui-button-press)
+                  (should (eq (plist-get (car inserted) :shell-buffer) sub)))
+              (kill-buffer canvas)
+              (kill-buffer above)
+              (kill-buffer sub))))))))
+
 ;; ====== THIS CONFIG'S OWN ======
 
 

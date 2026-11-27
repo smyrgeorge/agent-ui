@@ -140,9 +140,9 @@ read at once.
 - The agent reads what a dashboard shows with `agent-ui get --dashboard NAME`, as data. A dashboard you aren't looking
   at fetches nothing; reading it fetches it first when its data is older than its `:every`, and the command waits for
   its queries (`AGENT_UI_WAIT` seconds at most, 10 by default).
-- A dashboard's buttons put their prompt into the project's agent session, the latest one working in it. While the
-  dashboard isn't trusted (its file or its project), a button never sends its prompt: it's put into the session's
-  prompt, for you to read and send.
+- A dashboard's buttons put their prompt into the project's agent session, the latest one working in it (at its root or
+  under it; never one working above it, in `~`). While the dashboard isn't trusted (its file or its project), a button
+  never sends its prompt: it's put into the session's prompt, for you to read and send.
 - `S` on a canvas saves the component at point as one of the project's dashboards. Its file is written with the
   component as it was first shown, before its updates and its sources' changes, so with no data. Its `:fetch` is empty,
   for you (or the agent) to write. It's trusted, since you made it.
