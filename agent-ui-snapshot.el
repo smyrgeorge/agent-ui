@@ -50,6 +50,8 @@
 (require 'agent-ui-dashboards)
 
 (declare-function image-size "ext:image.c")
+;; Only in an Emacs built for graphical frames: called after display-graphic-p.
+(declare-function imagep "ext:image.c")
 
 (defvar browse-url-handlers)
 

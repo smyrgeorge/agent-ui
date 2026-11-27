@@ -126,6 +126,8 @@ ids seen."
 
 (declare-function agent-ui-snapshot--svg-size "agent-ui-snapshot")
 (declare-function image-size "ext:image.c")
+;; Only in an Emacs built for graphical frames: called after display-graphic-p.
+(declare-function imagep "ext:image.c")
 
 (defun agent-ui-panel--image-size (display)
   "Return the size an image DISPLAY is shown at, in pixels.
