@@ -165,7 +165,11 @@ never shows it: its URL is named, nothing downloaded)."
   (let ((file (plist-get props :file))
         (url (plist-get props :url)))
     (cond
-     (file (cons file (unless (agent-ui-with-file-as-on-disk (file-readable-p file)) "not found")))
+     ;; A regular file only: a FIFO's or a device's opening (to read its
+     ;; type) blocks Emacs until a writer comes, C-g or not.
+     (file (cons file (agent-ui-with-file-as-on-disk
+                        (cond ((not (file-readable-p file)) "not found")
+                              ((not (file-regular-p file)) "not a file")))))
      ((agent-ui-image--cached url) (cons (agent-ui-image--cached url) nil))
      ((not fetch) (cons nil nil))
      (t

@@ -37,6 +37,22 @@
   (should (string-match-p "width is a percentage" (agent-ui-test-aue-error '(:type "image" :file "a.png" :width 0)))))
 
 ;; doom-nwj.34
+(ert-deftest agent-ui-components/image-not-a-file-never-opened ()
+  "An image whose file isn't a regular one (a FIFO, a device): never opened
+to read its type (that blocked Emacs until a writer came, C-g or not),
+said (doom-ht6.140)."
+  (let* ((dir (make-temp-file (agent-ui-test-tmp-file "fifo-") t))
+         (fifo (expand-file-name "pic.png" dir))
+         (opened nil))
+    (should (zerop (call-process "mkfifo" nil nil nil fifo)))
+    (cl-letf (((symbol-function 'image-type-from-file-header) (lambda (file) (push file opened) nil))
+              ((symbol-function 'create-image) (lambda (file &rest _) (push file opened) nil)))
+      (dolist (ctx (list (agent-ui-context :width 80)
+                         (agent-ui-context :width 80 :graphic t :char-width 8 :line-height 16)))
+        (should (string-search "(not a file)"
+                               (substring-no-properties (agent-ui-render (list :type "image" :file fifo) ctx))))))
+    (should-not opened)))
+
 (ert-deftest agent-ui-components/image-keeps-its-reason ()
   "Why an image isn't shown (not found, downloading, failed) is kept whole at
 widths 30 to 80: the alt goes first, then the path or URL is cut in its
