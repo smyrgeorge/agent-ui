@@ -359,6 +359,35 @@ the room to the other window."
       (should-not (agent-ui-test-aupn-cells))
       (should (equal (window-list nil 'nomini) (list other))))))
 
+(ert-deftest agent-ui-pane/the-frame-s-main-window-never-deleted ()
+  "The conversation the frame's main window (a side window open beside it,
+a popup): closing it is refused as Emacs refuses it, its window kept.  A
+view left the main window (C-x 1 in it, a side window that stays): never
+deleted, a window like any (doom-ht6.129)."
+  (agent-ui-test-aupn
+    (let ((popup (display-buffer-in-side-window (agent-ui-test-buffer "*popup*") '((side . bottom)))))
+      (agent-ui-test-aupn-show name)
+      (should (equal (length (agent-ui-test-aupn-cells)) 1))
+      (let ((conversation (get-buffer-window session)))
+        (should-error (delete-window conversation))
+        (should (window-live-p conversation))
+        (should (eq (window-buffer conversation) session)))
+      (should (window-live-p popup))
+      (delete-window popup)))
+  (agent-ui-test-aupn
+    (let ((popup (display-buffer-in-side-window (agent-ui-test-buffer "*side*") '((side . left)))))
+      (set-window-parameter popup 'no-delete-other-windows t)
+      (agent-ui-test-aupn-show name)
+      (let ((view (get-buffer-window (agent-ui-test-aupn-canvas name))))
+        (should view)
+        (with-selected-window view (delete-other-windows))
+        (agent-ui--pane-sync)
+        ;; The view's window, the frame's main one: kept.
+        (should (window-live-p view))
+        (should (seq-some (lambda (w) (not (window-parameter w 'window-side)))
+                          (window-list nil 'nomini))))
+      (delete-window popup))))
+
 (ert-deftest agent-ui-pane/a-pane-too-short-a-pane-of-its-own ()
   "A session's pane too short for both halves: the view in a window of its
 own, as without a session's pane."

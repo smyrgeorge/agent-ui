@@ -1045,6 +1045,19 @@ It is the frame's last; it shows its view."
                        delete-window))
     (set-window-parameter cell parameter nil)))
 
+(defun agent-ui--pane-delete-view-window (cell)
+  "CELL, a view's window taken out, deleted.
+The frame's main window (all but its side windows: C-x 1 in it, a side
+window that stays), or a window that can't go: made a window like any
+instead.  Deleted ignoring its parameters (its own `delete-window'), but
+never the frame's main window: Emacs's own check is skipped then."
+  (if (eq cell (window-main-window (window-frame cell)))
+      (agent-ui--pane-unattach cell)
+    (condition-case nil
+        (let ((ignore-window-parameters t))
+          (delete-window cell))
+      (error (agent-ui--pane-unattach cell)))))
+
 (defun agent-ui--pane-detach (frame &optional session)
   "Agent UI's views' windows taken out of FRAME (SESSION's only).
 They are deleted, their room given back to their sessions."
@@ -1052,10 +1065,7 @@ They are deleted, their room given back to their sessions."
     (dolist (cell (agent-ui--pane-cells frame session))
       (when (window-live-p cell)
         (agent-ui--pane-take-out cell)
-        (condition-case nil
-            (let ((ignore-window-parameters t))
-              (delete-window cell))
-          (error (agent-ui--pane-unattach cell)))))))
+        (agent-ui--pane-delete-view-window cell)))))
 
 (defun agent-ui--pane-delete-cell (cell)
   "`delete-window' on CELL, a view's window (its parameter).
@@ -1066,16 +1076,27 @@ above), but when Agent UI takes its windows out itself."
       (with-current-buffer view
         (unless (agent-ui--empty-p)
           (setq agent-ui--pane-dismissed t)))))
+  ;; The frame's main window: refused, as Emacs refuses it.
+  (when (eq cell (window-main-window (window-frame cell)))
+    (error "Attempt to delete main window of frame %s" (window-frame cell)))
   (let ((ignore-window-parameters t))
     (delete-window cell)))
 
 (defun agent-ui--pane-delete-session-window (window)
   "`delete-window' on WINDOW, a session's window holding Agent UI.
-It is its parameter.  Its views' windows are deleted with it."
+It is its parameter.  Its views' windows are deleted with it, then it,
+as any window: Emacs's own checks apply (the frame's main window, a side
+window open beside it, isn't deleted: its error; its views come back)."
   (when-let* ((session (and (window-live-p window) (window-buffer window))))
     (agent-ui--pane-detach (window-frame window) session))
-  (let ((ignore-window-parameters t))
-    (delete-window window)))
+  (let ((parameter (window-parameter window 'delete-window)))
+    (set-window-parameter window 'delete-window nil)
+    (condition-case err
+        (delete-window window)
+      (error
+       (when (window-live-p window)
+         (set-window-parameter window 'delete-window parameter))
+       (signal (car err) (cdr err))))))
 
 ;; ====== RESIZED ======
 ;; Its session's pane resized another way than by tiling (a pane beside it
@@ -1257,10 +1278,7 @@ each session shown, its views in its pane."
            ((not (and session (rassq session shown)))
             (agent-ui--pane-take-out cell)
             (let ((agent-ui--pane-detaching t))
-              (condition-case nil
-                  (let ((ignore-window-parameters t))
-                    (delete-window cell))
-                (error (agent-ui--pane-unattach cell)))))))))
+              (agent-ui--pane-delete-view-window cell)))))))
     (pcase-dolist (`(,window . ,session) shown)
       (when (window-live-p window)
         (agent-ui--pane-sync-window window session)))))
