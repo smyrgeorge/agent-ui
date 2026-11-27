@@ -96,6 +96,36 @@ window shown, saves at once; what it makes, killed after."
       (kill-buffer (agent-ui-canvas-buffer-name name)))
     (should-not (get-buffer (agent-ui-canvas-buffer-name name)))))
 
+(ert-deftest agent-ui-persist/a-failing-save-said-once ()
+  "A save failing (its folder can't be made): said once, no timer's error
+at each change; a component that can't be written as JSON: left out, said,
+the others saved (doom-ht6.135)."
+  (agent-ui-test-aups
+    (let ((said nil))
+      (cl-letf* ((message-fn (symbol-function 'message))
+                 ((symbol-function 'message)
+                  (lambda (format &rest args)
+                    (when format (push (apply #'format-message format args) said))
+                    (apply message-fn format args))))
+        ;; Its folder can't be made: a file there.
+        (with-temp-file (expand-file-name ".agent-shell" dir) (insert "a file"))
+        (agent-ui-show '(:id "a" :type "text" :text "one") :canvas name)
+        (agent-ui-test-aups-settle)
+        (agent-ui-update "a" '(:text "two") :canvas name)
+        (agent-ui-test-aups-settle)
+        (should-not (seq-some (lambda (m) (string-match-p "Error running timer" m)) said))
+        (should (= (seq-count (lambda (m) (string-match-p "couldn't be saved" m)) said) 1))
+        ;; Its folder fine again: a component that can't be written, left out.
+        (delete-file (expand-file-name ".agent-shell" dir))
+        (setq said nil)
+        (with-current-buffer (agent-ui-canvas-buffer-name name)
+          (setf (agent-ui--entry-component (gethash "a" agent-ui--entries))
+                (list :id "a" :type "text" :text "one" :odd (make-marker))))
+        (agent-ui-show '(:id "b" :type "text" :text "saved") :canvas name)
+        (should (equal (agent-ui-test-aups-saved) '((:id "b" :type "text" :text "saved"))))
+        (should-not (seq-some (lambda (m) (string-match-p "Error running timer" m)) said))
+        (should (seq-some (lambda (m) (string-match-p "a left out" m)) said))))))
+
 (ert-deftest agent-ui-persist/not-without-a-session-id ()
   (agent-ui-test-aups
     (setq agent-ui-test-aups-ids nil)

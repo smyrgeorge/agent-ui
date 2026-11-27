@@ -105,9 +105,29 @@ back as it was): nil while it has no session id."
 
 ;; ====== SAVING ======
 
+(defvar-local agent-ui--persist-failed nil
+  "Why this canvas's last save failed, or what it left out: said once.")
+
+(defun agent-ui--persist-said (why)
+  "Say WHY the current canvas wasn't saved (whole), once; nil: it was."
+  (unless (or (null why) (equal why agent-ui--persist-failed))
+    (message "%s" (format "Agent UI: %s couldn't be saved: %s" (buffer-name) why)))
+  (setq agent-ui--persist-failed why))
+
+(defun agent-ui-persist--json (components)
+  "COMPONENTS as a JSON array, and those that can't be written: (TEXT . IDS).
+A component that can't be written as JSON left out: the others saved."
+  (let ((written nil) (bad nil))
+    (dolist (component components)
+      (condition-case nil
+          (push (json-serialize (agent-ui-to-json component)) written)
+        (error (push (plist-get component :id) bad))))
+    (cons (concat "[" (string-join (nreverse written) ",") "]") (nreverse bad))))
+
 (defun agent-ui-persist-save (&optional canvas)
   "Save CANVAS (default: the current buffer's), if it has a session id.
-Its components, as JSON.  Returns the file, or nil."
+Its components, as JSON; one that can't be written left out, said (once).
+Returns the file, or nil."
   (with-current-buffer (or canvas (current-buffer))
     (when (timerp agent-ui--persist-timer)
       (cancel-timer agent-ui--persist-timer))
@@ -118,11 +138,13 @@ Its components, as JSON.  Returns the file, or nil."
       (let ((components (append agent-ui--persist-kept
                               (mapcar (lambda (id) (agent-ui--entry-component (gethash id agent-ui--entries)))
                                       (agent-ui--section-keys nil)))))
-        (make-directory (file-name-directory file) t)
-        (let ((coding-system-for-write 'utf-8))
-          (write-region (decode-coding-string
-                         (json-serialize (vconcat (mapcar #'agent-ui-to-json components))) 'utf-8)
-                        nil file nil 'silent))
+        (pcase-let ((`(,json . ,bad) (agent-ui-persist--json components)))
+          (make-directory (file-name-directory file) t)
+          (let ((coding-system-for-write 'utf-8))
+            (write-region (decode-coding-string json 'utf-8) nil file nil 'silent))
+          (agent-ui--persist-said
+           (and bad (format "%s left out: %s written as JSON" (string-join bad ", ")
+                            (if (cdr bad) "they can't be" "it can't be")))))
         file))))
 
 (defun agent-ui--persist-later ()
@@ -133,7 +155,13 @@ Its components, as JSON.  Returns the file, or nil."
             (run-with-timer agent-ui-persist-delay nil
                             (lambda ()
                               (when (buffer-live-p canvas)
-                                (agent-ui-persist-save canvas))))))))
+                                ;; Failing (its folder can't be written):
+                                ;; said once, not an error at each change.
+                                (condition-case err
+                                    (agent-ui-persist-save canvas)
+                                  (error
+                                   (with-current-buffer canvas
+                                     (agent-ui--persist-said (error-message-string err))))))))))))
 
 (defun agent-ui--persist-closing ()
   "Save at once, as the canvas closes, what's waiting (what's saved stays).
