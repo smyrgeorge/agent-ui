@@ -69,10 +69,24 @@ session's canvas.")
 ;; ====== THE SESSION'S ENVIRONMENT ======
 
 (defun agent-ui--session-name (buffer)
-  "BUFFER's session name (`agent-ui-session'): given once, its name then."
+  "BUFFER's session name (`agent-ui-session'): given once, its name then.
+Its own: a name another live session has (its buffer renamed since, or
+restarted: its client made before its buffer was renamed back) gets the
+first of <2>, <3>... free after it (its own <N> left out).  Two agents
+with one name would share a canvas, each's answers going to the other."
   (with-current-buffer buffer
     (or agent-ui-session
-        (setq agent-ui-session (buffer-name)))))
+        (setq agent-ui-session
+              (let ((taken (delq nil (mapcar (lambda (other)
+                                               (and (not (eq other buffer))
+                                                    (buffer-local-value 'agent-ui-session other)))
+                                             (agent-ui--sessions))))
+                    (name (buffer-name))
+                    (n 1))
+                (while (member name taken)
+                  (setq name (format "%s<%d>" (replace-regexp-in-string "<[0-9]+>\\'" "" (buffer-name))
+                                     (cl-incf n))))
+                name)))))
 
 (defun agent-ui--client-environment-a (args)
   "Add AGENT_UI_SESSION to the environment of an ACP client.

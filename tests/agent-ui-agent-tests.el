@@ -65,6 +65,32 @@ killed after."
                             :environment-variables)
                    '("A=1")))))
 
+;; Renamed, or restarted (its client made before its buffer is renamed back),
+;; a session leaves its buffer's name to another: two agents with one
+;; name would share a canvas, their answers crossed.
+(ert-deftest agent-ui-agent/no-two-sessions-with-one-name ()
+  "A session given a name another live session has: its own, <2> (doom-ht6.125)."
+  (agent-ui-test-aua
+    (let ((a (agent-ui-test-aua-session "Claude Agent @ proj" "/tmp/proj/")))
+      (should (equal (agent-ui--session-name a) "Claude Agent @ proj"))
+      (with-current-buffer a (rename-buffer "Renamed"))
+      (let* ((b (agent-ui-test-aua-session "Claude Agent @ proj" "/tmp/proj/"))
+             (c (agent-ui-test-aua-session "Claude Agent @ proj<2>" "/tmp/proj/")))
+        (should (equal (agent-ui--session-name b) "Claude Agent @ proj<2>"))
+        (should (equal (agent-ui--session-name c) "Claude Agent @ proj<3>"))
+        (should (equal (map-elt (agent-shell--make-acp-client :command "true" :context-buffer b)
+                                :environment-variables)
+                       '("AGENT_UI_SESSION=Claude Agent @ proj<2>")))
+        ;; Each found by its own.
+        (should (eq (agent-ui--session-buffer "Claude Agent @ proj" nil) a))
+        (should (eq (agent-ui--session-buffer "Claude Agent @ proj<2>" nil) b))
+        ;; A's gone: its name free again (B's buffer renamed: the name too).
+        (setq agent-ui-test-aua-sessions (delq a agent-ui-test-aua-sessions))
+        (kill-buffer a)
+        (with-current-buffer b (rename-buffer "B"))
+        (let ((d (agent-ui-test-aua-session "Claude Agent @ proj" "/tmp/proj/")))
+          (should (equal (agent-ui--session-name d) "Claude Agent @ proj")))))))
+
 ;; ====== FINDING THE SESSION ======
 
 (ert-deftest agent-ui-agent/the-session-by-name ()

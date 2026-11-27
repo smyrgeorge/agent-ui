@@ -162,7 +162,8 @@ other operations can't.
 
 - **The session's own.** agent-shell starts the agent with `AGENT_UI_SESSION` in its environment, naming its session
   (`agent-ui-mode` arranges this). The agent's shell inherits it, so the command finds its session's canvas,
-  `Agent UI: SESSION`.
+  `Agent UI: SESSION`. Each live session's name is its own: one whose buffer's name another session had first (that
+  buffer renamed since, or restarted) gets `<2>`, `<3>`... after it.
 - **Without `AGENT_UI_SESSION`** (a session started before `agent-ui-mode` was on, an agent in a terminal), the command
   uses the session working in its directory or above it: the deepest one, then the most recently used. With no such
   session, it uses the canvas named by `agent-ui-default-canvas` (`default`).
