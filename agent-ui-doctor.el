@@ -408,10 +408,10 @@ how to install it."
   (agent-ui-doctor--program "Bug reports" "git" "bug reports without the library's commit" "Install git"))
 
 (defun agent-ui-doctor--icons ()
-  "Nerd-icons: the panels' icons."
+  "Nerd-icons: the dashboards' icons."
   (if (locate-library "nerd-icons")
-      (agent-ui-doctor--check "Optional" "Panel icons" 'ok "nerd-icons")
-    (agent-ui-doctor--check "Optional" "Panel icons" 'warn "nerd-icons isn't installed: panels' icons as plain text"
+      (agent-ui-doctor--check "Optional" "Dashboard icons" 'ok "nerd-icons")
+    (agent-ui-doctor--check "Optional" "Dashboard icons" 'warn "nerd-icons isn't installed: dashboards' icons as plain text"
                             "Install nerd-icons, and its fonts (M-x nerd-icons-install-fonts)")))
 
 ;; ====== ALL OF THEM ======

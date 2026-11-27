@@ -47,7 +47,7 @@
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 (require 'agent-ui-agent)
-(require 'agent-ui-panels)
+(require 'agent-ui-dashboards)
 
 (declare-function image-size "ext:image.c")
 
@@ -64,7 +64,7 @@ It is agent-shell's transcripts' folder, kept out of git."
   "Where a canvas's PDF goes (`agent-ui-export-pdf').
 Relative to its directory (its session's; kept out of git with
 agent-shell's transcripts).  A project
-panel's goes beside its file."
+dashboard's goes beside its file."
   :type 'string :group 'agent-ui)
 
 (defcustom agent-ui-snapshot-width 80
@@ -413,19 +413,19 @@ Returns (:file FILE :markdown \"![TITLE](FILE)\")."
     (list :file file :markdown (format "![%s](%s)" (string-replace "]" ")" title) file))))
 
 ;; ====== AS A PDF ======
-;; `agent-ui-export-pdf' in a canvas (a session's view, a project panel): what it shows now,
+;; `agent-ui-export-pdf' in a canvas (a session's view, a project dashboard): what it shows now,
 ;; as it draws it (its window's width), its components still (no buttons: a
 ;; page can't press them), made an SVG (`agent-ui-snapshot-svg'), then a
 ;; one-page vector PDF by rsvg-convert, in the theme's colours.  A session's
 ;; canvas's in its directory's `agent-ui-pdf-directory', CANVAS-DATE-TIME.pdf;
-;; a project panel's beside its file (`agent-ui-panel-pdf-file').
+;; a project dashboard's beside its file (`agent-ui-dashboard-pdf-file').
 
 (defvar agent-ui-pdf-program "rsvg-convert"
   "The program making a canvas's SVG a PDF (librsvg's).")
 
-(defvar agent-ui-panels--state)
-(declare-function agent-ui-panel-pdf-file "agent-ui-panels")
-(declare-function agent-ui-panels--name "agent-ui-panels" (cl-x) t)
+(defvar agent-ui-dashboards--state)
+(declare-function agent-ui-dashboard-pdf-file "agent-ui-dashboards")
+(declare-function agent-ui-dashboards--name "agent-ui-dashboards" (cl-x) t)
 
 (defun agent-ui-pdf-unique-file (name dir)
   "Return a PDF in DIR named after NAME, not there yet.
@@ -440,12 +440,12 @@ NAME-...-2.pdf."
 
 (defun agent-ui-pdf-file (canvas)
   "Return where CANVAS's PDF goes now.
-A project panel's beside its file, any other's in its directory's
+A project dashboard's beside its file, any other's in its directory's
 `agent-ui-pdf-directory', named after it (\"Claude / ask\":
 Claude-ask-DATE-TIME.pdf)."
   (let ((buffer (agent-ui--buffer canvas)))
-    (if-let* ((panel (buffer-local-value 'agent-ui-panels--state buffer)))
-        (agent-ui-panel-pdf-file panel)
+    (if-let* ((dashboard (buffer-local-value 'agent-ui-dashboards--state buffer)))
+        (agent-ui-dashboard-pdf-file dashboard)
       (agent-ui-pdf-unique-file
        (let ((name (replace-regexp-in-string "[^[:alnum:]._]+" "-" (string-remove-prefix "Agent UI: " (buffer-name buffer)))))
          (string-trim (if (string-empty-p name) "canvas" name) "-+" "-+"))
@@ -472,7 +472,7 @@ See `agent-ui-pdf-file' for where.  Returns its file."
                               order "\n\n"))
              (pdf (agent-ui-pdf-file buffer))
              (svg (make-temp-file "agent-ui-" nil ".svg"))
-             (panel (buffer-local-value 'agent-ui-panels--state buffer)))
+             (dashboard (buffer-local-value 'agent-ui-dashboards--state buffer)))
         (make-directory (file-name-directory pdf) t)
         (unwind-protect
             (progn
@@ -483,7 +483,7 @@ See `agent-ui-pdf-file' for where.  Returns its file."
                   (user-error "No PDF made: %s" (string-trim (buffer-string))))))
           (delete-file svg))
         (message "%s exported: %s"
-                 (if panel (format "Panel %s" (agent-ui-panels--name panel)) (buffer-name buffer))
+                 (if dashboard (format "Dashboard %s" (agent-ui-dashboards--name dashboard)) (buffer-name buffer))
                  (abbreviate-file-name pdf))
         pdf))))
 

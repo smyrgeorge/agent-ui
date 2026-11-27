@@ -50,7 +50,7 @@ body:
         - The command line (bin/agent-ui)
         - The MCP tools
         - Sources
-        - Project panels
+        - Project dashboards
         - Types the agent makes
         - What the agent is told (system prompt, skill)
         - Integration with agent-shell

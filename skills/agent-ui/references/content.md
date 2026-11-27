@@ -116,14 +116,14 @@ agent-ui show '{"id":"touched","type":"files","title":"What I changed","tree":tr
 
 Components laid out together: `children` are ordinary components (each its `type`, `title`, `id`), as a `"row"` (side by
 side, each its share of the width: `weights`, equal by default) or a `"column"` (the default), in a border (`"border":
-false` for none). Panels nest: rows of columns make a dashboard. A row too narrow (under `min-width` a child) stacks
+false` for none). Panels nest: rows of columns, columns of rows. A row too narrow (under `min-width` a child) stacks
 its children. In the GUI, a row holding a chart, graph or image is drawn as one image, side by side (its children's
 buttons not clickable there: put a `choice` in a row of its own); a `tags` component's chips (a line high) keep the row
-text, clickable; in a terminal, as text. Keep a dashboard's related components in one panel.
+text, clickable; in a terminal, as text. Keep related components in one panel.
 
 **Each child is a component of its own**: give it an `id`, and `update`, `append`, `remove`, `show` (replacing it),
 `snapshot` and links work on it as on any component, its panel redrawn in place. Its `source` runs with it: a live
-dashboard is a panel whose children follow commands and files ([sources.md](sources.md)). Ids are unique in the
+panel's children follow commands and files ([sources.md](sources.md)). Ids are unique in the
 canvas, children's too. One without an `id` is given its place's: `PANEL.1`, `PANEL.2`... (`get` shows them).
 
 ```sh

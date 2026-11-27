@@ -16,7 +16,7 @@ its session's pane, and updates each of them in place as the work goes on.
   buttons, questions waiting for you, canvases kept with their sessions, and components in the conversation.
 - [Components](components.md): all 30 component types, the ones that show and the ones that ask, with JSON examples.
 - [Sources](sources.md): components that follow a command, a file or a polled command, updated by Emacs itself.
-- [Project panels](panels.md): dashboards kept in a project's repository and opened again later.
+- [Project dashboards](dashboards.md): kept in a project's repository and opened again later.
 - [Custom types](custom-types.md): defining a component type with `agent-ui-define`, and the types the agent makes,
   staged for your review.
 - [Bugs in Agent UI](bugs.md): reporting a problem with Agent UI itself, by you or by the agent.

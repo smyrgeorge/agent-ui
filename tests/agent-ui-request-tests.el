@@ -72,7 +72,7 @@ gone."
       (should (equal (mapcar (lambda (e) (plist-get e :id)) (plist-get reply :components)) '("build" "tests")))
       (should (equal (plist-get (car (plist-get reply :components)) :value) 3))
       (should (equal (plist-get (cadr (plist-get reply :components)) :rows) '(("lexer" "passed"))))
-      (should-not (plist-member reply :panel)))
+      (should-not (plist-member reply :dashboard)))
     (should (equal (mapcar (lambda (e) (plist-get e :id)) (plist-get (agent-ui-test-aur-request "get" "tests") :components))
                    '("tests")))
     (should (string-match-p "no component" (plist-get (agent-ui-test-aur-request "get" "nope") :error)))

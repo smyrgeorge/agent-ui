@@ -20,11 +20,11 @@ Evil, bind the ones you want in its normal state (or start canvases in Emacs sta
 | `c` | `agent-ui-comment` | On a line of code or a diff, or a region's lines: write a review comment under it. On a comment: edit it. |
 | `d` | `agent-ui-uncomment` | On a comment: remove it. |
 | `s` | `agent-ui-table-sort` | On a table's column: sort the table by it. Again: the other way. |
-| `S` | `agent-ui-save-panel` | Save the component as one of the project's panels ([Project panels](panels.md)). |
+| `S` | `agent-ui-save-dashboard` | Save the component as one of the project's dashboards ([Project dashboards](dashboards.md)). |
 | `R` | `agent-ui-review` | Review the types the agent made ([Custom types](custom-types.md#types-the-agent-makes)). |
 | `E` | `agent-ui-export-pdf` | Save what the canvas shows now as a PDF ([below](#exporting-a-pdf)). |
 | `u` | `agent-ui-pane-toggle` | Hide Agent UI in the session's pane, or show it again. |
-| `r` | `agent-ui-panel-reload` | In a project panel: read its file again and run it anew. |
+| `r` | `agent-ui-dashboard-reload` | In a project dashboard: read its file again and run it anew. |
 | `x`, `e` | `agent-ui-drop-item`, `agent-ui-edit-item` | In a question: drop or reword a plan's step, reject a diff's hunk. |
 | `M-<up>`, `M-<down>` (or `K`, `J`) | `agent-ui-move-item-up`, `agent-ui-move-item-down` | In a `rank`: move the item at point. |
 
@@ -112,7 +112,7 @@ default). Finished well means every step done or skipped, every item ticked, or 
   canvas goes with it, or "removed" when the canvas stays. The view closes with its last component.
 - One that failed stays. A change in the meantime starts the countdown again, or stops it.
 - The component's `"close"` decides for it: seconds, or `false` to keep it.
-- A project panel never closes.
+- A project dashboard never closes.
 - A component that comes back with its resumed session stays, as if kept, until it changes.
 
 ## Actions
@@ -213,7 +213,7 @@ agent-shell owns its buffer's text, so a component isn't put there. It goes ther
 
 `E` (`agent-ui-export-pdf`) saves what the canvas shows now, in your theme's colours, as a PDF. A session's canvas goes
 in its directory's `.agent-shell/pdf/` (`agent-ui-pdf-directory`), named after the canvas with the date and time; a
-project panel's goes beside its file. It needs `rsvg-convert`, from librsvg.
+project dashboard's goes beside its file. It needs `rsvg-convert`, from librsvg.
 
 ## Options
 

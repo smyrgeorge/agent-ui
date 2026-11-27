@@ -373,8 +373,8 @@ comment on its lines with `c`. With `accept`, the changes are proposed for you t
 ### panel
 
 Components laid out together: `children` (ordinary components), as a `row` (side by side, sharing the width by
-`weights`, equal by default) or a `column` (the default), in a `border` (on by default). Panels nest, so rows of
-columns make a dashboard. A row too narrow (a child under `min-width`, 24) stacks its children.
+`weights`, equal by default) or a `column` (the default), in a `border` (on by default). Panels nest: rows of
+columns, columns of rows. A row too narrow (a child under `min-width`, 24) stacks its children.
 
 - In a graphical frame, a row with a chart, graph or image is drawn as one image, its children side by side; their
   buttons can't be clicked there. Chips and pies, a line high, stay in its text.

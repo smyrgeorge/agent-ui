@@ -395,7 +395,7 @@ A component's action pressed, in its canvas: PROMPT into the prompt of the
 canvas's session (sent if SUBMIT); while its agent works, queued (see above).
 The canvas still current after it: agent-shell selects the session's window
 \(its buffer current then), and what the press does next (a question
-answered) is the canvas's.  A project's panel (agent-ui-panels.el),
+answered) is the canvas's.  A project's dashboard (agent-ui-dashboards.el),
 of no session: the session working in its project, the latest."
   (let* ((canvas (derived-mode-p 'agent-ui-canvas-mode))
          ;; Its component: the button's, else the one at point (a key's
@@ -406,7 +406,7 @@ of no session: the session working in its project, the latest."
                        (not (and agent-ui-answer-function (not hosted)))
                        ;; Its component's: a section's hosted session's.
                        (or (agent-ui--key-session (current-buffer) key)
-                           (and (bound-and-true-p agent-ui-panels--state)
+                           (and (bound-and-true-p agent-ui-dashboards--state)
                                 (agent-ui--session-buffer nil default-directory))))))
     ;; What it says of its component, of a section's: its id, not its key.
     (setq prompt (agent-ui--unkeyed prompt (agent-ui--key-section key)))
@@ -417,8 +417,8 @@ of no session: the session working in its project, the latest."
 (defun agent-ui--act-in (session prompt submit)
   "PROMPT into SESSION's prompt (sent if SUBMIT), as `agent-ui--act' says."
   (unless (buffer-live-p session)
-    (user-error "%s" (if (bound-and-true-p agent-ui-panels--state)
-                         "No agent-shell session in this panel's project"
+    (user-error "%s" (if (bound-and-true-p agent-ui-dashboards--state)
+                         "No agent-shell session in this dashboard's project"
                        "This canvas has no agent-shell session")))
   (unless (fboundp 'agent-shell-insert)
     (user-error "The agent-shell package isn't loaded"))

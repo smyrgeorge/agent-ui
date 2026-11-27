@@ -15,8 +15,9 @@
 #                                what it shows, as data: its components (or ID's)
 #                                with their properties and values, as JSON;
 #                                --changed: only those changed since your last
-#                                read (and "removed": those gone). A panel
-#                                (--panel NAME): when it last fetched; hidden
+#                                read (and "removed": those gone). A
+#                                dashboard (--dashboard NAME): when it last
+#                                fetched; hidden
 #                                and old, fetched first (its reply waited for,
 #                                AGENT_UI_WAIT seconds at most, default 10)
 #   agent-ui types [TYPE]        the component types: properties, an example
@@ -32,14 +33,15 @@
 #   agent-ui define [FILE]       a type of your own: its Emacs Lisp code
 #                                (one agent-ui-define), from FILE or stdin;
 #                                staged for the user to keep or discard
-#   agent-ui panels              the project's panels (.agent-ui/panels/):
-#                                {"panels": [{"name", "open"}]}
+#   agent-ui dashboards          the project's dashboards (.agent-ui/
+#                                dashboards/): {"dashboards": [{"name",
+#                                "open"}]}
 #   agent-ui open NAME           one of them opened in the user's Emacs
 #                                (its code asked for, if it must be)
-#   agent-ui check NAME          a project panel's file (.agent-ui/panels/
-#                                NAME.el, or a FILE.el) checked, nothing
-#                                run: its UI, its code compiled, its calls
-#                                that wait: {"warnings", "blocking"}
+#   agent-ui check NAME          a project dashboard's file (.agent-ui/
+#                                dashboards/NAME.el, or a FILE.el) checked,
+#                                nothing run: its UI, its code compiled, its
+#                                calls that wait: {"warnings", "blocking"}
 #   agent-ui bug [JSON]          a bug in Agent UI itself, filed in its own
 #                                issues (not this project's): {"title",
 #                                "description", "expected", "workaround",
@@ -54,7 +56,7 @@
 #                                "fix"}]}; ok false (exit 1) when one fails;
 #                                no Emacs to ask: this side's alone (exit 3)
 #
-# --panel NAME (any operation): the project's open panel NAME's canvas.
+# --dashboard NAME (any operation): the project's open dashboard NAME's canvas.
 # --canvas NAME (any operation): the session's other canvas NAME ("tests"),
 # shown beside its canvas, instead of it; "canvas": NAME in the JSON
 # (a component's, a change's, a batch's operation's) says the same.
@@ -91,19 +93,19 @@ fail() {  # fail STATUS MESSAGE: the reply for an error, and exit
 case "$1" in -h|--help|help) usage; exit 0 ;; esac
 
 # --canvas NAME, wherever it is: taken out.
-canvas="" panel="" args=()
+canvas="" dashboard="" args=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --panel) [ $# -lt 2 ] && fail 2 "--panel: which panel? --panel NAME"
-             panel=$2; shift 2 ;;
-    --panel=*) panel=${1#--panel=}; shift ;;
+    --dashboard) [ $# -lt 2 ] && fail 2 "--dashboard: which dashboard? --dashboard NAME"
+                 dashboard=$2; shift 2 ;;
+    --dashboard=*) dashboard=${1#--dashboard=}; shift ;;
     --canvas) [ $# -lt 2 ] && fail 2 "--canvas: which canvas? --canvas NAME"
               canvas=$2; shift 2 ;;
     --canvas=*) canvas=${1#--canvas=}; shift ;;
     *) args+=("$1"); shift ;;
   esac
 done
-case "$canvas$panel" in *$'\n'*) fail 2 "a canvas's or a panel's name is one line" ;; esac
+case "$canvas$dashboard" in *$'\n'*) fail 2 "a canvas's or a dashboard's name is one line" ;; esac
 set -- ${args[@]+"${args[@]}"}
 [ $# -eq 0 ] && { usage >&2; exit 2; }
 
@@ -132,10 +134,10 @@ case "$op" in
     [ $# -ne 1 ] && fail 2 "$op: agent-ui $op ID"
     id=$1 ;;
   check|open)
-    [ $# -ne 1 ] && fail 2 "$op: agent-ui $op NAME (a panel of this project)"
+    [ $# -ne 1 ] && fail 2 "$op: agent-ui $op NAME (a dashboard of this project)"
     id=$1 ;;
-  panels)
-    [ $# -gt 0 ] && fail 2 "panels: takes no arguments" ;;
+  dashboards)
+    [ $# -gt 0 ] && fail 2 "dashboards: takes no arguments" ;;
   types)
     [ $# -gt 1 ] && fail 2 "types: agent-ui types [TYPE]"
     id=${1:-} ;;
@@ -153,7 +155,7 @@ case "$op" in
   clear|list|doctor)
     [ $# -gt 0 ] && fail 2 "$op: takes no arguments" ;;
   *)
-    fail 2 "unknown operation \"$op\"; operations: show, update, append, remove, clear, list, get, types, batch, render, define, snapshot, bug, check, panels, open, doctor" ;;
+    fail 2 "unknown operation \"$op\"; operations: show, update, append, remove, clear, list, get, types, batch, render, define, snapshot, bug, check, dashboards, open, doctor" ;;
 esac
 case "$id" in *$'\n'*) fail 2 "an id is one line" ;; esac
 
@@ -205,7 +207,7 @@ fi
 
 dir=$(mktemp -d "${TMPDIR:-/tmp}/agent-ui.XXXXXXXXXX") || fail 3 "no temp folder"
 trap 'rm -rf "$dir"' EXIT
-printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$op" "$id" "${AGENT_UI_SESSION:-}" "$PWD" "$options" "$canvas" "$panel" >"$dir/request"
+printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$op" "$id" "${AGENT_UI_SESSION:-}" "$PWD" "$options" "$canvas" "$dashboard" >"$dir/request"
 [ "$takes_json" = 1 ] && printf '%s' "$json" >"$dir/payload"
 # doctor's payload: this command's file, then its checks.
 [ "$op" = doctor ] && printf '%s\n%s' "$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")" "$checks" >"$dir/payload"
@@ -224,7 +226,7 @@ ask() {  # ask: Emacs answers the request (its reply in $dir/reply)
   status=$?
 }
 ask
-# get on a panel being fetched (it was hidden, its data old): asked again
+# get on a dashboard being fetched (it was hidden, its data old): asked again
 # once its queries end, AGENT_UI_WAIT seconds at most.
 if [ "$op" = get ]; then
   waited=0

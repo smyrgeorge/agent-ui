@@ -27,7 +27,7 @@
 ;; CHILDREN, ordinary components (each with its type, its title, its id),
 ;; laid out as a ROW (side by side, a │ between, each its share of the
 ;; width: WEIGHTS, equal by default) or a COLUMN (one under another), in a
-;; BORDER.  Panels nest: rows of columns, a dashboard.  A row too narrow for
+;; BORDER.  Panels nest: rows of columns, columns of rows.  A row too narrow for
 ;; its children (under MIN-WIDTH each) stacks them.  In the GUI, a row with an
 ;; image taller than a line among its children (a chart, stats' tiles) is
 ;; drawn as one SVG, each child's drawing in its column (their buttons not
@@ -491,7 +491,7 @@ Cut with … to fit; nil or no room for a character of it: none."
   "Components laid out together: CHILDREN, ordinary components (each its type,
 title, id), as a ROW (side by side, each its share of the width, WEIGHTS
 equal by default) or a COLUMN, in a BORDER. Panels nest (rows of
-columns: a dashboard). A row too narrow (under MIN-WIDTH a child) stacks
+columns, columns of rows). A row too narrow (under MIN-WIDTH a child) stacks
 its children. In a row with a chart or an image (in the GUI), the row is one
 SVG: its children's buttons aren't clickable there (chips, a line high,
 stay text)."

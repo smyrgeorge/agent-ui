@@ -29,8 +29,8 @@
 ;;   request   lines: the operation, an id, the agent's session
 ;;             ($AGENT_UI_SESSION), its working directory, its options
 ;;             (render's ansi), the session's other canvas it's for
-;;             (--canvas NAME), the project's open panel it's for (--panel
-;;             NAME), each empty when none
+;;             (--canvas NAME), the project's open dashboard it's for
+;;             (--dashboard NAME), each empty when none
 ;;   payload   the agent's JSON, as it gave it (absent if none)
 ;; and runs emacsclient --eval '(agent-ui-request "FOLDER")'.  Emacs writes
 ;; reply (JSON: {"ok": true, ...} or {"ok": false, "error": "..."}) there,
@@ -49,20 +49,20 @@
 (require 'agent-ui-doctor)
 
 (declare-function agent-ui-bug-reply "agent-ui-bug")
-(declare-function agent-ui-open-panel "agent-ui-panels")
-(declare-function agent-ui-panel-canvas "agent-ui-panels")
-(declare-function agent-ui-panel-check "agent-ui-panels")
-(declare-function agent-ui-panel-fetched "agent-ui-panels")
-(declare-function agent-ui-panel-file "agent-ui-panels")
-(declare-function agent-ui-panel-read "agent-ui-panels")
-(declare-function agent-ui-panel-trusted-p "agent-ui-panels")
-(declare-function agent-ui-panels "agent-ui-panels")
-(declare-function agent-ui-panels--code-p "agent-ui-panels")
+(declare-function agent-ui-open-dashboard "agent-ui-dashboards")
+(declare-function agent-ui-dashboard-canvas "agent-ui-dashboards")
+(declare-function agent-ui-dashboard-check "agent-ui-dashboards")
+(declare-function agent-ui-dashboard-fetched "agent-ui-dashboards")
+(declare-function agent-ui-dashboard-file "agent-ui-dashboards")
+(declare-function agent-ui-dashboard-read "agent-ui-dashboards")
+(declare-function agent-ui-dashboard-trusted-p "agent-ui-dashboards")
+(declare-function agent-ui-dashboards "agent-ui-dashboards")
+(declare-function agent-ui-dashboards--code-p "agent-ui-dashboards")
 (declare-function agent-ui-snapshot "agent-ui-snapshot")
 (declare-function agent-ui-stage "agent-ui-staging")
-(declare-function agent-ui-panels--name "agent-ui-panels" (cl-x) t)
-(declare-function agent-ui-panels--root "agent-ui-panels" (cl-x) t)
-(declare-function agent-ui-panels--file "agent-ui-panels" (cl-x) t)
+(declare-function agent-ui-dashboards--name "agent-ui-dashboards" (cl-x) t)
+(declare-function agent-ui-dashboards--root "agent-ui-dashboards" (cl-x) t)
+(declare-function agent-ui-dashboards--file "agent-ui-dashboards" (cl-x) t)
 
 ;; ====== VARIABLES ======
 
@@ -90,7 +90,7 @@ Its other canvases' names start with it.")
 
 (defconst agent-ui-operations
   '("show" "update" "append" "remove" "clear" "list" "get" "types" "batch" "render" "define" "snapshot" "bug" "check"
-    "panels" "open" "doctor")
+    "dashboards" "open" "doctor")
   "What bin/agent-ui does.")
 
 ;; ====== THE CANVAS ======
@@ -210,36 +210,36 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
     ("snapshot"
      (append (list :ok t)
              (agent-ui-snapshot (agent-ui--need-id op id) :canvas canvas :directory agent-ui--request-cwd)))
-    ;; The project's panels (agent-ui-panels.el): which, opening one.
-    ("panels"
-     (list :ok t :panels
+    ;; The project's dashboards (agent-ui-dashboards.el): which, opening one.
+    ("dashboards"
+     (list :ok t :dashboards
            (vconcat (mapcar (lambda (name)
                               (list :name name
-                                    :open (if (ignore-errors (agent-ui-panel-canvas name agent-ui--request-cwd)) t :false)))
-                            (agent-ui-panels agent-ui--request-cwd)))))
+                                    :open (if (ignore-errors (agent-ui-dashboard-canvas name agent-ui--request-cwd)) t :false)))
+                            (agent-ui-dashboards agent-ui--request-cwd)))))
     ("open"
      (when (or (null id) (string-empty-p id))
-       (agent-ui--fail "open: which panel? agent-ui open NAME%s"
-                       (if-let* ((panels (agent-ui-panels agent-ui--request-cwd)))
-                           (format " (this project's: %s)" (string-join panels ", "))
+       (agent-ui--fail "open: which dashboard? agent-ui open NAME%s"
+                       (if-let* ((dashboards (agent-ui-dashboards agent-ui--request-cwd)))
+                           (format " (this project's: %s)" (string-join dashboards ", "))
                          "")))
-     (let* ((canvas (agent-ui-open-panel id agent-ui--request-cwd t))
-            (file (agent-ui-panels--file (buffer-local-value 'agent-ui-panels--state canvas))))
-       (list :ok t :panel id :canvas (buffer-name canvas)
+     (let* ((canvas (agent-ui-open-dashboard id agent-ui--request-cwd t))
+            (file (agent-ui-dashboards--file (buffer-local-value 'agent-ui-dashboards--state canvas))))
+       (list :ok t :dashboard id :canvas (buffer-name canvas)
              ;; Not: the user is asked to let its code run, once they
-             ;; select it (a panel with no code: nothing to ask).
-             :trusted (if (or (agent-ui-panel-trusted-p file)
-                              (let ((read (agent-ui-panel-read file)))
-                                (not (agent-ui-panels--code-p (plist-get read :form) (plist-get read :ui)))))
+             ;; select it (a dashboard with no code: nothing to ask).
+             :trusted (if (or (agent-ui-dashboard-trusted-p file)
+                              (let ((read (agent-ui-dashboard-read file)))
+                                (not (agent-ui-dashboards--code-p (plist-get read :form) (plist-get read :ui)))))
                           t :false))))
-    ;; A project panel's file checked, nothing run (agent-ui-panels.el).
+    ;; A project dashboard's file checked, nothing run (agent-ui-dashboards.el).
     ("check"
      (when (or (null id) (string-empty-p id))
-       (agent-ui--fail "check: which panel? agent-ui check NAME%s"
-                       (if-let* ((panels (agent-ui-panels agent-ui--request-cwd)))
-                           (format " (this project's: %s)" (string-join panels ", "))
+       (agent-ui--fail "check: which dashboard? agent-ui check NAME%s"
+                       (if-let* ((dashboards (agent-ui-dashboards agent-ui--request-cwd)))
+                           (format " (this project's: %s)" (string-join dashboards ", "))
                          "")))
-     (agent-ui-panel-check (agent-ui-panel-file id agent-ui--request-cwd)))
+     (agent-ui-dashboard-check (agent-ui-dashboard-file id agent-ui--request-cwd)))
     ;; What Agent UI needs, checked (agent-ui-doctor.el): bin/agent-ui asks
     ;; `agent-ui-doctor-request' itself, with its own checks.
     ("doctor" (agent-ui-doctor-reply))
@@ -282,7 +282,7 @@ update, append: the id and the change; remove: the id)."
         (cond
          ((not (stringp op))
           (agent-ui--fail "batch: each operation has \"op\": show, update, append or remove"))
-         ((member op '("batch" "types" "list" "get" "render" "define" "snapshot" "bug" "check" "panels" "open"
+         ((member op '("batch" "types" "list" "get" "render" "define" "snapshot" "bug" "check" "dashboards" "open"
                        "doctor"))
           (agent-ui--fail "batch: %s isn't done in a batch" op)))
         (agent-ui-do op (plist-get rest :id)
@@ -291,10 +291,10 @@ update, append: the id and the change; remove: the id)."
     (error (list :ok :false :error (agent-ui-error-message err)))))
 
 ;; ====== READING IT: get ======
-;; An agent reads what a canvas or a panel shows as data (its components with
-;; their properties and values), never as a picture.  A panel hidden whose data
-;; is old is fetched first (agent-ui-panels.el): the reply says it's
-;; fetching, and bin/agent-ui reads again once its queries end. --changed:
+;; An agent reads what a canvas or a dashboard shows as data (its components
+;; with their properties and values), never as a picture.  A dashboard hidden
+;; whose data is old is fetched first (agent-ui-dashboards.el): the reply says
+;; it's fetching, and bin/agent-ui reads again once its queries end. --changed:
 ;; only the components changed since this session's last read of that canvas
 ;; (and the ones gone), each session's reads remembered by the canvas.
 
@@ -306,8 +306,8 @@ A hash table of a component's id to a copy of its data, compared with
 (defun agent-ui--get (id canvas)
   "Return the reply to get (see above): ID's component, or all of CANVAS's."
   (let* ((buffer (agent-ui--buffer canvas))
-         (panel (and (boundp 'agent-ui-panels--state) (buffer-local-value 'agent-ui-panels--state buffer)))
-         (fetching (and panel (fboundp 'agent-ui-panel-read-fetch) (agent-ui-panel-read-fetch panel)))
+         (dashboard (and (boundp 'agent-ui-dashboards--state) (buffer-local-value 'agent-ui-dashboards--state buffer)))
+         (fetching (and dashboard (fboundp 'agent-ui-dashboard-read-fetch) (agent-ui-dashboard-read-fetch dashboard)))
          (ids (if (and id (not (string-empty-p id)))
                   (progn (agent-ui-get id :canvas canvas) (list id))
                 (mapcar (lambda (e) (plist-get e :id)) (agent-ui-components :canvas canvas))))
@@ -330,10 +330,10 @@ A hash table of a component's id to a copy of its data, compared with
       (dolist (e components) (puthash (plist-get e :id) (copy-tree e t) seen))
       (dolist (old gone) (remhash old seen)))
     (append (list :ok t :canvas (agent-ui--canvas-label canvas))
-            (when panel
-              (list :panel (agent-ui-panels--name panel)
-                    :root (abbreviate-file-name (agent-ui-panels--root panel))
-                    :fetched (let ((ago (agent-ui-panel-fetched panel))) (and ago (round ago)))
+            (when dashboard
+              (list :dashboard (agent-ui-dashboards--name dashboard)
+                    :root (abbreviate-file-name (agent-ui-dashboards--root dashboard))
+                    :fetched (let ((ago (agent-ui-dashboard-fetched dashboard))) (and ago (round ago)))
                     :fetching (if fetching t :false)))
             (list :components (vconcat shown))
             (when changed (list :removed (vconcat gone))))))
@@ -360,7 +360,7 @@ its reply written there, as JSON.  Never signals: an error is the reply."
                     (cwd (nth 3 lines))
                     (options (split-string (or (nth 4 lines) "") " " t))
                     (part (nth 5 lines))
-                    (panel (nth 6 lines))
+                    (dashboard (nth 6 lines))
                     (payload-file (expand-file-name "payload" folder))
                     (payload (when (file-exists-p payload-file)
                                (let ((json (string-trim (agent-ui--read-file payload-file))))
@@ -381,9 +381,9 @@ its reply written there, as JSON.  Never signals: an error is the reply."
                                    (unless (equal cwd "") cwd)))
                     (base-name (if (bufferp base) (buffer-local-value 'agent-ui--canvas-name base) base))
                     (canvas (cond
-                             ;; One of the project's panels, open.
-                             ((not (member panel '(nil "")))
-                              (agent-ui-panel-canvas panel (unless (equal cwd "") cwd)))
+                             ;; One of the project's dashboards, open.
+                             ((not (member dashboard '(nil "")))
+                              (agent-ui-dashboard-canvas dashboard (unless (equal cwd "") cwd)))
                              ((member part '(nil "")) base)
                              (t (agent-ui-sub-canvas base-name part)))))
                (let* ((agent-ui--request-options options)

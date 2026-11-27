@@ -86,5 +86,5 @@ The work tree's changes, kept up to date:
   canvas is closed.
 - An update can't change a source; showing the component again does.
 - A canvas that comes back with its resumed session doesn't start its sources again, so a command isn't run twice.
-- A project panel's sources are its code: they don't start until you let the panel run
-  ([Project panels](panels.md#its-code)).
+- A project dashboard's sources are its code: they don't start until you let the dashboard run
+  ([Project dashboards](dashboards.md#its-code)).

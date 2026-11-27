@@ -70,7 +70,7 @@ body:
         - The command line (bin/agent-ui)
         - The MCP tools
         - Sources (a command, a file, a poll)
-        - Project panels
+        - Project dashboards
         - Types the agent makes (staging, review)
         - Canvases kept with their sessions
         - Snapshots, PDF export

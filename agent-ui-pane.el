@@ -60,7 +60,7 @@
 (require 'subr-x)
 (require 'agent-ui-canvas)
 (require 'agent-ui-agent)
-(declare-function agent-ui-panels--name "agent-ui-panels" (cl-x) t)
+(declare-function agent-ui-dashboards--name "agent-ui-dashboards" (cl-x) t)
 
 ;; ====== VARIABLES ======
 
@@ -108,7 +108,7 @@ See THE LAYOUT.  The best found by then is taken.")
 (defvar agent-ui-pane-views-functions nil
   "Functions giving a session's more views, after its canvases.
 Each is called with the session (its buffer) and returns canvases (the
-agent workspace's: an agent's panels).")
+agent workspace's: an agent's dashboards).")
 
 (defvar agent-ui-pane-change-functions nil
   "Functions wrapping Agent UI's own change of a frame's windows.
@@ -323,7 +323,7 @@ selected after.  The value is CHANGE's."
 
 (defun agent-ui--pane-cell-session (window)
   "The session of the view WINDOW shows (nil: none).
-It is the one its window parameter names (a panel of an agent is no
+It is the one its window parameter names (a dashboard of an agent is no
 session's canvas), else its canvas's."
   (let* ((named (window-parameter window 'agent-ui-pane))
          (session (if (stringp named)
@@ -667,13 +667,13 @@ windows, column by column, top to bottom."
 
 (defun agent-ui-pane-view-name (view)
   "VIEW's name: the title of the lone panel it shows (`agent-ui-canvas-title':
-not drawn on it then), else its part's (\"tests\"), a panel's, else Canvas
+not drawn on it then), else its part's (\"tests\"), a dashboard's, else Canvas
 \(the session's own canvas: Agent UI is the bar's under the views)."
   (or (agent-ui-canvas-title view)
       (buffer-local-value 'agent-ui--canvas-part view)
-      (and (boundp 'agent-ui-panels--state)
-           (when-let* ((panel (buffer-local-value 'agent-ui-panels--state view)))
-             (agent-ui-panels--name panel)))
+      (and (boundp 'agent-ui-dashboards--state)
+           (when-let* ((dashboard (buffer-local-value 'agent-ui-dashboards--state view)))
+             (agent-ui-dashboards--name dashboard)))
       "Canvas"))
 
 (defun agent-ui--pane-bar (view)

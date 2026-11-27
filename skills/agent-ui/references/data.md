@@ -2,7 +2,7 @@
 
 Part of the agent-ui skill: read [SKILL.md](../SKILL.md) first. A type's every property: `agent-ui types TYPE`.
 
-Numbers, how things stand, what happened when. To lay several out together (a dashboard), put them in a `panel`
+Numbers, how things stand, what happened when. To lay several out together, put them in a `panel`
 ([content.md](content.md)); to have them follow a command or a file as you go, give them a `source`
 ([sources.md](sources.md)).
 

@@ -70,7 +70,7 @@
 (require 'agent-ui-staging)
 (require 'agent-ui-review)
 (require 'agent-ui-source)
-(require 'agent-ui-panels)
+(require 'agent-ui-dashboards)
 (require 'agent-ui-snapshot)
 (require 'agent-ui-bug)
 

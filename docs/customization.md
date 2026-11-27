@@ -63,7 +63,7 @@ A few settings are plain variables rather than user options; they're marked *(va
 | `agent-ui-persist-delay` | `1.0` | Seconds after a canvas's change before it's saved. Changes within it are saved together. |
 | `agent-ui-snapshot-directory` | `".agent-shell/images/"` | Where snapshots go, relative to the agent's directory. |
 | `agent-ui-snapshot-width` | `80` | The most columns a snapshot is drawn at (narrower to fit the session's window). |
-| `agent-ui-pdf-directory` | `".agent-shell/pdf/"` | Where `E` saves a canvas's PDF, in its session's directory. A project panel's goes beside its file. |
+| `agent-ui-pdf-directory` | `".agent-shell/pdf/"` | Where `E` saves a canvas's PDF, in its session's directory. A project dashboard's goes beside its file. |
 | `agent-ui-pdf-program` *(variable)* | `"rsvg-convert"` | The program that turns the canvas's SVG into a PDF. |
 
 ## Components
@@ -92,14 +92,14 @@ A few settings are plain variables rather than user options; they're marked *(va
 | `agent-ui-source-log-directory` | `agent-ui/` in `temporary-file-directory` | Where commands' output is kept, for the agent to read. Made with mode 700; one already there that isn't the user's own, closed to others, isn't used (a folder of their own instead, made once per Emacs). |
 | `agent-ui-source-file-interval` | `0.5` | Seconds between looks at a followed file. |
 
-## Project panels
+## Project dashboards
 
 | Option | Default | What it does |
 |---|---|---|
-| `agent-ui-panel-directory` | `".agent-ui/panels/"` | Where a project's panels are, in its root. |
-| `agent-ui-panel-trust-file` | `~/.emacs.d/agent-ui/trusted-panels.eld` | Where the panels and projects whose code you let run are remembered. |
-| `agent-ui-panel-loading-delay` | `0.5` | Seconds a refreshing query runs before its component says it's loading. |
-| `agent-ui-panel-slow` | `0.1` | Seconds a panel's fetch may take itself before it's said to be slow. |
+| `agent-ui-dashboard-directory` | `".agent-ui/dashboards/"` | Where a project's dashboards are, in its root. |
+| `agent-ui-dashboard-trust-file` | `~/.emacs.d/agent-ui/trusted-dashboards.eld` | Where the dashboards and projects whose code you let run are remembered. |
+| `agent-ui-dashboard-loading-delay` | `0.5` | Seconds a refreshing query runs before its component says it's loading. |
+| `agent-ui-dashboard-slow` | `0.1` | Seconds a dashboard's fetch may take itself before it's said to be slow. |
 
 ## Types the agent makes
 

@@ -290,7 +290,7 @@ canvas keeps them."
 ;; ====== AS A PDF ======
 
 (ert-deftest agent-ui-snapshot/a-session-s-canvas-as-a-pdf ()
-  "SPC m e in a session's canvas (no notice there: only project panels have
+  "SPC m e in a session's canvas (no notice there: only project dashboards have
 one): what it shows now, its components still, a PDF in its directory's
 .agent-shell/pdf/, named after it; said where."
   (let* ((dir (file-name-as-directory (make-temp-file "canvas-pdf-" t)))

@@ -22,7 +22,7 @@ one is updated in place as the work goes on, instead of scrolling away in the co
 - **Driven from the agent's shell** with one command (`bin/agent-ui`, JSON in and out), or as **MCP tools**.
 - **Sources**: a component follows a command, a file or a poll by itself, so a progress bar keeps moving while the
   agent waits on a long build.
-- **[Project panels](#project-panels)**: dashboards kept in a repository, opened on demand, their data fetched afresh.
+- **[Project dashboards](#project-dashboards)**: kept in a repository, opened on demand, their data fetched afresh.
 - **Types of your own**: the agent defines a new component type when none fits. You review it before it's kept.
 - **In the conversation too**: a component saved as an SVG for the agent's reply, a canvas exported as a PDF.
 - **Works in a terminal**: everything has a text drawing, and a graphical frame adds SVG charts, gauges and images.
@@ -174,30 +174,30 @@ $AGENT_UI clear
 
 Every reply is JSON: `{"ok":true,"id":"build"}`, or `{"ok":false,"error":"..."}` saying exactly what's wrong.
 
-## Project panels
+## Project dashboards
 
-A project panel is a dashboard kept in a project's repository: a service's traffic and CI, a release's state, whatever
+A project dashboard lives in a project's repository: a service's traffic and CI, a release's state, whatever
 you want to see again for that project. It opens on demand in a window of its own, fetches its data afresh when it
 opens and every so often while it's shown, and keeps none of it. The canvas is for what the agent shows as it works; a
-panel is for what you come back to.
+dashboard is for what you come back to.
 
-![A project panel: a service's figures, its error budget, its latency, its CI runs and its last errors](docs/images/panel.png)
+![A project dashboard: a service's figures, its error budget, its latency, its CI runs and its last errors](docs/images/dashboard.png)
 
-**Making one.** Each panel is a file, `.agent-ui/panels/NAME.el`, committed with the project. It holds what the panel
-shows (`:ui`, components as the agent shows them, written as a plist) and the code that fills it (`:fetch`, run every
-`:every` seconds):
+**Making one.** Each dashboard is a file, `.agent-ui/dashboards/NAME.el`, committed with the project. It holds what the
+dashboard shows (`:ui`, components as the agent shows them, written as a plist) and the code that fills it (`:fetch`,
+run every `:every` seconds):
 
 ```elisp
-;;; service.el --- Agent UI panel: the service  -*- lexical-binding: t; -*-
-(agent-ui-panel
+;;; service.el --- Agent UI dashboard: the service  -*- lexical-binding: t; -*-
+(agent-ui-dashboard
  :version 1
  :ui (:type "panel" :id "service" :title "checkout-service"
       :children ((:type "table" :id "ci" :title "CI on main" :columns ("Run" "Commit" "Status"))))
  :every 30
- :fetch (lambda (panel)
-          (agent-ui-panel-run panel '("gh" "run" "list" "-L" "5" "--json" "number,displayTitle,conclusion")
+ :fetch (lambda (dashboard)
+          (agent-ui-dashboard-run dashboard '("gh" "run" "list" "-L" "5" "--json" "number,displayTitle,conclusion")
             (lambda (runs)
-              (agent-ui-panel-update panel "ci"
+              (agent-ui-dashboard-update dashboard "ci"
                 :rows (mapcar (lambda (run)
                                 (list (format "#%s" (alist-get 'number run))
                                       (alist-get 'displayTitle run)
@@ -206,25 +206,27 @@ shows (`:ui`, components as the agent shows them, written as a plist) and the co
             :component "ci")))
 ```
 
-`agent-ui-panel-run` runs a command without making Emacs wait, and hands its output (parsed, when it's JSON) to your
-function; `agent-ui-panel-update` changes a component as `agent-ui update` does. The easiest way to make a panel is to
-ask your agent ("make a panel with our CI runs and the error rate"): it writes the file, checks it with
-`agent-ui check NAME` and opens it for you. `S` on a component of a canvas saves it as a panel too, for its `:fetch` to
-be written.
+`agent-ui-dashboard-run` runs a command without making Emacs wait, and hands its output (parsed, when it's JSON) to your
+function; `agent-ui-dashboard-update` changes a component as `agent-ui update` does. The easiest way to make a dashboard
+is to ask your agent ("make a dashboard with our CI runs and the error rate"): it writes the file, checks it with
+`agent-ui check NAME` and opens it for you. `S` on a component of a canvas saves it as a dashboard too, for its `:fetch`
+to be written.
 
-**Using it.** `M-x agent-ui-open-panel` lists the project's panels and opens the one you pick. In a panel, `r` reads
-its file again and reruns it, `E` saves it as a PDF, `q` closes it. A panel's code comes from a repository, so before
-it first runs you're asked (`y` run it, `p` trust the project, `v` view the file first, `n` not now); the answer is
-remembered for that file's content, and asked again once it changes. A hidden panel fetches nothing. The agent lists
-the panels (`agent-ui panels`), opens one (`agent-ui open NAME`) and reads its data (`agent-ui get --panel NAME`).
+**Using it.** `M-x agent-ui-open-dashboard` lists the project's dashboards and opens the one you pick. In a dashboard,
+`r` reads its file again and reruns it, `E` saves it as a PDF, `q` closes it. A dashboard's code comes from a
+repository, so before it first runs you're asked (`y` run it, `p` trust the project, `v` view the file first, `n` not
+now); the answer is remembered for that file's content, and asked again once it changes. A hidden dashboard fetches
+nothing. The agent lists the dashboards (`agent-ui dashboards`), opens one (`agent-ui open NAME`) and reads its data
+(`agent-ui get --dashboard NAME`).
 
-**Two demos** come with this repository, in [`.agent-ui/panels/`](.agent-ui/panels/):
-[`cpu`](.agent-ui/panels/cpu.el) (how busy the machine is, its load, its last minute, the processes using it most) and
-[`memory`](.agent-ui/panels/memory.el) (where the memory goes, its pressure, swap, the compressor's work, the processes
-holding the most). Both fetch every second, on macOS and Linux, each from one command run without waiting. Open this
-repository in Emacs and `M-x agent-ui-open-panel`, or copy one into your project's `.agent-ui/panels/`.
+**Two demos** come with this repository, in [`.agent-ui/dashboards/`](.agent-ui/dashboards/):
+[`cpu`](.agent-ui/dashboards/cpu.el) (how busy the machine is, its load, its last minute, the processes using it most)
+and [`memory`](.agent-ui/dashboards/memory.el) (where the memory goes, its pressure, swap, the compressor's work, the
+processes holding the most). Both fetch every second, on macOS and Linux, each from one command run without waiting.
+Open this repository in Emacs and `M-x agent-ui-open-dashboard`, or copy one into your project's
+`.agent-ui/dashboards/`.
 
-More: [Project panels](docs/panels.md).
+More: [Project dashboards](docs/dashboards.md).
 
 ## How it works
 
@@ -242,7 +244,7 @@ it's drawn: a wrong one is refused whole, with an error listing the right proper
 - [The command line and MCP](docs/command-line.md)
 - [The canvas](docs/canvas.md): its views, keys, actions, questions, sessions
 - [Component types](docs/components.md)
-- [Sources](docs/sources.md), [project panels](docs/panels.md), [types of your own](docs/custom-types.md)
+- [Sources](docs/sources.md), [project dashboards](docs/dashboards.md), [types of your own](docs/custom-types.md)
 - [Bugs in Agent UI](docs/bugs.md), [the Emacs Lisp interface](docs/lisp.md)
 - [Customization](docs/customization.md)
 - [The agents' guide](skills/agent-ui/SKILL.md): what agents read before using it

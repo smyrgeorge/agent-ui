@@ -53,18 +53,18 @@
   '(:type "string" :description "Optional: another canvas of your session, by name (\"tests\"), shown beside its first; without it, your session's canvas")
   "The canvas argument's schema.")
 
-(defconst agent-ui-mcp--panel-schema
-  '(:type "string" :description "Optional: one of the project's panels, open (agent-ui open NAME), by name: its canvas instead")
-  "The panel argument's schema.")
+(defconst agent-ui-mcp--dashboard-schema
+  '(:type "string" :description "Optional: one of the project's dashboards, open (agent-ui open NAME), by name: its canvas instead")
+  "The dashboard argument's schema.")
 
 (defun agent-ui-mcp--with-canvas (tool)
-  "TOOL (a tools/list entry) taking a canvas argument too, and a panel."
+  "TOOL (a tools/list entry) taking a canvas argument too, and a dashboard."
   (let* ((schema (copy-sequence (plist-get tool :inputSchema)))
          (properties (copy-sequence (plist-get schema :properties))))
     (plist-put tool :inputSchema
                (plist-put schema :properties
                           (plist-put (plist-put properties :canvas agent-ui-mcp--canvas-schema)
-                                     :panel agent-ui-mcp--panel-schema)))))
+                                     :dashboard agent-ui-mcp--dashboard-schema)))))
 
 (defconst agent-ui-mcp--component-schema
   '(:type "object"
@@ -98,7 +98,7 @@ nil if it can't be reached."
     (vconcat
      (mapcar
       (lambda (tool)
-        (if (member (plist-get tool :name) '("types" "define" "check" "panels" "open" "doctor"))
+        (if (member (plist-get tool :name) '("types" "define" "check" "dashboards" "open" "doctor"))
             tool
           (agent-ui-mcp--with-canvas tool)))
       (list
@@ -117,7 +117,7 @@ nil if it can't be reached."
             :inputSchema '(:type "object"))
       (list :name "list" :description "The canvas's components: ids, types, their sources' state."
             :inputSchema '(:type "object"))
-      (list :name "get" :description "What the canvas (or an open panel: its panel argument) shows, as data: its components, or one, with their properties and values. Read panels so, never by a snapshot. changed: only those changed since your last read (and removed: those gone). A panel's reply says when it last fetched; one hidden with old data is fetched first."
+      (list :name "get" :description "What the canvas (or an open dashboard: its dashboard argument) shows, as data: its components, or one, with their properties and values. Read dashboards so, never by a snapshot. changed: only those changed since your last read (and removed: those gone). A dashboard's reply says when it last fetched; one hidden with old data is fetched first."
             :inputSchema (list :type "object"
                                :properties (list :id '(:type "string" :description "One component only")
                                                  :changed '(:type "boolean" :description "Only what changed since your last read"))))
@@ -139,15 +139,15 @@ nil if it can't be reached."
                                         :repro (:type "object" :description "A component showing it, with neutral data")
                                         :new (:type "boolean" :description "File it even if a similar bug is open"))
                            :required ["title" "description"]))
-      (list :name "panels" :description "The project's panels (PROJECT/.agent-ui/panels/NAME.el, kept in its repository, opened on demand, their data fetched afresh): their names, which are open. See the agent-ui skill's references/panels.md."
+      (list :name "dashboards" :description "The project's dashboards (PROJECT/.agent-ui/dashboards/NAME.el, kept in its repository, opened on demand, their data fetched afresh): their names, which are open. See the agent-ui skill's references/dashboards.md."
             :inputSchema '(:type "object"))
-      (list :name "open" :description "Open one of the project's panels in the user's Emacs, in a pane of its own (open already: shown). Its code, if the user hasn't let it run yet, waits until they select the panel and are asked (the reply's trusted). The other tools work on it with their panel argument."
+      (list :name "open" :description "Open one of the project's dashboards in the user's Emacs, in a pane of its own (open already: shown). Its code, if the user hasn't let it run yet, waits until they select the dashboard and are asked (the reply's trusted). The other tools work on it with their dashboard argument."
             :inputSchema '(:type "object"
-                           :properties (:name (:type "string" :description "The panel's name"))
+                           :properties (:name (:type "string" :description "The dashboard's name"))
                            :required ["name"]))
-      (list :name "check" :description "A project panel's file checked, nothing shown, nothing run: PROJECT/.agent-ui/panels/NAME.el (or a file ending .el), its :ui checked as show checks a component, its code compiled (errors refuse it; warnings), its calls that wait (blocking: Emacs frozen while they run) found. See the agent-ui skill's references/panels.md."
+      (list :name "check" :description "A project dashboard's file checked, nothing shown, nothing run: PROJECT/.agent-ui/dashboards/NAME.el (or a file ending .el), its :ui checked as show checks a component, its code compiled (errors refuse it; warnings), its calls that wait (blocking: Emacs frozen while they run) found. See the agent-ui skill's references/dashboards.md."
             :inputSchema '(:type "object"
-                           :properties (:name (:type "string" :description "The panel's name (its file's, without .el), or its file"))
+                           :properties (:name (:type "string" :description "The dashboard's name (its file's, without .el), or its file"))
                            :required ["name"]))
       (list :name "doctor" :description "Is everything Agent UI needs here? Its checks, the command's side (an emacsclient, a server answering, your session) and the user's Emacs's: Emacs and the packages it needs at their versions, the package's files, Emacs's server, agent-ui-mode, its MCP server, and the tools some components use (mmdc for mermaid, MathJax or LaTeX for math, curl, rsvg-convert, SVG support). Each check's status (ok, warn, fail), what it found and its fix. Run it when the canvas can't be reached or a component says something is missing, and tell the user the fixes."
             :inputSchema '(:type "object"))
@@ -185,7 +185,7 @@ reply if it said nothing readable)."
   (cl-flet ((arg (key) (plist-get arguments key))
             (json (value) (agent-ui-mcp--json value)))
     (let* ((canvas (let ((c (arg :canvas))) (and (stringp c) (not (string-empty-p c)) c)))
-           (panel (let ((p (arg :panel))) (and (stringp p) (not (string-empty-p p)) p)))
+           (dashboard (let ((d (arg :dashboard))) (and (stringp d) (not (string-empty-p d)) d)))
            ;; The JSON on stdin, the rest as arguments.
            (input (pcase name
                     ((or "show" "render") (json (arg :component)))
@@ -193,14 +193,14 @@ reply if it said nothing readable)."
                     ("batch" (json (or (arg :operations) [])))
                     ;; The bug as given, but its canvas (an argument of its own).
                     ("bug" (json (cl-loop for (k v) on arguments by #'cddr
-                                          unless (memq k '(:canvas :panel)) append (list k v))))))
+                                          unless (memq k '(:canvas :dashboard)) append (list k v))))))
            (args (pcase name
                    ((or "show" "render" "batch" "bug") (list name))
                    ((or "update" "append") (list name (or (arg :id) "")))
                    ("remove" (list "remove" (or (arg :id) "")))
                    ("snapshot" (list "snapshot" (or (arg :id) "")))
                    ("check" (list "check" (or (arg :name) "")))
-                   ("panels" (list "panels"))
+                   ("dashboards" (list "dashboards"))
                    ("doctor" (list "doctor"))
                    ("open" (list "open" (or (arg :name) "")))
                    ("clear" (list "clear"))
@@ -215,9 +215,9 @@ reply if it said nothing readable)."
               (agent-ui-mcp--run (append args
                                          (when (and canvas (not (member name '("types" "doctor"))))
                                            (list "--canvas" canvas))
-                                         ;; One of the project's panels, open.
-                                         (when (and panel (not (member name '("types" "check" "panels" "open" "doctor"))))
-                                           (list "--panel" panel)))
+                                         ;; A project's dashboard, open.
+                                         (when (and dashboard (not (member name '("types" "check" "dashboards" "open" "doctor"))))
+                                           (list "--dashboard" dashboard)))
                                  input))
              ((equal name "define")
               (let ((file (make-temp-file "agent-ui-type-" nil ".el")))

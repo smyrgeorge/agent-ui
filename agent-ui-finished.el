@@ -34,8 +34,8 @@
 ;; the session if it was there.  Some of it failed: it stays.  It changing
 ;; meanwhile starts its countdown again, or stops it (not finished well any
 ;; more); Keep stops it until it changes.  The countdown runs while its canvas
-;; is in a window: you see it go.  A project's panel (agent-ui-panels.el)
-;; never closes: it stays.
+;; is in a window: you see it go.  A project's dashboard
+;; (agent-ui-dashboards.el) never closes: it stays.
 
 ;;; Code:
 
@@ -79,7 +79,7 @@ Its :close, else `agent-ui-close-finished'; or nil: it doesn't close."
   "The current canvas changed (`agent-ui-changed-hook').
 Its finished components' countdowns started, started again or stopped
 \(see above)."
-  (unless (bound-and-true-p agent-ui-panels--state)
+  (unless (bound-and-true-p agent-ui-dashboards--state)
     (let ((closing (or agent-ui--closing (make-hash-table :test #'equal)))
           (kept (or agent-ui--kept (make-hash-table :test #'equal))))
       ;; Gone from it: forgotten.

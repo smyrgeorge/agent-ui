@@ -43,7 +43,7 @@ agent-ui append ID JSON       # add to its lists: a table's rows, a checklist's 
 agent-ui remove ID            # remove it
 agent-ui clear                # remove every component
 agent-ui list                 # the canvas's components: ids and types
-agent-ui get [ID] [--changed] # its components as data: how to read a panel
+agent-ui get [ID] [--changed] # its components as data: how to read a dashboard
 agent-ui types [TYPE]         # the types, their properties, an example each
 agent-ui batch JSON           # several operations at once: [{"op":"show",...}, {"op":"update","id":...,...}]
 agent-ui render JSON          # a component drawn as text, as the canvas would (nothing shown): {"ok":true,"text":...}
@@ -51,9 +51,9 @@ agent-ui render JSON          # a component drawn as text, as the canvas would (
 agent-ui define FILE          # a type of your own (references/custom-types.md), from FILE or stdin
 agent-ui snapshot ID          # the component as an image, for your reply: {"file":..., "markdown":"![...](...)"}
 agent-ui bug JSON             # a bug in Agent UI itself, filed in its own issues (references/bugs.md)
-agent-ui panels               # the project's panels, kept in its repo (references/panels.md)
-agent-ui open NAME            # one opened for the user; --panel NAME: any operation on it
-agent-ui check NAME           # a panel's file checked, nothing run
+agent-ui dashboards           # the project's dashboards, kept in its repo (references/dashboards.md)
+agent-ui open NAME            # one opened for the user; --dashboard NAME: any operation on it
+agent-ui check NAME           # a dashboard's file checked, nothing run
 agent-ui doctor               # its setup checked
 ```
 
@@ -84,7 +84,7 @@ and `clear` are a canvas's own. It closes, is kept and comes back with your sess
   categories with counts; `log` output, lines by level; `activity` a script or agent at work.
 - **Content and layout** ([content.md](references/content.md)): `text` a line; `markdown` a write-up; `code` a
   snippet, marked, reviewed; `diff` changes; `math` formulas; `mermaid` a diagram; `image` a picture, a screenshot;
-  `html` a page as a card; `files` files and their state; `panel` several together: a dashboard.
+  `html` a page as a card; `files` files and their state; `panel` several together.
 
 ### `progress`
 
@@ -169,8 +169,9 @@ something that stopped: mark it `done` or `failed`.
 - Asking the user anything (a list to pick from, a yes or no, a form, an order, a plan to approve, changes to
   accept): [references/asking.md](references/asking.md).
 - Figures, charts, how things stand: [references/data.md](references/data.md).
-- Notes, code, a diff, an image, a page, files, a dashboard's layout: [references/content.md](references/content.md).
+- Notes, code, a diff, an image, a page, files, a layout: [references/content.md](references/content.md).
 - Following a long command, a file or a poll while you go on (`source`): [references/sources.md](references/sources.md).
-- A panel kept in the project, opened again later, its data fetched anew: [references/panels.md](references/panels.md).
+- A dashboard kept in the project, opened later, its data fetched anew:
+  [references/dashboards.md](references/dashboards.md).
 - None of the types fits: [references/custom-types.md](references/custom-types.md).
 - Agent UI itself misbehaves: [references/bugs.md](references/bugs.md).

@@ -88,7 +88,7 @@ sections too, when that component's countdown ends ([Finished components close](
 | `agent-ui-removed-functions` | In a canvas, with a component's id once it's gone (removed, or its canvas killed). |
 | `agent-ui-changed-hook` | In a canvas, when its components change: shown, updated, appended to, removed, cleared. |
 | `agent-ui-question-waiting-functions` | With the session's buffer, the canvas and the question's id, when a turn ends with a question waiting. |
-| `agent-ui-panel-open-hook` | In a project panel's canvas, once it has opened (not when it's only shown again). |
+| `agent-ui-dashboard-open-hook` | In a project dashboard's canvas, once it has opened (not when it's only shown again). |
 | `agent-ui-bug-filed-functions` | With the issue's id, its title, whether it's new and the issues' directory, once a bug is filed. |
 | `agent-ui-staged-functions` | With a type's name, once the agent staged it. |
 | `agent-ui-kept-functions` | With a type's name and its file, once you kept it. |

@@ -119,7 +119,7 @@ what's drawn there: (COMPONENT WIDTH GRAPHIC FOOTER UNTITLED), its type's
 :extend editing it (FOOTER: a line drawn under it, `agent-ui-footer-functions';
 UNTITLED: its title not drawn, `agent-ui-canvas-title');
 SHOWN, it as it was shown, before updates and its sources' changes (its
-data left out: what a panel saved from it keeps); PART, in a section
+data left out: what a dashboard saved from it keeps); PART, in a section
 hosting a session's canvas, the session's other canvas it was shown on
 \(\"ask\"), nil for its own; MEMO, the drawings of its parts its
 animation's frames reuse (`agent-ui-memo') and its last frame's, until
@@ -142,7 +142,7 @@ it's drawn otherwise."
 (defvar-local agent-ui--counter 0 "For ids made for components shown without one.")
 (defvar-local agent-ui-canvas-name nil
   "A name of its own the canvas goes by where its name shows (its tab:
-Agent UI: NAME), set by what made it: a project panel's, the panel's name.
+Agent UI: NAME), set by what made it: a project dashboard's, its name.
 Its lone panel's title is then drawn in the panel's top border, not given
 to its tab (see A LONE PANEL'S TITLE).")
 (defvar-local agent-ui--untitled nil
@@ -188,8 +188,8 @@ Its commands are its parts' (quoted: defined in the files after this one)."
   "M-<up>" 'agent-ui-move-item-up
   "M-<down>" 'agent-ui-move-item-down
   "R" 'agent-ui-review
-  "r" 'agent-ui-panel-reload
-  "S" 'agent-ui-save-panel
+  "r" 'agent-ui-dashboard-reload
+  "S" 'agent-ui-save-dashboard
   "E" 'agent-ui-export-pdf
   "u" 'agent-ui-pane-toggle)
 
@@ -528,13 +528,13 @@ again soon."
     (setq agent-ui--width width)))
 
 ;; A LONE PANEL'S TITLE
-;; A canvas showing one component only, a panel with a title (a dashboard),
-;; has the title in its view's bar (agent-ui-pane.el; a pane of its
+;; A canvas showing one component only, a panel with a title, has the
+;; title in its view's bar (agent-ui-pane.el; a pane of its
 ;; own: its tab), not drawn over the panel too: two headings for one thing.
 ;; A second component shown, a section: drawn over it again, the bar the
 ;; canvas's name.  Its snapshot, its PDF and what's sent to the prompt keep
 ;; it: drawn by `agent-ui-render' as ever.  A canvas with a name of its own
-;; (`agent-ui-canvas-name': a project panel) goes by it, in its tab (Agent
+;; (`agent-ui-canvas-name': a project dashboard) goes by it, in its tab (Agent
 ;; UI: alerts) and its view's bar, and draws its lone panel's title in the
 ;; panel's top border (╭─ TITLE ───╮, cut with … when narrow): a title a
 ;; sentence long made its tab as long.  A panel without a border: its title
@@ -571,7 +571,7 @@ with a name of its own (its panel's top border says it)."
 
 (defun agent-ui-canvas-label (buffer)
   "What names canvas BUFFER where its name would (a tab): \"Agent UI:
-NAME\" for a canvas with a name of its own (a project panel), \"Agent UI:
+NAME\" for a canvas with a name of its own (a project dashboard), \"Agent UI:
 TITLE\" when it shows a lone panel (see above), nil otherwise."
   (when-let* ((name (and (agent-ui--canvas-p buffer)
                          (or (buffer-local-value 'agent-ui-canvas-name buffer)
@@ -1148,7 +1148,7 @@ directory is; a :here one with none given, that directory, now."
 (defun agent-ui--source-dir (component)
   "COMPONENT with its source's dir a full name.
 That's while `agent-ui-file-directory' is known (a request: the agent's
-directory; a project panel's root): a relative one under it, none it.
+directory; a project dashboard's root): a relative one under it, none it.
 Its source ran in its canvas's directory (that of whatever buffer was
 current when the canvas was made)."
   (let ((source (plist-get component :source)))

@@ -21,9 +21,9 @@ agent-ui render --ansi '{...}' # the same, in its colours (24-bit ANSI), to prin
 agent-ui snapshot build        # the component as an image, for the agent's reply
 agent-ui define dial.el        # a type of the agent's own
 agent-ui bug < bug.json        # a bug in Agent UI itself
-agent-ui panels                # the project's panels, and which are open
+agent-ui dashboards                # the project's dashboards, and which are open
 agent-ui open service          # one of them opened for the user
-agent-ui check service         # a panel's file checked, nothing run
+agent-ui check service         # a dashboard's file checked, nothing run
 agent-ui doctor                # what Agent UI needs, checked
 ```
 
@@ -42,9 +42,9 @@ agent-ui doctor                # what Agent UI needs, checked
 | `snapshot` | `ID` | The component as an SVG image, with a Markdown link for a reply ([The canvas](canvas.md#in-the-conversation)). |
 | `define` | `[FILE]` | Stages a type of the agent's own, from FILE or stdin ([Custom types](custom-types.md)). |
 | `bug` | `[JSON]` | Reports a bug in Agent UI itself ([Bugs in Agent UI](bugs.md)). |
-| `panels` | | The project's panels: `{"panels": [{"name", "open"}]}` ([Project panels](panels.md)). |
-| `open` | `NAME` | Opens one of the project's panels in your Emacs. |
-| `check` | `NAME` | Checks a panel's file without running anything. |
+| `dashboards` | | The project's dashboards: `{"dashboards": [{"name", "open"}]}` ([Project dashboards](dashboards.md)). |
+| `open` | `NAME` | Opens one of the project's dashboards in your Emacs. |
+| `check` | `NAME` | Checks a dashboard's file without running anything. |
 | `doctor` | | Checks what Agent UI needs, here and in Emacs ([below](#checking-the-setup-doctor)). |
 
 `agent-ui --help` prints the command's own summary.
@@ -123,10 +123,11 @@ The reply has each operation's result, in order: `{"ok": true, "results": [{"ok"
 `agent-ui get` returns what the canvas shows, as data: its components (or the one with ID) with their properties and
 values. With `--changed`, it returns only the components changed since the agent's last read, and `removed`, the ids of
 those gone since. It's how an agent reads what you changed (a todo item ticked, a form filled in) and how it reads a
-project panel's data.
+project dashboard's data.
 
-On a project panel (`--panel NAME`), the reply also says when the panel last fetched its data. A panel that was hidden,
-with old data, is fetched first; the command waits for it, at most `AGENT_UI_WAIT` seconds (10 by default).
+On a project dashboard (`--dashboard NAME`), the reply also says when the dashboard last fetched its data. A dashboard
+that was hidden, with old data, is fetched first; the command waits for it, at most `AGENT_UI_WAIT` seconds (10 by
+default).
 
 ## Rendering and snapshots
 
@@ -169,9 +170,10 @@ other operations can't.
   batch operation's), picks the session's other canvas `Agent UI: SESSION / NAME`. It's a view of its own beside the
   session's canvas, with its own components and ids. A name has letters, digits, spaces and `_ . -`, up to 40
   characters. Questions go on `--canvas ask` by convention.
-- **A project panel.** `--panel NAME` works on the project's open panel NAME instead ([Project panels](panels.md)).
+- **A project dashboard.** `--dashboard NAME` works on the project's open dashboard NAME instead ([Project
+  dashboards](dashboards.md)).
 
-`--canvas` and `--panel` can go anywhere on the command line and work with any operation.
+`--canvas` and `--dashboard` can go anywhere on the command line and work with any operation.
 
 ## Environment
 
@@ -180,7 +182,7 @@ other operations can't.
 | `AGENT_UI_SESSION` | The session whose canvas the command works on. Set by agent-shell for its agents while `agent-ui-mode` is on. |
 | `EMACSCLIENT` | The client the command runs (default `emacsclient`). Set it when `emacsclient` isn't on the agent's `PATH`, for example with `(setenv "EMACSCLIENT" "/path/to/emacsclient")` in Emacs before starting sessions. |
 | `EMACS_SOCKET_NAME` | The server `emacsclient` talks to, when it isn't the default one. |
-| `AGENT_UI_WAIT` | The most seconds `get` waits for a hidden panel's fetch (default 10). |
+| `AGENT_UI_WAIT` | The most seconds `get` waits for a hidden dashboard's fetch (default 10). |
 | `AGENT_UI_DIR` | For the MCP server: the agent's directory (set by `agent-ui-mode` when it registers the server). |
 
 Emacs answers each request through its server, so it must run one (`M-x server-start`). Without one, the command fails
@@ -210,12 +212,12 @@ It speaks MCP over stdio and does each call through `bin/agent-ui`, so replies a
 | `snapshot` | `id` |
 | `batch` | `operations` |
 | `bug` | `title`, `description`, `expected`, `workaround`, `component`, `repro`, `new` |
-| `panels` | none |
+| `dashboards` | none |
 | `open`, `check` | `name` |
 | `define` | `code` |
 | `doctor` | none |
 
-Every tool except `types`, `define`, `check`, `panels`, `open` and `doctor` also takes `canvas` (the session's other canvas)
-and `panel` (an open project panel), as `--canvas` and `--panel` do. The server's instructions, which the agent reads
-too, say what the system prompt says: information goes on the canvas, questions there beyond a quick one, and Agent
-UI's own bugs are reported with the `bug` tool.
+Every tool except `types`, `define`, `check`, `dashboards`, `open` and `doctor` also takes `canvas` (the session's other
+canvas) and `dashboard` (an open project dashboard), as `--canvas` and `--dashboard` do. The server's instructions,
+which the agent reads too, say what the system prompt says: information goes on the canvas, questions there beyond a
+quick one, and Agent UI's own bugs are reported with the `bug` tool.

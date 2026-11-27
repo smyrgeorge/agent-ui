@@ -239,7 +239,7 @@ parts, as it needs them:
   type in a line by what it shows, and the everyday ones (`progress`, `steps`, `table`) with examples.
 - Its `references/` hold the rest, each read only when a task needs it: asking you (`asking.md`), figures
   (`data.md`), content and layout (`content.md`), following a command (`sources.md`), a type of its own
-  (`custom-types.md`), project panels (`panels.md`), and a bug in Agent UI (`bugs.md`).
+  (`custom-types.md`), project dashboards (`dashboards.md`), and a bug in Agent UI (`bugs.md`).
 - A type's every property comes from `agent-ui types TYPE`.
 
 The agent reads it from the package's directory, so there's nothing to install. You can also install it as a skill

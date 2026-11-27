@@ -6,8 +6,8 @@
 ;; and progress finished well count down (a line under them, Keep) and close;
 ;; one that failed stays; a change restarts or stops it; Keep stops it until
 ;; it changes; :close and `agent-ui-close-finished' decide; counting only
-;; while the canvas is in a window; never in a project panel. The countdown's
-;; ticks are called here, not waited for.
+;; while the canvas is in a window; never in a project dashboard. The
+;; countdown's ticks are called here, not waited for.
 
 ;;; Code:
 
@@ -221,11 +221,11 @@ it's removed, its canvas staying with the other (doom-ht6.33)."
     (should (agent-ui-test-auf-there-p "note"))
     (should (get-buffer-window canvas))))
 
-(ert-deftest agent-ui-finished/not-in-a-project-panel ()
-  "A project panel's components never count down: it stays."
+(ert-deftest agent-ui-finished/not-in-a-project-dashboard ()
+  "A project dashboard's components never count down: it stays."
   (agent-ui-test-auf
     (with-current-buffer canvas
-      (setq-local agent-ui-panels--state 'a-panel))
+      (setq-local agent-ui-dashboards--state 'a-dashboard))
     (agent-ui-show agent-ui-test-auf-done)
     (should-not (agent-ui-test-auf-left "plan"))))
 
