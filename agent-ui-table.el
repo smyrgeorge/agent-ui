@@ -337,13 +337,29 @@ text, the rows drawn and their cells' widths, its header, columns shown,
 widths, alignments, buttons beside or under)."
   (let* ((columns (plist-get props :columns))
          (n (length columns))
-         (all (mapcar (lambda (row)
-                        (let ((cells (mapcar #'agent-ui-table--cell row)))
-                          (append cells (make-list (- n (length cells)) ""))))
-                      (plist-get props :rows)))
+         (convert (lambda (row)
+                    (let ((cells (mapcar #'agent-ui-table--cell row)))
+                      (append cells (make-list (- n (length cells)) "")))))
+         (total (length (plist-get props :rows)))
          (sort (agent-ui-table--key-index (plist-get props :sort) columns))
          (descending (eq (plist-get props :descending) t))
-         (rows (seq-take (if sort (agent-ui-table--sorted all sort descending) all) agent-ui-max-rows))
+         ;; Asking: every row's cells (each row's answer depends on the
+         ;; others').  Else, more rows than drawn: only those drawn
+         ;; converted, sorted by their sort column's cells alone (all
+         ;; converted, thousands of rows took most of each drawing).
+         (all (when (or (plist-get props :select) (<= total agent-ui-max-rows))
+                (mapcar convert (plist-get props :rows))))
+         (rows (cond (all (seq-take (if sort (agent-ui-table--sorted all sort descending) all)
+                                    agent-ui-max-rows))
+                     ;; Each row as (its sort cell . the row), sorted by its first.
+                     (sort (mapcar (lambda (pair) (funcall convert (cdr pair)))
+                                   (seq-take (agent-ui-table--sorted
+                                              (mapcar (lambda (row)
+                                                        (cons (agent-ui-table--cell (nth sort row)) row))
+                                                      (plist-get props :rows))
+                                              0 descending)
+                                             agent-ui-max-rows)))
+                     (t (mapcar convert (seq-take (plist-get props :rows) agent-ui-max-rows)))))
          ;; The sorted column's name marked.
          (header (cl-loop for c in columns for i from 0
                           collect (if (eql i sort) (concat c (if descending " ↓" " ↑")) c)))
@@ -378,7 +394,7 @@ widths, alignments, buttons beside or under)."
                                        (if (and cells (cl-every #'agent-ui-table--right-p cells))
                                            'right
                                          'left))))))
-    (list :columns columns :n n :all all :rows rows :measured measured :header header
+    (list :columns columns :n n :total total :rows rows :measured measured :header header
           :actions actions :beside beside :shown shown :widths widths :align align
           ;; Asking: each row's answer, by the row (sorted, it's the same
           ;; list); the rows pickable (not once answered, nor in a still
@@ -420,7 +436,7 @@ CTX's width under its start: each named (cut, the last ones weren't)."
 MEASURED are their cells' widths.  FULL:
 the whole table, its header, \"no rows yet\" and what's left out too."
   (let ((columns (plist-get layout :columns))
-        (all (plist-get layout :all))
+        (total (plist-get layout :total))
         (header (plist-get layout :header))
         (actions (plist-get layout :actions))
         (beside (plist-get layout :beside))
@@ -565,8 +581,8 @@ the whole table, its header, \"no rows yet\" and what's left out too."
                             (t (line row nil t row-widths)
                                (funcall pickable)))))
               (insert " " (propertize "no rows yet" 'face 'agent-ui-muted)))
-            (when (and full (> (length all) (length rows)))
-              (insert "\n " (propertize (format "… %d rows more" (- (length all) (length rows)))
+            (when (and full (> total (length rows)))
+              (insert "\n " (propertize (format "… %d rows more" (- total (length rows)))
                                         'face 'agent-ui-muted)))
             (when-let* ((left-out (and full (agent-ui-table--left-out layout ctx))))
               (insert "\n" left-out))
@@ -660,15 +676,28 @@ its cells)."
   (let* ((key (agent-ui-table--key-index (plist-get component :key) (plist-get component :columns)))
          (old-rows (plist-get component :rows))
          (rows (copy-sequence old-rows))
-         (selected (plist-get component :selected)))
+         (selected (plist-get component :selected))
+         ;; Each key's first row, by its place in the list (its cons): each
+         ;; row's key read once (looked up in all the rows for each row
+         ;; appended, a batch into thousands took seconds).
+         (places (and key (make-hash-table :test #'equal)))
+         (added nil) (tail nil))
+    (when key
+      (cl-loop for place on rows
+               when (listp (car place))
+               do (let ((k (agent-ui-cell (nth key (car place)))))
+                    (unless (gethash k places) (puthash k place places)))))
     (dolist (row (plist-get patch :rows))
-      (let ((at (and key (listp row)
-                     (cl-position (agent-ui-cell (nth key row)) rows
-                                  :key (lambda (r) (and (listp r) (agent-ui-cell (nth key r))))
-                                  :test #'equal))))
-        (if at
-            (setf (nth at rows) row)
-          (setq rows (append rows (list row))))))
+      (let* ((k (and key (listp row) (agent-ui-cell (nth key row))))
+             (place (and k (gethash k places))))
+        (if place
+            (setcar place row)
+          ;; After the others, all added at once.
+          (let ((new (list row)))
+            (if tail (setcdr tail new) (setq added new))
+            (setq tail new)
+            (when k (puthash k new places))))))
+    (setq rows (nconc rows added))
     (let ((component (plist-put (copy-sequence component) :rows rows)))
       (if (not (and selected (proper-list-p selected)))
           component

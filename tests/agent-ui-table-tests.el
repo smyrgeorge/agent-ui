@@ -281,6 +281,68 @@ ending with …; a long one (a log's) only as far as that."
                             :rows)
                  '((1 "b")))))
 
+;; doom-ht6.117
+(ert-deftest agent-ui-components/table-appended-by-key-a-batch ()
+  "A batch appended by key: a row whose key is there (or earlier in the
+batch) replaces it in place, the first of those with it; the others after,
+in order; a row without its key cell keyed by an empty one; the rows given
+untouched."
+  (let* ((rows (list '("a" "1") '("b" "1") '("c" "1")))
+         (component (list :type "table" :columns '("K" "V") :key 0 :rows rows)))
+    (should (equal (plist-get (agent-ui-append-to component '(:rows (("b" "2") ("d" "1") ("d" "2") ("a" "2")
+                                                                      ("e" "1") ("b" "3") ("e" "2"))))
+                              :rows)
+                   '(("a" "2") ("b" "3") ("c" "1") ("d" "2") ("e" "2"))))
+    (should (equal rows '(("a" "1") ("b" "1") ("c" "1")))))
+  ;; Keys there twice: the first replaced.
+  (should (equal (plist-get (agent-ui-append-to '(:type "table" :columns ("K" "V") :key 0
+                                                  :rows (("x" "1") ("x" "2")))
+                                                '(:rows (("x" "3"))))
+                            :rows)
+                 '(("x" "3") ("x" "2"))))
+  ;; No key cell, a null one: alike.
+  (should (equal (plist-get (agent-ui-append-to '(:type "table" :columns ("V" "K") :key 1
+                                                  :rows (("p" nil) ("q" "k")))
+                                                '(:rows (("r") ("s" "k") ("t" "u"))))
+                            :rows)
+                 '(("r") ("s" "k") ("t" "u")))))
+
+(ert-deftest agent-ui-components/table-appended-by-key-looks-rows-up ()
+  "A batch appended by key looks rows up by their keys, each row's key read
+once: not every row's for each appended."
+  (let ((component (list :type "table" :columns '("K" "V") :key 0
+                         :rows (mapcar (lambda (i) (list (format "r%d" i) "1")) (number-sequence 1 400))))
+        (patch (list :rows (mapcar (lambda (i) (list (format "r%d" (* 3 i)) "2")) (number-sequence 1 200))))
+        (calls 0))
+    (let ((cell (symbol-function 'agent-ui-cell)))
+      (cl-letf (((symbol-function 'agent-ui-cell) (lambda (v) (cl-incf calls) (funcall cell v))))
+        (let ((rows (plist-get (agent-ui-append-to component patch) :rows)))
+          (should (= (length rows) 467))
+          (should (equal (nth 2 rows) '("r3" "2")))
+          (should (equal (nth 399 rows) '("r400" "1")))
+          (should (equal (nth 400 rows) '("r402" "2"))))))
+    (should (<= calls (+ 400 200)))))
+
+(ert-deftest agent-ui-components/table-many-rows-converts-the-drawn ()
+  "A table of more rows than drawn converts only the drawn rows' cells
+\(sorted, its sort column's every cell too); what's drawn the same."
+  (let* ((rows (mapcar (lambda (i) (list (format "test_%04d" i) "passed" (format "%ds" (% (* i 7919) 5000))))
+                       (number-sequence 1 5000)))
+         (component (list :type "table" :columns '("Test" "Result" "Time") :rows rows))
+         (calls 0))
+    (let ((cell (symbol-function 'agent-ui-cell)))
+      (cl-letf (((symbol-function 'agent-ui-cell) (lambda (v) (cl-incf calls) (funcall cell v))))
+        (let ((text (agent-ui-test-aue-draw component)))
+          (should (<= calls (* 3 agent-ui-max-rows)))
+          (should (string-match-p "\n test_0001 .*\n test_0002 " text))
+          (should (string-suffix-p "\n … 4500 rows more" text)))
+        (setq calls 0)
+        (let ((text (agent-ui-test-aue-draw (append component '(:sort "Time" :descending t)))))
+          (should (<= calls (+ 5000 (* 3 agent-ui-max-rows))))
+          ;; The largest first: 4999s (row 2321), then 4998s (row 4642).
+          (should (string-match-p "Time ↓\n.*\n test_2321 .* 4999s\n test_4642 .* 4998s\n" text))
+          (should (string-suffix-p "\n … 4500 rows more" text)))))))
+
 (ert-deftest agent-ui-components/table-wrong ()
   (should (equal (agent-ui-test-aue-error '(:type "table" :columns ("A") :rows (("x" "y"))))
                  "table: row 1 has 2 cells, for 1 columns"))
