@@ -268,12 +268,12 @@ unticking an item drops the user's change of it not sent."
     (plist-put (plist-put (copy-sequence component) :items items) :changes changes)))
 
 (agent-ui-define todo
-  "A checklist you and the user both tick: ITEMS, labels or {\"label\",
-\"done\"}. The user ticks them too and adds some; Send puts their changes
-into your prompt: \"Changes to todo ID by the user: done: A; not done: B;
-added: C.\" (sent at once). Tick one by appending it:
-{\"items\": [{\"label\": \"Write the tests\", \"done\": true}]}; a new label
-adds it. For a plan you work through together."
+  "A checklist you and the user both tick: a plan you work through together.
+ITEMS, labels or {\"label\", \"done\"}.  The user ticks them too and adds
+some; Send puts their changes into your prompt: \"Changes to todo ID by the
+user: done: A; not done: B; added: C.\" (sent at once).  Tick one by
+appending it: {\"items\": [{\"label\": \"Write the tests\", \"done\": true}]};
+a new label adds it."
   :props ((items list "The items: labels, or {\"label\": ..., \"done\": true}")
           (changes list "The user's changes not sent yet (theirs)"))
   :example (:title "The fix"

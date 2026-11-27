@@ -143,10 +143,10 @@ Those of :order still there, then the others as given."
 
 (agent-ui-define rank
   "The user puts ITEMS in order (priorities, the order to do things in):
-labels, or {\"label\", \"detail\"}; a note if NOTE. They move items (M-up /
+labels, or {\"label\", \"detail\"}; a note if NOTE.  They move items (M-up /
 M-down) and press Answer: \"Answer to rank ID (QUESTION): in this order: C, A,
-B. Note: ...\" comes into your prompt (sent at once). Then it shows
-the order. Show it, say so in a line, end your turn."
+B. Note: ...\" comes into your prompt (sent at once).  Then it shows
+the order.  Show it, say so in a line, end your turn."
   :props ((question string "The question: what to order, by what" :required t)
           (items list "The items, in your order: labels, or {\"label\": ..., \"detail\": ...}" :required t)
           (note boolean "Let the user add a note" :default :false)

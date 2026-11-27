@@ -931,10 +931,9 @@ its values'), each labelled with its range."
 TIMES placing the values on a time axis), bar (a bar per value, LABELS
 naming them; several series grouped under each label, or STACKED),
 histogram (its values counted in BINS) or sparkline (one line, the latest
-values). As SVG in a graphic frame, as characters in a
-terminal. For a live chart, append values: {\"values\": [42]} (or
-{\"series\": [{\"name\": \"p95\", \"values\": [42]}]}), WINDOW keeping the
-latest so many."
+values).  As SVG in a graphic frame, as characters in a terminal.  For a
+live chart, append values: {\"values\": [42]} (or {\"series\": [{\"name\":
+\"p95\", \"values\": [42]}]}), WINDOW keeping the latest so many."
   :props ((kind (choice line bar histogram sparkline) "line, bar, histogram or sparkline" :default line)
           (values list "The numbers (one series)")
           (series list "Several series: [{\"name\": ..., \"values\": [...]}]")

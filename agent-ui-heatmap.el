@@ -307,13 +307,13 @@ element's children: all the cells in one, the drawing was quadratic)."
             (agent-ui-heatmap--legend props range (plist-get ctx :width)))))
 
 (agent-ui-define heatmap
-  "A grid of cells coloured by their values: ROWS and COLUMNS (labels),
-VALUES a row of cells for each row: a number, coloured on a SCALE from the
-lowest to the highest (\"blue\": low faint, high strong; \"green-red\":
-low good, high bad; \"red-green\"), a word coloured by its state (passed,
-failed, flaky, skipped...), or null. A legend under it; SVG cells with
-their values in the GUI. A test's results by OS and version, flaky tests
-by day, durations by job and branch."
+  "A grid of cells coloured by their values.
+ROWS and COLUMNS (labels), VALUES a row of cells for each row: a number,
+coloured on a SCALE from the lowest to the highest (\"blue\": low faint,
+high strong; \"green-red\": low good, high bad; \"red-green\"), a word
+coloured by its state (passed, failed, flaky, skipped...), or null.  A
+legend under it; SVG cells with their values in the GUI.  A test's results
+by OS and version, flaky tests by day, durations by job and branch."
   :props ((rows list "The rows' labels" :required t)
           (columns list "The columns' labels" :required t)
           (values list "A row of cells for each row: numbers, words, nulls" :required t)

@@ -275,11 +275,11 @@ FOLDED are the folders folded now."
         body))))
 
 (agent-ui-define files
-  "Files, each with its state: a path, or {\"path\", \"status\", \"added\",
-\"removed\", \"errors\", \"line\", \"note\"}; status changed, added,
-deleted, renamed, failing, passing or none (coloured marks), counts after
-it. TREE groups them by folder (RET on a folder folds it). RET on a file
-opens it, at its line. For what you touched, or where the errors are."
+  "Files, each with its state: what you touched, or where the errors are.
+A file is a path, or {\"path\", \"status\", \"added\", \"removed\", \"errors\",
+\"line\", \"note\"}; status changed, added, deleted, renamed, failing,
+passing or none (coloured marks), counts after it.  TREE groups them by
+folder (RET on a folder folds it).  RET on a file opens it, at its line."
   :props ((files list "The files: paths, or {\"path\": ..., \"status\": ..., ...}")
           (tree boolean "Group them by folder, a tree" :default :false)
           (folded list "The folders folded (the user's)")

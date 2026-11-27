@@ -364,9 +364,10 @@ its next lines not indented)."
           (concat as-text "\n" (propertize "typesetting…" 'face 'agent-ui-muted)))))))))
 
 (agent-ui-define math
-                 "Formulas typeset (LaTeX math): TEX, without $ or \\[; DISPLAY block (on
-its own, larger; the default) or inline. An image in the GUI (MathJax or
-LaTeX, if installed), Unicode where simple or the source in a terminal."
+                 "Formulas typeset: LaTeX math, an image in the GUI.
+TEX, without $ or \\[; DISPLAY block (on its own, larger; the default) or
+inline.  An image in the GUI (MathJax or LaTeX, if installed), Unicode where
+simple or the source in a terminal."
                  :props ((tex string "The formula, LaTeX math: \\\\frac{a}{b}, \\\\sum_{i=1}^n" :required t)
                          (display (choice block inline) "On its own, larger (block), or as in a sentence" :default block))
                  :example (:title "Gauss" :tex "\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}")

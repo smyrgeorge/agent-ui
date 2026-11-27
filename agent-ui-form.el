@@ -290,7 +290,7 @@ It goes to the form's own state, and to its component's values on
 CANVAS (the canvas follows, it's saved)."
   (vui-set-state :values (lambda (old) (plist-put (copy-sequence old) (agent-ui-form--key name) value)))
   (when (buffer-live-p canvas)
-    (ignore-errors
+    (ignore-error agent-ui-error
       (let ((component (agent-ui-get id :canvas canvas)))
         (unless (plist-get component :answered)
           (agent-ui-update id (list :values (plist-put (copy-sequence (plist-get component :values))
@@ -522,14 +522,14 @@ wrong: said in the form, nothing sent."
           (agent-ui-form--close)))))))
 
 (agent-ui-define form
-  "Several fields the user answers together (a new ticket's details): FIELDS,
-each {\"name\", \"label\", \"type\", \"required\", \"min\", \"max\", \"options\",
-\"placeholder\", \"value\"}, type text (the default), integer, number (min,
-max), boolean (yes / no), select (one of its options), file, directory. The
-user fills it in, in a buffer of its own (typed and checked as they type),
-and sends it: \"Answer to form ID (QUESTION): {\\\"name\\\": value, ...}\"
-comes into your prompt (sent at once). Then it shows the values,
-answered. Show it, say so in a line, end your turn."
+  "Several fields the user answers together: a new ticket's details.
+FIELDS, each {\"name\", \"label\", \"type\", \"required\", \"min\", \"max\",
+\"options\", \"placeholder\", \"value\"}, type text (the default), integer,
+number (min, max), boolean (yes / no), select (one of its options), file,
+directory.  The user fills it in, in a buffer of its own (typed and checked
+as they type), and sends it: \"Answer to form ID (QUESTION): {\\\"name\\\":
+value, ...}\" comes into your prompt (sent at once).  Then it shows the
+values, answered.  Show it, say so in a line, end your turn."
   :props ((question string "What it's for")
           (fields list "The fields: {\"name\": ..., \"type\": ..., ...}" :required t)
           (values any "The values so far, {\"name\": value}: defaults, or the user's")

@@ -374,7 +374,7 @@ the theme's colours; text in the default face as the terminal has it."
 (defun agent-ui-snapshot--width (canvas)
   "Return the width a snapshot of CANVAS's is drawn at.
 `agent-ui-snapshot-width', narrower to fit its session's window, its
-padding too (agent-shell scales an image down to its window: drawn at 80
+padding too (`agent-shell' scales an image down to its window: drawn at 80
 columns, a 40-column session showed it at half size); 20 at least."
   (let* ((session (buffer-local-value 'agent-ui--session-buffer (agent-ui--buffer canvas)))
          (window (and (buffer-live-p session) (get-buffer-window session t))))
@@ -541,13 +541,13 @@ Its canvas's pane shown and selected, the cursor on its component.  A
          (id (and (url-target parsed)
                   (decode-coding-string (url-unhex-string (url-target parsed)) 'utf-8)))
          ;; Its own, or the one it's shown in a section of: its component's key.
-         (target (ignore-errors (agent-ui--target name)))
+         (target (ignore-error agent-ui-error (agent-ui--target name)))
          (canvas (car target))
          (id (and id (agent-ui--key id (nth 1 target)))))
     (unless (and (equal (url-host parsed) "canvas") canvas)
       (user-error "Agent UI: no canvas %s (closed?)" name))
     (when (and id (nth 1 target))
-      (ignore-errors (agent-ui-reveal id canvas)))
+      (ignore-error agent-ui-error (agent-ui-reveal id canvas)))
     (let ((window (or (get-buffer-window canvas)
                       (progn (funcall agent-ui-display-function canvas)
                              (get-buffer-window canvas)))))
@@ -567,7 +567,7 @@ Its canvas's pane shown and selected, the cursor on its component.  A
 A panel's child: its text's first character."
   (with-current-buffer canvas
     (when-let* ((found (let ((agent-ui--in-section nil))
-                         (ignore-errors (agent-ui--resolve id))))
+                         (ignore-error agent-ui-error (agent-ui--resolve id))))
                 (start (marker-position (agent-ui--entry-start (car found)))))
       (if (not (cdr found))
           start

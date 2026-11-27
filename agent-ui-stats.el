@@ -253,12 +253,11 @@ line, a character ~0.5 of a line wide; wrapped if longer (it was cut)."
       (agent-ui-chart--image svg))))
 
 (agent-ui-define stats
-  "A row of figures, each with its change: the summary at the top of a
-canvas. A figure is {\"label\", \"value\", \"unit\", \"change\", \"good\"}:
-CHANGE a number (▲ or ▼ with it) or text; GOOD \"up\" (default: a rise is
-good, green), \"down\" (a rise is bad, red) or \"none\"; FACE the value's
-colour: accent, success, warning, error, muted (a state, a figure past its
-limit).
+  "A row of figures, each with its change: the summary at the top of a canvas.
+A figure is {\"label\", \"value\", \"unit\", \"change\", \"good\"}: CHANGE a
+number (▲ or ▼ with it) or text; GOOD \"up\" (default: a rise is good,
+green), \"down\" (a rise is bad, red) or \"none\"; FACE the value's colour:
+accent, success, warning, error, muted (a state, a figure past its limit).
 Tiles in the GUI; side by side, wrapping, as text."
   :props ((figures list "The figures: {\"label\", \"value\", \"unit\", \"change\", \"good\", \"face\"}"))
   :example (:figures ((:label "Coverage" :value 87.1 :unit "%" :change 2.3)

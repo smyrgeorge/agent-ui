@@ -554,7 +554,7 @@ line; a label too long for it on lines under it, wrapped."
 (agent-ui-define progress
   "A progress bar: VALUE of MAX, with a LABEL saying what's being done.
 Without MAX, no end is known: a block goes to and fro while it's running.
-STATUS done or failed colours it and stops it. On a canvas, its values
+STATUS done or failed colours it and stops it.  On a canvas, its values
 over time give its rate and, with MAX, the time left; values minutes apart
 \(work items, one by one), a line under it: the time elapsed (since its
 first value, or STARTED), the time an item takes, the time left and when

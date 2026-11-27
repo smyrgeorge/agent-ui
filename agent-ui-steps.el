@@ -617,19 +617,20 @@ text's colour until it's answered."
     (agent-ui-steps--text props ctx)))
 
 (agent-ui-define steps
-  "A checklist whose steps change state as work goes on. A step is a name
-\(pending), or {\"name\", \"status\", \"detail\", \"seconds\", \"steps\"}:
-status one of pending, running (a spinner), waiting (◆: for the user, timed
-as running), done, failed, skipped; detail a note after it; seconds how long it took (else timed from running to done);
-steps its own, drawn under it; body what it unfolds to (Markdown: RET on
-it, folded until then). Appending a step whose name is there changes
-it in its place: append {\"steps\": [{\"name\": \"Build\", \"status\":
-\"done\"}]}; with \"parent\": \"Build\", among that step's own. With APPROVE,
-a plan the user approves first (dropping, rewording steps): \"Answer to steps
-ID (QUESTION): approved: 1. A; 2. B (edited, was: X). Dropped: C. Note: ...\"
-\(or rejected) comes into your prompt; the steps are then the approved ones,
-and the plan may close (as every question answered): to tick them, show
-them again, without APPROVE."
+  "A checklist whose steps change state as work goes on.
+A step is a name (pending), or {\"name\", \"status\", \"detail\", \"seconds\",
+\"steps\"}: status one of pending, running (a spinner), waiting (◆: for the
+user, timed as running), done, failed, skipped; detail a note after it;
+seconds how long it took (else timed from running to done); steps its own,
+drawn under it; body what it unfolds to (Markdown: RET on it, folded until
+then).  Appending a step whose name is there changes it in its place:
+append {\"steps\": [{\"name\": \"Build\", \"status\": \"done\"}]}; with
+\"parent\": \"Build\", among that step's own.  With APPROVE, a plan the user
+approves first (dropping, rewording steps): \"Answer to steps ID (QUESTION):
+approved: 1. A; 2. B (edited, was: X). Dropped: C. Note: ...\" (or
+rejected) comes into your prompt; the steps are then the approved ones, and
+the plan may close (as every question answered): to tick them, show them
+again, without APPROVE."
   :props ((steps list "The steps, in order")
           (approve any "A plan for the user to approve first: true, or {\"question\": ...}")
           (open list "The steps unfolded, their names (the user's: RET on a step with a body)")

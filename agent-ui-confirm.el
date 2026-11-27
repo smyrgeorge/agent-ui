@@ -128,12 +128,12 @@ word to type: asked first, a wrong one refused."
      "\n")))
 
 (agent-ui-define confirm
-  "A yes / no gate before something risky (deploying, deleting, pushing,
-migrating): QUESTION, what will happen (DETAILS, lines; or a DIFF), DANGER
-low or high (high: in red, the user types WORD, \"yes\" if none, to
-proceed). Proceed or Cancel: \"Answer to confirm ID (QUESTION): proceed\"
-(or cancel) comes as your next prompt, sent at once. Show it, say so in a line, end your turn; do the
-risky thing only on proceed."
+  "A yes / no gate before something risky: deploying, pushing, deleting data.
+QUESTION, what will happen (DETAILS, lines; or a DIFF), DANGER low or high
+\(high: in red, the user types WORD, \"yes\" if none, to proceed).  Proceed
+or Cancel: \"Answer to confirm ID (QUESTION): proceed\" (or cancel) comes as
+your next prompt, sent at once.  Show it, say so in a line, end your turn;
+do the risky thing only on proceed."
   :props ((question string "The question: what's about to happen" :required t)
           (details list "What will happen: lines of text")
           (diff string "What will change: a unified diff")

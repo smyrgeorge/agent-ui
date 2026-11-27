@@ -278,11 +278,11 @@ In an animation's frames, drawn anew only when its span changes
                  (and (plist-get props :tasks) (agent-ui-timeline--span props))))
 
 (agent-ui-define timeline
-  "Tasks as bars on a time axis: {\"name\", \"start\", \"end\" or
-\"duration\", \"status\"}, START and END seconds or timestamps; a task
-without END nor DURATION runs until now (with timestamps, growing).
-STATUS running, done, failed or queued colours it. For CI jobs, parallel
-test shards, a trace's spans; update or append tasks as they go."
+  "Tasks as bars on a time axis: CI jobs, test shards, a trace's spans.
+A task is {\"name\", \"start\", \"end\" or \"duration\", \"status\"}, START
+and END seconds or timestamps; a task without END nor DURATION runs until
+now (with timestamps, growing).  STATUS running, done, failed or queued
+colours it.  Update or append tasks as they go."
   :props ((tasks list "The tasks: {\"name\", \"start\", \"end\", \"duration\", \"status\"}"))
   :example (:title "CI"
             :tasks ((:name "build" :start 0 :duration 8)

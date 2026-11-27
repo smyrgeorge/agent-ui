@@ -156,13 +156,13 @@ for a still drawing."
      "\n")))
 
 (agent-ui-define compare
-  "Alternatives side by side for the user to pick the better one, when they
-need showing, not naming (code versions, texts, approaches, diffs): QUESTION
-and 2 to 4 OPTIONS, each {\"label\", \"component\"} (a component of any type,
-drawn in its column); several picked if MULTIPLE; a note if NOTE. The user
-picks and presses Answer: \"Answer to compare ID (QUESTION): B. Note: ...\"
-comes into your prompt (sent at once). Show it, say so in a line,
-end your turn."
+  "Alternatives side by side, for the user to pick the better one.
+For when they need showing, not naming (code versions, texts, approaches,
+diffs): QUESTION and 2 to 4 OPTIONS, each {\"label\", \"component\"} (a
+component of any type, drawn in its column); several picked if MULTIPLE; a
+note if NOTE.  The user picks and presses Answer: \"Answer to compare ID
+\(QUESTION): B. Note: ...\" comes into your prompt (sent at once).  Show it,
+say so in a line, end your turn."
   :props ((question string "The question" :required t)
           (options list "The alternatives: [{\"label\": ..., \"component\": {\"type\": ..., ...}}]" :required t)
           (multiple boolean "Several can be picked" :default :false)

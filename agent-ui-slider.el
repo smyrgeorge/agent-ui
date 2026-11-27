@@ -282,12 +282,11 @@ It was waiting.  In `agent-ui-removed-functions'."
      "\n")))
 
 (agent-ui-define slider
-  "A number the user tunes in a range (a threshold, a timeout, how many to
-take): LABEL, MIN, MAX, STEP, UNIT, VALUE (where it starts). They move the
-knob and press Set: \"Answer to slider ID (LABEL): 42 ms\" comes into your
-prompt (at once). LIVE: each value, once the knob
-rests, comes as \"Slider ID (LABEL) set to 42 ms\", no Set: for something you
-redraw from it."
+  "A number the user tunes in a range: a threshold, a timeout, a count.
+LABEL, MIN, MAX, STEP, UNIT, VALUE (where it starts).  They move the knob
+and press Set: \"Answer to slider ID (LABEL): 42 ms\" comes into your prompt
+\(at once).  LIVE: each value, once the knob rests, comes as \"Slider ID
+\(LABEL) set to 42 ms\", no Set: for something you redraw from it."
   :props ((label string "What it sets")
           (min number "Its lowest value" :required t)
           (max number "Its highest value" :required t)

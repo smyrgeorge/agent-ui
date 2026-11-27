@@ -232,8 +232,9 @@ timeout: \"line N: NAME ...\" each."
                         ;; With a timeout, it returns.
                         (and (equal call "accept-process-output")
                              (eq (char-after start) ?\()
-                             (>= (length (ignore-errors (save-excursion (goto-char start)
-                                                                        (read (current-buffer)))))
+                             (>= (length (ignore-error (end-of-file invalid-read-syntax)
+                                           (save-excursion (goto-char start)
+                                                           (read (current-buffer)))))
                                  3)))
               (push (format "line %d: %s waits, Emacs frozen meanwhile: use agent-ui-dashboard-run"
                             (line-number-at-pos start) call)
@@ -715,7 +716,7 @@ asked), a yes for the file lets nothing run, remembers nothing."
 
 (defun agent-ui-dashboards--changed-p (dashboard)
   "Whether DASHBOARD's file changed since it was read (or is gone)."
-  (not (equal (ignore-errors (agent-ui-dashboards--hash (agent-ui-dashboards--file dashboard)))
+  (not (equal (ignore-error file-error (agent-ui-dashboards--hash (agent-ui-dashboards--file dashboard)))
               (agent-ui-dashboards--sha256 dashboard))))
 
 (defun agent-ui-dashboards--code-p (form ui)
@@ -794,16 +795,16 @@ were."
     (let ((agent-ui-display-function #'ignore))
       (pcase-dolist (`(,id . ,mark) marks)
         (unless (assoc id (agent-ui-dashboards--titles dashboard))
-          (when-let* ((component (ignore-errors (agent-ui-get id :canvas canvas))))
+          (when-let* ((component (ignore-error agent-ui-error (agent-ui-get id :canvas canvas))))
             (push (cons id (plist-get component :title)) (agent-ui-dashboards--titles dashboard))))
         (when-let* ((entry (assoc id (agent-ui-dashboards--titles dashboard))))
-          (ignore-errors
+          (ignore-error agent-ui-error
             (agent-ui-update id (list :title (if (cdr entry) (concat (cdr entry) "  " mark) mark))
                              :canvas canvas))))
       ;; Marked no more: as it was.
       (dolist (entry (agent-ui-dashboards--titles dashboard))
         (unless (assoc (car entry) marks)
-          (ignore-errors (agent-ui-update (car entry) (list :title (cdr entry)) :canvas canvas))
+          (ignore-error agent-ui-error (agent-ui-update (car entry) (list :title (cdr entry)) :canvas canvas))
           (setf (agent-ui-dashboards--titles dashboard) (delq entry (agent-ui-dashboards--titles dashboard))))))))
 
 (defun agent-ui-dashboards--tick (dashboard)

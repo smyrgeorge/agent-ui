@@ -137,8 +137,8 @@ Its mark, its text, cut with … (one line each: its whole elsewhere)."
   props)
 
 (agent-ui-define activity
-  "What one thing is doing now (a script running, an agent at work): a
-header line (a MARK for its state, coloured by MARK-FACE; its OWNER in its
+  "What one thing is doing now: a script running, an agent at work.
+A header line (a MARK for its state, coloured by MARK-FACE; its OWNER in its
 colour, by its place in SOURCES as a log's; its LABEL; its DETAIL muted;
 RIGHT at its end: how long it's run), its last SHOW LINES under it on a
 rail, each cut to the width (a log's lines: text, its level found by its

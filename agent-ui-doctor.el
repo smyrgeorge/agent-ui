@@ -285,7 +285,7 @@ Installed, at its version, and loading."
     (agent-ui-doctor--check "Setup" "bash" 'fail "not on PATH: the command is a bash script" "Install bash")))
 
 (defun agent-ui-doctor--mode ()
-  "`agent-ui-mode': it ties Agent UI to agent-shell."
+  "`agent-ui-mode': it ties Agent UI to `agent-shell'."
   (cond
    ((bound-and-true-p agent-ui-mode)
     (agent-ui-doctor--check "Setup" "agent-ui-mode" 'ok "on"))

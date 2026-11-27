@@ -248,11 +248,12 @@ It is of the half circle at CX, CY, radius R, at fraction F."
       (propertize "gauge" 'display (agent-ui-svg-image svg)))))
 
 (agent-ui-define gauge
-  "One value against its range and thresholds: coverage against a target, a
-budget used, a latency against an SLO. VALUE of MIN (0) to MAX (100), UNIT,
-LABEL; THRESHOLDS are zones, each {\"at\", \"face\"} colouring from AT up to
-the next (success, warning, error...); TARGET a mark. A bar in text, an arc
-in the GUI; several side by side in a panel's row."
+  "One value against its range and thresholds.
+Coverage against a target, a budget used, a latency against an SLO.  VALUE
+of MIN (0) to MAX (100), UNIT, LABEL; THRESHOLDS are zones, each {\"at\",
+\"face\"} colouring from AT up to the next (success, warning, error...);
+TARGET a mark.  A bar in text, an arc in the GUI; several side by side in a
+panel's row."
   :props ((value number "The value" :required t)
           (min number "Its range's start" :default 0)
           (max number "Its range's end" :default 100)

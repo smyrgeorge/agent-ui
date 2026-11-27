@@ -648,7 +648,7 @@ Kept as its sort and descending (the agent sees it)."
     (let* ((id (agent-ui--component-at-point))
            (component (agent-ui-get id :canvas (current-buffer)))
            (columns (plist-get component :columns))
-           (current (ignore-errors (agent-ui-table--key-index (plist-get component :sort) columns)))
+           (current (ignore-error agent-ui-error (agent-ui-table--key-index (plist-get component :sort) columns)))
            (descending (and (eql current column) (not (eq (plist-get component :descending) t))))
            (name (nth column columns)))
       (agent-ui-update id (list :sort (if (and (not (string-empty-p name))
@@ -708,17 +708,17 @@ its cells)."
           (plist-put component :selected (mapcar (lambda (i) (nth i now)) picked)))))))
 
 (agent-ui-define table
-  "A table: COLUMNS (their names) and ROWS (arrays of cells: text, numbers,
-true, false, null), fitting the width, a cell too long for its column
-wrapped onto more lines in it; cells reading passed, failed, running,
-pending... are coloured. With KEY (a column's index or name),
-appending a row whose key is there replaces that row: append
-{\"rows\": [[\"parser\", \"failed\", \"1.2s\"]]}. SORT orders its rows by a
+  "A table: COLUMNS (their names) and ROWS, fitting the width.
+ROWS are arrays of cells: text, numbers, true, false, null; a cell too long
+for its column is wrapped onto more lines in it; cells reading passed,
+failed, running, pending... are coloured.  With KEY (a column's index or
+name), appending a row whose key is there replaces that row: append
+{\"rows\": [[\"parser\", \"failed\", \"1.2s\"]]}.  SORT orders its rows by a
 column (DESCENDING the other way); ROW-ACTIONS are buttons on each row
 putting a prompt with its cells into the session's prompt; ROW-OPEN makes
-the row itself one (a commit's line opening it). SELECT asks the
-user to pick rows (which to fix): marks before them, Send puts \"Answer to
-ID (QUESTION): their keys\" into your prompt."
+the row itself one (a commit's line opening it).  SELECT asks the user to
+pick rows (which to fix): marks before them, Send puts \"Answer to ID
+\(QUESTION): their keys\" into your prompt."
   :props ((columns list "The columns' names (all \"\": no header, the rows alone)" :required t)
           (rows list "The rows, each an array of cells")
           (key any "The column (index from 0, or name) whose cell identifies a row")

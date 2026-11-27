@@ -442,17 +442,17 @@ new ones at the end.  Nil if one kept takes more or fewer lines now."
           (nreverse edits))))))
 
 (agent-ui-define log
-  "Lines of output, each coloured by its level (found by its words: error,
-fatal, panic, failed; warn; info; debug, trace; or given as {\"level\",
-\"text\"}, by the same words, case aside: warn, WARNING, fatal, trace...),
-errors and warnings counted above, the last SHOW shown (KEEP
-kept). LINES is text (a line each) or a list. A line in columns: its time
-\(muted, shown when it changes), its mark (coloured by mark-face), its
-source (a job, a service: each its colour), its text (pieces, each text or
-{\"text\", \"face\"}), indented, its right (muted, at its end: how long it
-took); {\"gap\": \"17m\"} a pause. Follow a log as it grows with a source:
-{\"file\": \"app.log\", \"from\": \"end\", \"into\": \"lines\"}; append adds
-lines (and replaces its right)."
+  "Lines of output, each coloured by its level, errors and warnings counted.
+A line's level is found by its words (error, fatal, panic, failed; warn;
+info; debug, trace) or given as {\"level\", \"text\"}, by the same words,
+case aside: warn, WARNING, fatal, trace...  Errors and warnings are counted
+above, the last SHOW shown (KEEP kept).  LINES is text (a line each) or a
+list.  A line in columns: its time (muted, shown when it changes), its mark
+\(coloured by mark-face), its source (a job, a service: each its colour),
+its text (pieces, each text or {\"text\", \"face\"}), indented, its right
+\(muted, at its end: how long it took); {\"gap\": \"17m\"} a pause.  Follow a
+log as it grows with a source: {\"file\": \"app.log\", \"from\": \"end\",
+\"into\": \"lines\"}; append adds lines (and replaces its right)."
   :props ((lines any "The lines: text, one per line, or a list (text, {\"level\", \"text\"}, or a line in columns: {\"time\", \"mark\", \"mark-face\", \"source\", \"text\", \"right\", \"indent\", \"level\"}; {\"gap\": \"17m\"} a pause)" :default "")
           (show integer "How many of the last lines are shown" :default 15)
           (keep integer "How many lines are kept (counted)" :default 1000)

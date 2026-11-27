@@ -76,7 +76,7 @@ its own (see above).")
 ;; ====== WHERE ======
 
 (defun agent-ui-persist--stem (session)
-  "Return the start of SESSION's (an agent-shell buffer) files' names.
+  "Return the start of SESSION's (an `agent-shell' buffer) files' names.
 Its folder and id; nil while it has no session id."
   (when-let* (((buffer-live-p session))
               ((fboundp 'agent-shell-session-id))
@@ -86,7 +86,7 @@ Its folder and id; nil while it has no session id."
                       (expand-file-name agent-ui-persist-directory (agent-ui--session-cwd session)))))
 
 (defun agent-ui-persist-file (session &optional part)
-  "Return where SESSION's (an agent-shell buffer) canvas is kept.
+  "Return where SESSION's (an `agent-shell' buffer) canvas is kept.
 Or its other canvas PART's (ID@PART.json, PART hex-escaped: read
 back as it was): nil while it has no session id."
   (when-let* ((stem (agent-ui-persist--stem session)))
@@ -231,7 +231,7 @@ Their last second of changes was lost."
 A type discarded, or dropped from Agent UI."
   (and (agent-ui--plist-p component)
        (plist-get component :type)
-       (not (ignore-errors (agent-ui-type (plist-get component :type))))))
+       (not (ignore-error agent-ui-error (agent-ui-type (plist-get component :type))))))
 
 (defun agent-ui-persist--without-gone (component)
   "Return COMPONENT without its panel's children of a type gone.
@@ -260,7 +260,7 @@ others."
     ((agent-ui-error file-error) nil)))
 
 (defun agent-ui-persist-restore (session)
-  "Bring SESSION's canvases back, an agent-shell buffer with a session id.
+  "Bring SESSION's canvases back, an `agent-shell' buffer with a session id.
 Its own and its others, each kept and empty now, its components shown
 again, their sources not started.  Returns how many; nil if none was."
   (let* ((counts (mapcar (lambda (part) (agent-ui-persist--restore-canvas session part))
@@ -309,7 +309,7 @@ If kept and empty: how many of its components; nil if not."
       count)))
 
 (defun agent-ui--persist-watch ()
-  "In a new agent-shell buffer: its canvas back once its session is known."
+  "In a new `agent-shell' buffer: its canvas back once its session is known."
   (when (fboundp 'agent-shell-subscribe-to)
     (let ((session (current-buffer)))
       (agent-shell-subscribe-to

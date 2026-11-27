@@ -413,7 +413,7 @@ Not if LOG was replaced by a link: it isn't written through."
 
 (defun agent-ui-source--component-type (canvas id)
   "Return the type of component ID in CANVAS, or nil."
-  (ignore-errors (plist-get (agent-ui-get id :canvas canvas) :type)))
+  (ignore-error agent-ui-error (plist-get (agent-ui-get id :canvas canvas) :type)))
 
 (defun agent-ui-source--exited (canvas id code)
   "Handle component ID's command in CANVAS ended with CODE.
@@ -577,7 +577,7 @@ stayed in the temporary folder, every command's)."
     (when-let* ((log (agent-ui-source--state-log state)))
       (if (agent-ui-source--state-exit state)
           (push log agent-ui-source--logs)
-        (ignore-errors (delete-file log))))))
+        (ignore-error file-error (delete-file log))))))
 
 (defun agent-ui-source--closed ()
   "The current canvas killed: its sources stopped, its commands' logs deleted."
@@ -585,7 +585,7 @@ stayed in the temporary folder, every command's)."
     (dolist (id (hash-table-keys agent-ui-source--states))
       (agent-ui-source-stop id)))
   (dolist (log agent-ui-source--logs)
-    (ignore-errors (delete-file log)))
+    (ignore-error file-error (delete-file log)))
   (setq agent-ui-source--logs nil))
 
 (defvar agent-ui-source--private-log-directory nil
@@ -606,7 +606,7 @@ link in place of a log), one made once per Emacs."
   (let ((dir (file-name-as-directory agent-ui-source-log-directory)))
     (with-file-modes #o700
       ;; Not there: made (a link to nowhere there: refused, not used).
-      (ignore-errors (make-directory dir t))
+      (ignore-error file-error (make-directory dir t))
       (if (agent-ui-source--private-directory-p dir)
           dir
         (let ((own agent-ui-source--private-log-directory))

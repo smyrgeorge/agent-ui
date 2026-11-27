@@ -152,8 +152,8 @@ the selected frame, on a transparent background."
                  (when ok
                    (agent-ui-mermaid--fix-svg output)
                    (rename-file output file t))
-                 (ignore-errors (delete-file input))
-                 (ignore-errors (delete-file output))
+                 (ignore-error file-error (delete-file input))
+                 (ignore-error file-error (delete-file output))
                  (kill-buffer log)
                  (dolist (callback (prog1 (gethash file agent-ui-mermaid--waiting)
                                      (remhash file agent-ui-mermaid--waiting)))
@@ -281,11 +281,11 @@ For a hook run after a theme switch."
   (agent-ui-mermaid-draw (plist-get props :diagram) ctx))
 
 (agent-ui-define mermaid
-                 "A Mermaid diagram: DIAGRAM in Mermaid's syntax (flowchart, sequence,
-state, class, ER, Gantt, mind map...). For a diagram that stays in view and
-changes as work goes on: an update with a new diagram draws it anew. An
-image in the GUI, in the theme's colours (mmdc, if installed); its source in
-a terminal."
+                 "A Mermaid diagram, drawn as an image in the GUI.
+DIAGRAM in Mermaid's syntax (flowchart, sequence, state, class, ER, Gantt,
+mind map...).  For a diagram that stays in view and changes as work goes on:
+an update with a new diagram draws it anew.  An image in the GUI, in the
+theme's colours (mmdc, if installed); its source in a terminal."
                  :props ((diagram string "The diagram, in Mermaid's syntax: flowchart LR; build --> test" :required t))
                  :example (:title "Release" :diagram "flowchart LR\n    build --> test --> deploy")
                  :text #'agent-ui-mermaid--draw)

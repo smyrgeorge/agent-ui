@@ -440,12 +440,12 @@ than MAX-HEIGHT pixels."
             (agent-ui-chart--image svg)))))))
 
 (agent-ui-define graph
-  "A graph: NODES (names, or {\"id\", \"label\", \"status\"}) and EDGES
-\([from, to], or {\"from\", \"to\", \"label\"}); a node only an edge names is
-one too. Laid out in layers by itself: boxes and arrows in the GUI (left to
-right, or DIRECTION \"down\"), each node's arrows as text. STATUS ok,
-error, warning, active colours a node. For module dependencies, a state
-machine, a call graph."
+  "A graph: nodes and the edges between them, laid out by itself.
+NODES (names, or {\"id\", \"label\", \"status\"}) and EDGES ([from, to], or
+{\"from\", \"to\", \"label\"}); a node only an edge names is one too.  Laid
+out in layers: boxes and arrows in the GUI (left to right, or DIRECTION
+\"down\"), each node's arrows as text.  STATUS ok, error, warning, active
+colours a node.  For module dependencies, a state machine, a call graph."
   :props ((nodes list "The nodes: names, or {\"id\", \"label\", \"status\"}")
           (edges list "The edges: [from, to], or {\"from\", \"to\", \"label\"}")
           (direction (choice right down) "The way it goes: right (default) or down" :default right))

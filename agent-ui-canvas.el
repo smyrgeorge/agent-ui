@@ -719,7 +719,7 @@ its type can't (then it's drawn whole)."
                     (not (run-hook-with-args-until-success 'agent-ui-footer-functions (agent-ui--entry-id entry)
                                                            (plist-get ctx :width)))
                     (equal (plist-get old :type) (plist-get new :type))
-                    (ignore-errors (agent-ui-type (plist-get new :type)))))
+                    (ignore-error agent-ui-error (agent-ui-type (plist-get new :type)))))
          (extend (and type (agent-ui-type-extend type)))
          (edits (and extend
                      ;; Wrong, or failing: drawn whole, which says so.
@@ -1747,7 +1747,7 @@ Given again, only what's given changes.  Returns NAME.  Signals
   "CANVAS's sections, in order.
 Plists (:name :title :state :note :folded :hosts :empty :components),
 :components how many it holds; none if it isn't there."
-  (when-let* ((buffer (ignore-errors (agent-ui--canvas-buffer canvas nil))))
+  (when-let* ((buffer (ignore-error agent-ui-error (agent-ui--canvas-buffer canvas nil))))
     (with-current-buffer buffer
       (mapcar (lambda (section)
                 (list :name (agent-ui--section-name section)

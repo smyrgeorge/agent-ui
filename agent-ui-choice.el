@@ -109,11 +109,12 @@ the width of the labels' column."
        "\n"))))
 
 (agent-ui-define choice
-  "A question for the user: QUESTION and its OPTIONS (labels, or
-{\"label\", \"detail\"}), one to pick (or several, MULTIPLE), a note if
-NOTE. The user picks (RET, a click) and presses Answer: \"Answer to choice
-ID (QUESTION): A, B. Note: ...\" comes into your prompt (sent at once). Then it shows the answer. For a decision you need from the user:
-which approach, approve a plan."
+  "A question for the user, with options to pick from.
+QUESTION and its OPTIONS (labels, or {\"label\", \"detail\"}), one to pick
+\(or several, MULTIPLE), a note if NOTE.  The user picks (RET, a click) and
+presses Answer: \"Answer to choice ID (QUESTION): A, B. Note: ...\" comes
+into your prompt (sent at once).  Then it shows the answer.  For a decision
+you need from the user: which approach, approve a plan."
   :props ((question string "The question" :required t)
           (options list "The options: labels, or {\"label\": ..., \"detail\": ...}" :required t)
           (multiple boolean "Several can be chosen" :default :false)

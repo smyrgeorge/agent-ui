@@ -175,11 +175,11 @@ new image every 0.15 s, for hours after it ended)."
     (agent-ui-memo (list draw props) ctx (lambda () (funcall draw props ctx state)) state)))
 
 (agent-ui-define countdown
-  "Time that matters while waiting, ticking: SINCE a start (the time
-elapsed: a long job) or UNTIL an end (the time left: a deploy window, a rate
-limit's reset), each a timestamp, epoch seconds or seconds from now; LABEL;
-WARN seconds before the end in the warning colour. Past the end: \"ended
-2m ago\"."
+  "Time that matters while waiting, ticking: the time elapsed, or left.
+SINCE a start (the time elapsed: a long job) or UNTIL an end (the time left:
+a deploy window, a rate limit's reset), each a timestamp, epoch seconds or
+seconds from now; LABEL; WARN seconds before the end in the warning colour.
+Past the end: \"ended 2m ago\"."
   :props ((since any "A start: a timestamp, epoch seconds, or seconds ago")
           (until any "An end: a timestamp, epoch seconds, or seconds from now")
           (label string "What it counts")

@@ -635,7 +635,7 @@ fits."
     nil))
 
 (defun agent-ui--pane-build (area plan)
-  "AREA, a window, split as PLAN says (`agent-ui--pane-plan').
+  "AREA, a window, split as PLAN says (function `agent-ui--pane-plan').
 Its columns at their widths, each its views stacked; the value is the
 windows, column by column, top to bottom."
   (pcase-let* ((`(,columns-planned ,widths ,_) plan)
@@ -937,8 +937,8 @@ own in its column, if that changed since it was last given its height."
               ;; left empty lines under it.
               (window-min-height 1)
               (delta (- height (window-pixel-height area))))
-          (unless (zerop delta)
-            (ignore-errors (window-resize area delta nil nil t)))
+          (when (and (not (zerop delta)) (window-resizable-p area delta nil nil t))
+            (window-resize area delta nil nil t))
           ;; In each column, each view its height, the last one the rest;
           ;; more than there's room for, each its share.
           (cl-loop for column in columns

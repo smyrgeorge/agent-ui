@@ -467,14 +467,14 @@ by a newline."
                 (agent-ui-review-footer props ctx))))))
 
 (agent-ui-define diff
-  "Changes, from a unified diff (git diff's): by file, its lines added and
-removed counted, and hunk; added lines green, removed red; each line's
-number in the new file. RET on a line opens its file there, relative to DIR
-\(your directory). To follow the work tree: a source
-{\"poll\": \"git diff\", \"every\": 5, \"into\": \"diff\"}. With ACCEPT, changes you
-propose: the user accepts or rejects each hunk, and \"Answer to diff ID
-\(QUESTION): accepted: FILE @@ ... @@; ...; rejected: ...\" comes into your
-prompt; apply the accepted ones."
+  "Changes, from a unified diff (git diff's), by file and hunk.
+Each file's lines added and removed counted; added lines green, removed
+red; each line's number in the new file.  RET on a line opens its file
+there, relative to DIR (your directory).  To follow the work tree: a source
+{\"poll\": \"git diff\", \"every\": 5, \"into\": \"diff\"}.  With ACCEPT,
+changes you propose: the user accepts or rejects each hunk, and \"Answer to
+diff ID (QUESTION): accepted: FILE @@ ... @@; ...; rejected: ...\" comes
+into your prompt; apply the accepted ones."
   :props ((diff string "The unified diff (git diff's output)" :default "")
           (dir file "Where its files are (default: your directory)" :default :here)
           (comments list "The user's review comments on its lines (c on a line): [{\"line\", \"end\", \"file\", \"text\"}]")

@@ -42,9 +42,9 @@
     (if face (propertize text 'face face) text)))
 
 (agent-ui-define text
-  "Plain text, its lines wrapped to the width: a note, a result, a status
-line. FACE says what it is: plain, muted (secondary), success, warning,
-error. For formatting (headings, lists, code), use markdown."
+  "Plain text, its lines wrapped to the width: a note, a result, a status.
+FACE says what it is: plain, muted (secondary), success, warning, error.
+For formatting (headings, lists, code), use markdown."
   :props ((text string "The text; newlines kept" :required t)
           (face (choice plain muted success warning error) "What it is, its colour"
                 :default plain))

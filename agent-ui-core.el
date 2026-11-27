@@ -617,7 +617,7 @@ ACTIONS as a row of buttons, broken to WIDTH (`agent-ui-button-row'); nil
 if there are none (or they're wrong).  Hovered, each says what it does
 \=(`agent-ui-action-help'): the prompt it puts into the session's prompt,
 or sends, after its own :help."
-  (when (and actions (ignore-errors (agent-ui-check-actions actions)))
+  (when (and actions (ignore-error agent-ui-error (agent-ui-check-actions actions)))
     (agent-ui-button-row
      (mapcar
       (lambda (action)
@@ -1094,7 +1094,7 @@ the last ones."
 
 (defvar agent-ui-act-unfocused nil
   "Non-nil while a prompt is sent to a session other than by a key press.
-A live slider's timer, a type's review: agent-shell then neither selects
+A live slider's timer, a type's review: `agent-shell' then neither selects
 nor shows the session's window (`agent-shell-insert''s :no-focus): the
 user, typing elsewhere, keeps their window and their keys.")
 
@@ -1447,7 +1447,7 @@ surrogate) as U+FFFD; a unibyte one read as UTF-8 (it refuses them)."
   (if (not (string-match-p "[^\0-\177]" string))
       string
     (let ((string (if (multibyte-string-p string) string (decode-coding-string string 'utf-8))))
-      (if (ignore-errors (ignore (json-serialize string)) t)
+      (if (ignore-error wrong-type-argument (ignore (json-serialize string)) t)
           string
         (apply #'string (mapcar (lambda (c) (if (or (> c #x10FFFF) (<= #xD800 c #xDFFF)) #xFFFD c))
                                 string))))))

@@ -71,7 +71,7 @@ each drawing); looked for again once it's gone.")
 Then CALLBACK with nil, or what went wrong."
   (if (not (executable-find "curl"))
       ;; Later: not inside the drawing that asked for it.
-      (run-at-time 0 nil callback "curl isn't installed")
+      (run-at-time 0 nil callback "curl is not installed")
     (let ((output (generate-new-buffer " *agent-ui-image*")))
       (make-process
        :name "agent-ui-image" :buffer output :noquery t :connection-type 'pipe
@@ -139,7 +139,7 @@ extension if it's an image; the components showing it redrawn."
          (error (or error (unless type "not an image"))))
     (if error
         (progn (puthash url (list :error error :time (float-time)) agent-ui-image--fetches)
-               (ignore-errors (delete-file part)))
+               (ignore-error file-error (delete-file part)))
       (let ((file (concat (agent-ui-image--stem url) "."
                           (pcase type ('jpeg "jpg") ('xpm "xpm") (_ (symbol-name type))))))
         (rename-file part file t)
@@ -257,11 +257,11 @@ SVG (its <svg can come past them); nil if it's none."
                   "")))))))
 
 (agent-ui-define image
-  "An image file (PNG, JPEG, GIF, WebP, SVG; an Excalidraw drawing's
-.excalidraw.svg too), or one from a URL (downloaded once, kept), shown in
-a graphic Emacs at most WIDTH percent of the pane wide and HEIGHT lines
-high (never above its own size); in a terminal, a line naming it. RET
-opens it. FILE: relative to your directory."
+  "An image, from a file or a URL, shown in a graphic Emacs.
+FILE (PNG, JPEG, GIF, WebP, SVG; an Excalidraw drawing's .excalidraw.svg
+too; relative to your directory) or URL (downloaded once, kept), at most
+WIDTH percent of the pane wide and HEIGHT lines high (never above its own
+size); in a terminal, a line naming it.  RET opens it."
   :props ((file file "The image file (or give url)")
           (url string "The image's web address, http(s) (or give file)")
           (alt string "What it shows (said under it; a terminal's only text)")

@@ -52,13 +52,13 @@
 ;; ====== VARIABLES ======
 
 (defvar-local agent-ui-session nil
-  "In an agent-shell buffer: its session's name for Agent UI (its canvas's).")
+  "In an `agent-shell' buffer: its session's name for Agent UI (its canvas's).")
 
 ;; Kept if the buffer's major mode is set after its agent was started.
 (put 'agent-ui-session 'permanent-local t)
 
 (defvar-local agent-ui--session-buffer nil
-  "In a canvas: its session's agent-shell buffer, if it has one.")
+  "In a canvas: its session's `agent-shell' buffer, if it has one.")
 
 (defvar-local agent-ui--canvas-part nil
   "The name of this canvas within its session.
@@ -191,7 +191,7 @@ In a new canvas: tied to the session it's named after, if there's one
 (add-hook 'agent-ui-canvas-hook #'agent-ui--link-session)
 
 (defun agent-ui-session-canvases (session)
-  "SESSION's (an agent-shell buffer) canvases: its own and its others."
+  "SESSION's (an `agent-shell' buffer) canvases: its own and its others."
   (seq-filter (lambda (b) (eq (buffer-local-value 'agent-ui--session-buffer b) session))
               (agent-ui-canvases)))
 
@@ -305,9 +305,9 @@ configs name it (`claude-code', `codex'...), or nil if not known.")
   (abbreviate-file-name (expand-file-name file)))
 
 (defun agent-ui-agent-context ()
-  "Return what an agent starting in agent-shell is told of its canvas.
+  "Return what an agent starting in `agent-shell' is told of its canvas.
 
-What an agent starting in agent-shell is told of its canvas (for its system
+What an agent starting in `agent-shell' is told of its canvas (for its system
 prompt); nil while Emacs runs no server (the command couldn't reach it)."
   (when (and (fboundp 'server-running-p) (server-running-p))
     (let ((command (agent-ui--home-relative agent-ui-command))
@@ -403,7 +403,7 @@ session's canvas: that session's.")
 Whether SESSION can't take a prompt now: one sent (SUBMIT) while its agent
 works; one put into its prompt while that takes no text (its agent working,
 no prompt kept live meanwhile).  Not known (not a shell yet): not busy,
-agent-shell then has its say."
+`agent-shell' then has its say."
   (ignore-errors
     (with-current-buffer session
       (if (and (not submit) (fboundp 'agent-shell--can-insert-into-prompt-p))
@@ -415,7 +415,7 @@ agent-shell then has its say."
 
 A component's action pressed, in its canvas: PROMPT into the prompt of the
 canvas's session (sent if SUBMIT); while its agent works, queued (see above).
-The canvas still current after it: agent-shell selects the session's window
+The canvas still current after it: `agent-shell' selects the session's window
 \(its buffer current then), and what the press does next (a question
 answered) is the canvas's.  A project's dashboard (agent-ui-dashboards.el),
 of no session: the session working in its project, the latest."
@@ -541,7 +541,7 @@ first, its Agent UI even if hidden).")
 
 CANVAS's pane shown (SELECT: selected), the cursor on question ID (a
 key), its line in view: its section unfolded."
-  (ignore-errors (agent-ui-reveal id canvas))
+  (ignore-error agent-ui-error (agent-ui-reveal id canvas))
   (unless (get-buffer-window canvas t)
     (funcall agent-ui-reveal-function canvas))
   (let ((window (get-buffer-window canvas t))
@@ -586,8 +586,8 @@ and can (a short pane showed its first lines, the Answer below them)."
         (set-window-start window first))
       (when (> lines shown)
         (let ((delta (min (- lines shown) (window-max-delta window))))
-          (when (> delta 0)
-            (ignore-errors (window-resize window delta))))))))
+          (when (and (> delta 0) (window-resizable-p window delta))
+            (window-resize window delta)))))))
 
 (defun agent-ui-questions-new (session event)
   "Announce the questions SESSION has waiting at its turn's end.
@@ -704,7 +704,7 @@ moment again (the keys typed there aren't the canvas's).  KEYS is
 `agent-ui-focus-questions-typing-delay' (a pause in their typing isn't
 the canvas's keys)."
   (when (and (buffer-live-p canvas)
-             (ignore-errors (agent-ui-ask-waiting-p (agent-ui-get id :canvas canvas))))
+             (ignore-error agent-ui-error (agent-ui-ask-waiting-p (agent-ui-get id :canvas canvas))))
     (cond
      ((active-minibuffer-window)
       (agent-ui-after-minibuffer

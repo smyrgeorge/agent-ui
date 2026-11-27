@@ -67,7 +67,7 @@ They are drawn for CTX (`agent-ui-mermaid-draw')."
              (insert (agent-ui-mermaid-draw diagram ctx)))))
 
 (defun agent-ui-markdown--render (markdown width &optional ctx)
-  "MARKDOWN drawn by agent-shell's renderer; nil without agent-shell.
+  "MARKDOWN drawn by agent-shell's renderer; nil without `agent-shell'.
 Its tables are WIDTH wide, its diagrams drawn for CTX."
   (when (require 'agent-shell-markdown nil t)
     (let ((taken (agent-ui-markdown--take-diagrams markdown)))
@@ -94,11 +94,11 @@ Its tables are WIDTH wide, its diagrams drawn for CTX."
                            width)))
 
 (agent-ui-define markdown
-  "Markdown, drawn as your replies are in agent-shell: headings, bold,
-italic, inline code, lists, task lists, tables, fenced code highlighted by
-its language, links, ```mermaid blocks drawn as diagrams. For notes,
-summaries, a plan that stays in view while the conversation scrolls. Images
-in it show as their text."
+  "Markdown, drawn as your replies are in your session.
+Headings, bold, italic, inline code, lists, task lists, tables, fenced code
+highlighted by its language, links, ```mermaid blocks drawn as diagrams.
+For notes, summaries, a plan that stays in view while the conversation
+scrolls.  Images in it show as their text."
   :props ((markdown string "The Markdown" :required t))
   :example (:id "plan" :title "Plan"
             :markdown "1. **Parse** the config\n2. Check it against `schema.json`\n3. Write the report")

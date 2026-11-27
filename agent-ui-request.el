@@ -215,7 +215,7 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
      (list :ok t :dashboards
            (vconcat (mapcar (lambda (name)
                               (list :name name
-                                    :open (if (ignore-errors (agent-ui-dashboard-canvas name agent-ui--request-cwd)) t :false)))
+                                    :open (if (ignore-error agent-ui-error (agent-ui-dashboard-canvas name agent-ui--request-cwd)) t :false)))
                             (agent-ui-dashboards agent-ui--request-cwd)))))
     ("open"
      (when (or (null id) (string-empty-p id))

@@ -211,7 +211,7 @@ child whose type isn't animated: in an animation's frames, as last drawn
                              (put-text-property pos next 'agent-ui-child id text))
                            (setq pos next)))))
                    text))))
-    (if (ignore-errors (agent-ui-type-animated (agent-ui-type (plist-get child :type))))
+    (if (ignore-error agent-ui-error (agent-ui-type-animated (agent-ui-type (plist-get child :type))))
         (funcall draw)
       (agent-ui-memo child ctx draw))))
 
@@ -488,13 +488,13 @@ Cut with … to fit; nil or no room for a character of it: none."
                 "\n" (funcall edge (concat "╰" (make-string (- width 2) ?─) "╯")))))))
 
 (agent-ui-define panel
-  "Components laid out together: CHILDREN, ordinary components (each its type,
-title, id), as a ROW (side by side, each its share of the width, WEIGHTS
-equal by default) or a COLUMN, in a BORDER. Panels nest (rows of
-columns, columns of rows). A row too narrow (under MIN-WIDTH a child) stacks
-its children. In a row with a chart or an image (in the GUI), the row is one
-SVG: its children's buttons aren't clickable there (chips, a line high,
-stay text)."
+  "Components laid out together, as a row or a column, in a border.
+CHILDREN, ordinary components (each its type, title, id), as a ROW (side by
+side, each its share of the width, WEIGHTS equal by default) or a COLUMN,
+in a BORDER.  Panels nest (rows of columns, columns of rows).  A row too
+narrow (under MIN-WIDTH a child) stacks its children.  In a row with a chart
+or an image (in the GUI), the row is one SVG: its children's buttons aren't
+clickable there (chips, a line high, stay text)."
   :props ((children list "The components: {\"type\": ..., \"id\": ..., ...}")
           (layout (choice row column) "Side by side (row) or one under another (column)" :default column)
           (weights list "Each child's share of a row's width (default: equal)")

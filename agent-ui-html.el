@@ -146,10 +146,10 @@ Scripts, styles and tags are left out, its entities read, its spaces one."
       (t "")))))
 
 (agent-ui-define html
-  "A web page as a card: its title and the start of its text, from an HTML
-FILE (relative to your directory) or a URL (its address only). RET opens it
-for the user (in the browser, unless Emacs is set otherwise). For a report
-or a page you made, to look at closer."
+  "A web page as a card: its title and the start of its text.
+From an HTML FILE (relative to your directory) or a URL (its address
+only).  RET opens it for the user (in the browser, unless Emacs is set
+otherwise).  For a report or a page you made, to look at closer."
   :props ((file file "An HTML file")
           (url string "A web page's address")
           (lines integer "How many lines of its text the card shows" :default 4))

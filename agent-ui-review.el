@@ -73,7 +73,7 @@ They wait for you to keep or discard them.
 
 (defun agent-ui-review--define (file)
   "The `agent-ui-define' form of the type in FILE, read (never evaluated)."
-  (let ((forms (ignore-errors
+  (let ((forms (ignore-error (agent-ui-error file-error)
                  (agent-ui--read-forms (with-temp-buffer (insert-file-contents file) (buffer-string))))))
     (seq-find (lambda (f) (eq (car-safe f) 'agent-ui-define)) forms)))
 
@@ -157,7 +157,7 @@ They wait for you to keep or discard them.
         "  none\n"
       (mapconcat
        (lambda (entry)
-         (if-let* ((prop (ignore-errors (agent-ui--parse-prop name entry))))
+         (if-let* ((prop (ignore-error agent-ui-error (agent-ui--parse-prop name entry))))
              (format "  %-12s %-28s %s%s\n"
                      (substring (symbol-name (agent-ui-prop-key prop)) 1)
                      (agent-ui--kind-name (agent-ui-prop-kind prop))

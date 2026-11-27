@@ -89,7 +89,7 @@ Set it to nil to tell them yourself."
   :type 'boolean :group 'agent-ui)
 
 (defcustom agent-ui-mcp t
-  "Non-nil: each agent-shell session gets Agent UI as MCP tools too.
+  "Non-nil: each `agent-shell' session gets Agent UI as MCP tools too.
 A batch Emacs runs agent-ui-mcp.el for each session that starts after
 `agent-ui-mode' is on (`agent-shell-mcp-servers')."
   :type 'boolean :group 'agent-ui)
@@ -146,15 +146,15 @@ Only for an agent that takes one; nil stays nil when it doesn't."
   "Make bin/agent-ui executable: a package's files may lose their modes."
   (when (and (file-exists-p agent-ui-command)
              (not (file-executable-p agent-ui-command)))
-    (ignore-errors (set-file-modes agent-ui-command #o755))))
+    (ignore-error file-error (set-file-modes agent-ui-command #o755))))
 
 (defvar agent-ui--kept-loaded nil
   "Non-nil once the types the user kept were loaded.")
 
 ;;;###autoload
 (define-minor-mode agent-ui-mode
-  "Tie Agent UI to agent-shell and to Emacs's windows.
-Each agent-shell session's agent finds its own canvas (from its
+  "Tie Agent UI to `agent-shell' and to Emacs's windows.
+Each `agent-shell' session's agent finds its own canvas (from its
 environment's AGENT_UI_SESSION), is told about it
 \(`agent-ui-system-prompt') and gets its MCP tools (`agent-ui-mcp', for
 the sessions started from now on).  A question left waiting when a turn

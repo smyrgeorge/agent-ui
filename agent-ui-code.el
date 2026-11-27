@@ -239,12 +239,13 @@ name (\": not found\"), or nil."
        (agent-ui-review-footer props ctx)))))
 
 (agent-ui-define code
-  "A code snippet, highlighted by its LANGUAGE's mode (python, c, rust,
-emacs-lisp...; else FILE's), each line numbered from FROM and linked to
-FILE (RET opens it there). CODE, or FILE's lines FROM to TO read as they
-are now. MARKS: {\"line\", \"kind\", \"note\"}, kind error, warning, change
-or info, a sign in the gutter and the note after the line. For the line
-an error is on, the code a change is about."
+  "A code snippet, highlighted, its lines numbered and linked to its file.
+Highlighted by its LANGUAGE's mode (python, c, rust, emacs-lisp...; else
+FILE's), each line numbered from FROM and linked to FILE (RET opens it
+there).  CODE, or FILE's lines FROM to TO read as they are now.  MARKS:
+{\"line\", \"kind\", \"note\"}, kind error, warning, change or info, a sign
+in the gutter and the note after the line.  For the line an error is on,
+the code a change is about."
   :props ((code string "The code (default: FILE's lines FROM to TO)")
           (file file "Its file: lines link there; read if no CODE")
           (from integer "Its first line's number" :default 1)

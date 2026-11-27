@@ -295,7 +295,7 @@ behind)."
                 (agent-ui--flush)
                 (should (= deepest 1))
                 (should (= (how-many "the chart" (point-min) (point-max)) 1))
-                (should (string-match-p "curl isn't installed" (buffer-string)))))
+                (should (string-match-p "curl is not installed" (buffer-string)))))
           (advice-remove 'agent-ui--draw-here nest)
           (delete-directory agent-ui-image-cache-directory t))))))
 

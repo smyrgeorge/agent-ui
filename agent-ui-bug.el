@@ -144,8 +144,12 @@ drawing failing), or nil: `agent-ui-render' draws it in its place."
 The library's commit (git's short hash, and whether its files changed
 since), or nil if it isn't in git."
   (let ((default-directory agent-ui-library-directory))
-    (when-let* ((hash (ignore-errors (car (process-lines "git" "rev-parse" "--short" "HEAD")))))
-      (if (eql 1 (ignore-errors (call-process "git" nil nil nil "diff" "--quiet" "HEAD" "--" ".")))
+    (when-let* (((executable-find "git"))
+                (hash (with-temp-buffer
+                        ;; Its error, outside a repository, left out.
+                        (and (eql 0 (call-process "git" nil '(t nil) nil "rev-parse" "--short" "HEAD"))
+                             (car (split-string (buffer-string)))))))
+      (if (eql 1 (call-process "git" nil nil nil "diff" "--quiet" "HEAD" "--" "."))
           (concat hash ", with changes since")
         hash))))
 
@@ -304,7 +308,7 @@ copied, to report by hand."
   (when (string-blank-p what)
     (user-error "Say what's wrong"))
   (let* ((in-canvas (derived-mode-p 'agent-ui-canvas-mode))
-         (id (and in-canvas (ignore-errors (agent-ui--component-at-point))))
+         (id (and in-canvas (ignore-error user-error (agent-ui--component-at-point))))
          (props (append (list :title (car (split-string (string-trim what) "\n"))
                               :description what)
                         (unless (string-blank-p expected) (list :expected expected))

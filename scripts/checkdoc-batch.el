@@ -6,6 +6,13 @@
 (setq checkdoc-verb-check-experimental-flag nil)
 (let ((files command-line-args-left) (n 0))
   (setq command-line-args-left nil)
+  ;; Each file loaded first, as melpazoid has them (installed): checkdoc then
+  ;; knows what's a symbol (`agent-shell') and which macros take a docstring
+  ;; (`agent-ui-define'), which it can't tell from the text alone.  agent-shell
+  ;; too, which Agent UI loads only once a session starts.
+  (require 'agent-shell)
+  (dolist (f files)
+    (require (intern (file-name-base f)) (expand-file-name f)))
   (dolist (f files)
     (with-current-buffer (find-file-noselect f)
       (let ((checkdoc-create-error-function
