@@ -151,7 +151,7 @@ nil if it can't be reached."
                            :required ["name"]))
       (list :name "doctor" :description "Is everything Agent UI needs here? Its checks, the command's side (an emacsclient, a server answering, your session) and the user's Emacs's: Emacs and the packages it needs at their versions, the package's files, Emacs's server, agent-ui-mode, its MCP server, and the tools some components use (mmdc for mermaid, MathJax or LaTeX for math, curl, rsvg-convert, SVG support). Each check's status (ok, warn, fail), what it found and its fix. Run it when the canvas can't be reached or a component says something is missing, and tell the user the fixes."
             :inputSchema '(:type "object"))
-      (list :name "define" :description "A type of your own: Emacs Lisp code with one agent-ui-define and its definitions, each named agent-ui-NAME-... (see the agent-ui skill). Checked, compiled, loaded, its example drawn (the reply's preview); the user keeps or discards it."
+      (list :name "define" :description "A type of your own: Emacs Lisp code with one agent-ui-define and its definitions, each named agent-ui-NAME-... (see the agent-ui skill). Its code is checked and staged, nothing of it run: the user reviews it, and keeping it runs it (compiled, loaded, its example drawn). You're told in your prompt once they keep or discard it; don't show it until then."
             :inputSchema '(:type "object" :properties (:code (:type "string")) :required ["code"])))))))
 
 ;; ====== DOING A CALL ======

@@ -464,6 +464,19 @@ of no session: the session working in its project, the latest."
       (with-current-buffer session
         (agent-shell-prompt-queue prompt))))))
 
+;; A type the agent made (agent-ui-staging.el), reviewed by the user: the
+;; agent that made it told, in its session's prompt (sent), what became of it.
+(defun agent-ui--tell-type-reviewed (_name text canvas)
+  "TEXT into the prompt of the session whose canvas is CANVAS, sent.
+What became of a type its agent made (`agent-ui-type-reviewed-functions');
+no such session (gone, or a restart since): nothing."
+  (when-let* ((session (and canvas (car (agent-ui--canvas-session canvas)))))
+    (condition-case err
+        (agent-ui--act-in session text t)
+      (error (message "Agent UI: %s couldn't be told: %s" (buffer-name session) (error-message-string err))))))
+
+(add-hook 'agent-ui-type-reviewed-functions #'agent-ui--tell-type-reviewed)
+
 (declare-function agent-shell-insert "agent-shell")
 (declare-function agent-shell-prompt-queue "agent-shell-prompt-queue")
 (declare-function agent-shell--prompt-queue-read "agent-shell-prompt-queue")

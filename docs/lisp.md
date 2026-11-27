@@ -92,6 +92,7 @@ sections too, when that component's countdown ends ([Finished components close](
 | `agent-ui-bug-filed-functions` | With the issue's id, its title, whether it's new and the issues' directory, once a bug is filed. |
 | `agent-ui-staged-functions` | With a type's name, once the agent staged it. |
 | `agent-ui-kept-functions` | With a type's name and its file, once you kept it. |
+| `agent-ui-type-reviewed-functions` | With a type's name, what to tell the agent that made it, and its session's canvas (or nil), once you kept or discarded it, or it couldn't be kept. |
 
 For example, a message when a question is left waiting (swap in your notification tool of choice):
 

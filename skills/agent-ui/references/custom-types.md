@@ -5,9 +5,10 @@ Part of the agent-ui skill: read [SKILL.md](../SKILL.md) first.
 When none of the types fits (a dial, a calendar, a seating plan...), write one: an Emacs Lisp file with **one**
 `agent-ui-define`, and the definitions it uses, **each named after it** (`agent-ui-NAME-...`), nothing else (no
 `setq`, no code run at load; `require` only cl-lib, subr-x, seq, map, pcase, rx, svg). Then `agent-ui define FILE`.
-It's checked, compiled, loaded, and its `:example` drawn: the reply has that drawing (`preview`) and the compiler's
-`warnings`. Fix and define it again until it's right; it's usable at once. The user then keeps it (loaded at each
-start) or discards it (its components go with it): say what you made and why.
+It's checked (its forms, its name) and staged: nothing of it runs yet. The reply says it's `waiting` for the user's
+review: say what you made and why, and don't show it until then. Keeping it is the user's yes: it's compiled, loaded
+and its `:example` drawn, and that drawing and the compiler's warnings come into your prompt; or why it couldn't be
+kept (it doesn't compile, its example doesn't draw): fix it and define it again. Discarded, you're told too.
 
 ```elisp
 ;;; dial.el --- Agent UI type dial -*- lexical-binding: t; -*-

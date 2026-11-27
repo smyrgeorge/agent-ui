@@ -23,8 +23,9 @@
 ;;; Commentary:
 
 ;; Agent UI's review of the types the agent made (agent-ui-staging.el): a list of
-;; them, a preview of each (what it is, its properties, its example
-;; drawn, its code), keep or discard.
+;; them, a preview of each (what it is, its properties, its example, its
+;; code: read, nothing of it run), keep (its code then compiled, loaded and
+;; run, the user's yes) or discard.
 ;;
 ;; M-x agent-ui-review, or R in a canvas (whose header says when types wait).
 ;;   RET  its preview          a  keep it          x  discard it
@@ -60,7 +61,7 @@
 They wait for you to keep or discard them.
 
 \\{agent-ui-review-mode-map}"
-  (setq tabulated-list-format [("Type" 18 t) ("Made" 17 t) ("Loaded" 7 t) ("What it is" 0 nil)]
+  (setq tabulated-list-format [("Type" 18 t) ("Made" 17 t) ("What it is" 0 nil)]
         tabulated-list-padding 1
         ;; The columns' names in the buffer: the header line says the keys.
         tabulated-list-use-header-line nil)
@@ -70,12 +71,15 @@ They wait for you to keep or discard them.
          " \\<agent-ui-review-mode-map>\\[agent-ui-review-preview] preview   \\[agent-ui-review-keep] keep   \\[agent-ui-review-discard] discard   \\[agent-ui-review-source] code"))
   (add-hook 'tabulated-list-revert-hook #'agent-ui-review--entries nil t))
 
+(defun agent-ui-review--define (file)
+  "The `agent-ui-define' form of the type in FILE, read (never evaluated)."
+  (let ((forms (ignore-errors
+                 (agent-ui--read-forms (with-temp-buffer (insert-file-contents file) (buffer-string))))))
+    (seq-find (lambda (f) (eq (car-safe f) 'agent-ui-define)) forms)))
+
 (defun agent-ui-review--doc (file)
   "The first line of the documentation of the type in FILE."
-  (let* ((forms (ignore-errors
-                  (agent-ui--read-forms (with-temp-buffer (insert-file-contents file) (buffer-string)))))
-         (define (seq-find (lambda (f) (eq (car-safe f) 'agent-ui-define)) forms))
-         (doc (nth 2 define)))
+  (let ((doc (nth 2 (agent-ui-review--define file))))
     (if (stringp doc) (car (split-string doc "\n")) "")))
 
 (defun agent-ui-review--entries ()
@@ -87,7 +91,6 @@ They wait for you to keep or discard them.
                           (vector (symbol-name name)
                                   (format-time-string "%Y-%m-%d %H:%M"
                                                       (file-attribute-modification-time (file-attributes file)))
-                                  (if (agent-ui-staged-p name) "yes" "no")
                                   (agent-ui-review--doc file)))))
                 (agent-ui-staged-files))))
 
@@ -147,49 +150,57 @@ They wait for you to keep or discard them.
   "TEXT as a heading line, in the title face."
   (propertize (concat text "\n") 'face 'agent-ui-title))
 
+(defun agent-ui-review--props (name keys)
+  "The lines saying type NAME's properties, its define's KEYS (:props ...)."
+  (let ((props (plist-get keys :props)))
+    (if (not (and props (proper-list-p props)))
+        "  none\n"
+      (mapconcat
+       (lambda (entry)
+         (if-let* ((prop (ignore-errors (agent-ui--parse-prop name entry))))
+             (format "  %-12s %-28s %s%s\n"
+                     (substring (symbol-name (agent-ui-prop-key prop)) 1)
+                     (agent-ui--kind-name (agent-ui-prop-kind prop))
+                     (agent-ui-prop-doc prop)
+                     (cond ((agent-ui-prop-required prop) " (required)")
+                           ((agent-ui-prop-default prop)
+                            (format " (default %s)" (agent-ui--show-value
+                                                    (agent-ui-to-json (agent-ui-prop-default prop)))))
+                           (t "")))
+           (format "  %S (not a property: it'll be refused)\n" entry)))
+       props ""))))
+
 (defun agent-ui-review-preview (&optional name)
-  "Preview the type NAME (at point).
-It's loaded if it isn't (after a restart); shown are what it is, its
-properties, its example drawn, its code."
+  "Preview the type NAME (at point), as its file says.
+What it is, its properties, its example, its code.  Nothing of it is run:
+it's read, not loaded (its code runs once kept: compiled, loaded, its
+example drawn)."
   (interactive)
   (let* ((name (or name (agent-ui-review--name)))
-         (file (agent-ui--staged-file name)))
-    (unless (agent-ui-staged-p name)
-      (agent-ui-stage-file file))
-    (let* ((type (agent-ui-type name))
-           (buffer (get-buffer-create (format "Agent UI type: %s" name)))
-           (window (display-buffer buffer '(nil (inhibit-same-window . t))))
-           (ctx (agent-ui-context :width (max 20 (agent-ui-window-columns window))
-                                  :graphic (display-graphic-p (window-frame window))
-                                  :char-width (frame-char-width (window-frame window))
-                                  :line-height (frame-char-height (window-frame window)))))
-      (with-current-buffer buffer
-        (agent-ui-review-preview-mode)
-        (setq agent-ui-review--type name)
-        (let ((inhibit-read-only t))
-          (erase-buffer)
-          (insert (agent-ui-review--heading (format "%s, made by the agent" name))
-                  (agent-ui-type-doc type) "\n\n"
-                  (agent-ui-review--heading "Properties"))
-          (if (agent-ui-type-props type)
-              (dolist (prop (agent-ui-type-props type))
-                (insert (format "  %-12s %-28s %s%s\n"
-                                (substring (symbol-name (agent-ui-prop-key prop)) 1)
-                                (agent-ui--kind-name (agent-ui-prop-kind prop))
-                                (agent-ui-prop-doc prop)
-                                (cond ((agent-ui-prop-required prop) " (required)")
-                                      ((agent-ui-prop-default prop)
-                                       (format " (default %s)" (agent-ui--show-value
-                                                               (agent-ui-to-json (agent-ui-prop-default prop)))))
-                                      (t "")))))
-            (insert "  none\n"))
-          (insert "\n" (agent-ui-review--heading "Its example")
-                  (agent-ui-even-glyphs
-                   (agent-ui-render (append (list :type (symbol-name name)) (agent-ui-type-example type)) ctx))
-                  "\n\n" (agent-ui-review--heading (format "Its code (%s)" (abbreviate-file-name file)))
-                  (agent-ui-review--code file))
-          (goto-char (point-min))))
-      buffer)))
+         (file (agent-ui--staged-file name))
+         (define (agent-ui-review--define file))
+         (doc (nth 2 define))
+         (keys (and (proper-list-p define) (nthcdr 3 define)))
+         (example (plist-get keys :example))
+         (buffer (get-buffer-create (format "Agent UI type: %s" name))))
+    (display-buffer buffer '(nil (inhibit-same-window . t)))
+    (with-current-buffer buffer
+      (agent-ui-review-preview-mode)
+      (setq agent-ui-review--type name)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (agent-ui-review--heading (format "%s, made by the agent" name))
+                (if (stringp doc) doc "") "\n\n"
+                (agent-ui-review--heading "Properties")
+                (agent-ui-review--props name keys)
+                "\n" (agent-ui-review--heading "Its example")
+                (or (ignore-errors (json-serialize (agent-ui-to-json example))) (format "%S" example))
+                "\n" (propertize "Drawn once you keep it: its code runs then (compiled, loaded, at each start)."
+                                 'face 'agent-ui-muted)
+                "\n\n" (agent-ui-review--heading (format "Its code (%s)" (abbreviate-file-name file)))
+                (agent-ui-review--code file))
+        (goto-char (point-min))))
+    buffer))
 
 (defun agent-ui-review-source ()
   "Visit the code of the type at point (read-only)."
@@ -207,24 +218,32 @@ properties, its example drawn, its code."
 
 (defun agent-ui-review-keep (&optional name)
   "Keep the type NAME (at point), asked first.
-It's loaded at each start from now on (`agent-ui-keep')."
+Its code runs then, for the first time: compiled, loaded (at each start
+from now on), its example drawn (`agent-ui-keep'); the agent that made it
+told.  It can't be kept (it doesn't compile, its example doesn't draw):
+said, the agent told why, its file left here."
   (interactive)
   (let ((name (or name (agent-ui-review--name))))
     (when (or (not (called-interactively-p 'any))
-              (y-or-n-p (format "Keep the type %s (loaded at each start)? " name)))
-      (let ((file (agent-ui-keep name)))
+              (y-or-n-p (format "Keep the type %s, its code run in Emacs (now, and at each start)? " name)))
+      (let ((kept (condition-case err
+                      (agent-ui-keep name)
+                    (agent-ui-error
+                     (agent-ui-review--refresh)
+                     (user-error "Agent UI: %s can't be kept: %s (the agent is told)"
+                                 name (agent-ui-error-message err))))))
         (agent-ui-review--close-preview name)
         (agent-ui-review--refresh)
-        (message "Agent UI: %s kept, in %s" name (abbreviate-file-name file))
-        file))))
+        (message "Agent UI: %s kept, in %s" name (abbreviate-file-name (plist-get kept :file)))
+        kept))))
 
 (defun agent-ui-review-discard (&optional name)
   "Discard the type NAME (at point), asked first.
-Its file is deleted, the components of it removed (`agent-ui-discard')."
+Its file is deleted, the agent that made it told (`agent-ui-discard')."
   (interactive)
   (let ((name (or name (agent-ui-review--name))))
     (when (or (not (called-interactively-p 'any))
-              (y-or-n-p (format "Discard the type %s (its file deleted, its components removed)? " name)))
+              (y-or-n-p (format "Discard the type %s (its file deleted)? " name)))
       (agent-ui-discard name)
       (agent-ui-review--close-preview name)
       (agent-ui-review--refresh)
@@ -272,7 +291,7 @@ key kept (it was cut off in a narrow pane)."
 (defun agent-ui-review--staged (name)
   "The agent staged NAME: said, the list and the headers redrawn."
   (agent-ui-review--refresh)
-  (message "Agent UI: the agent made a type, %s; review it with M-x agent-ui-review (R in its canvas)" name))
+  (message "Agent UI: the agent made a type, %s; review it with M-x agent-ui-review (R in its canvas): it runs once you keep it" name))
 
 (add-hook 'agent-ui-staged-functions #'agent-ui-review--staged)
 

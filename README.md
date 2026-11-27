@@ -23,7 +23,8 @@ one is updated in place as the work goes on, instead of scrolling away in the co
 - **Sources**: a component follows a command, a file or a poll by itself, so a progress bar keeps moving while the
   agent waits on a long build.
 - **[Project dashboards](#project-dashboards)**: kept in a repository, opened on demand, their data fetched afresh.
-- **Types of your own**: the agent defines a new component type when none fits. You review it before it's kept.
+- **Types of your own**: the agent defines a new component type when none fits. Nothing of its code runs before you
+  review and keep it.
 - **In the conversation too**: a component saved as an SVG for the agent's reply, a canvas exported as a PDF.
 - **Works in a terminal**: everything has a text drawing, and a graphical frame adds SVG charts, gauges and images.
 - **A doctor**: `M-x agent-ui-doctor` checks what Agent UI needs and says how to fix what's missing.

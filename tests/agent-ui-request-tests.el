@@ -323,9 +323,13 @@ so (it was ok false, the component half added)."
   :example (:n 5) :text (lambda (props _ctx) (make-string (plist-get props :n) ?.)))")))
         (should (eq (plist-get reply :ok) t))
         (should (equal (plist-get reply :type) "dots"))
-        (should (equal (plist-get reply :preview) "....."))
-        (should (equal (plist-get reply :warnings) nil)))
-      ;; Usable at once.
+        (should (equal (plist-get reply :status) "waiting")))
+      ;; Usable once the user keeps it.
+      (should (string-match-p "dots"
+                              (plist-get (agent-ui-test-aur-request "show" nil "{\"id\":\"d\",\"type\":\"dots\",\"n\":2}")
+                                         :error)))
+      (let ((agent-ui-kept-directory (file-name-as-directory (make-temp-file (agent-ui-test-tmp-file "kept-") t))))
+        (agent-ui-keep 'dots))
       (should (equal (plist-get (agent-ui-test-aur-request "show" nil "{\"id\":\"d\",\"type\":\"dots\",\"n\":2}") :id)
                      "d"))
       (should (string-match-p "one type (one agent-ui-define), not 0"
@@ -403,13 +407,13 @@ Asynchronously: this Emacs, its server, answers it meanwhile."
             (file (make-temp-file (agent-ui-test-tmp-file "type-") nil ".el"
                                   "(agent-ui-define bang \"!\" :example () :text (lambda (_p _c) \"!\"))")))
         (let ((run (agent-ui-test-aur-run (list "define" file))))
-          (should (= (car run) 1))
-          (should (string-match-p "has no :example" (cdr run))))
-        (with-temp-file file
-          (insert "(agent-ui-define bang \"!\" :example (:title \"b\") :text (lambda (_p _c) \"!\"))"))
-        (let ((run (agent-ui-test-aur-run (list "define" file))))
           (should (= (car run) 0))
-          (should (string-match-p "\"preview\":\"b\\\\n!\"" (cdr run))))
+          (should (string-match-p "\"status\":\"waiting\"" (cdr run))))
+        (with-temp-file file
+          (insert "(setq bang 1)"))
+        (let ((run (agent-ui-test-aur-run (list "define" file))))
+          (should (= (car run) 1))
+          (should (string-match-p "one type (one agent-ui-define)" (cdr run))))
         (should (= (car (agent-ui-test-aur-run '("define" "/no/such/file.el"))) 2)))
       ;; render --ansi: in colour.
       (let ((run (agent-ui-test-aur-run '("render" "--ansi" "{\"type\":\"text\",\"text\":\"ok\",\"face\":\"success\"}"))))

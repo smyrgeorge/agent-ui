@@ -27,14 +27,16 @@
 ;;
 ;; The agent sends a type's code (bin/agent-ui define FILE): one
 ;; `agent-ui-define' and the definitions it uses, named after it.  It's
-;; checked (its forms, its name), written to `agent-ui-staging-directory',
-;; byte-compiled (errors refuse it, warnings go back to the agent), loaded,
-;; and its example drawn: the agent gets that drawing back, to see what it
-;; made.  The type can be used at once.  The user then reviews it
-;; (`agent-ui-review'): keeping it moves its file to
-;; `agent-ui-kept-directory', loaded at each start; discarding it deletes it,
-;; and the components of it.  A staged type isn't loaded again after a restart:
-;; it waits in its folder for the review.
+;; checked (its forms, its name: read, never evaluated) and written to
+;; `agent-ui-staging-directory', where it waits for the user's review
+;; (`agent-ui-review'): nothing of it is compiled, loaded or run before then,
+;; as all of it is the agent's code (a defvar's value, eval-when-compile run
+;; by the compiler, its drawing).  Keeping it is the user's yes: it's
+;; compiled (errors refuse it), loaded, its example drawn, and its file moved
+;; to `agent-ui-kept-directory', loaded at each start.  Discarding it deletes
+;; it.  Either way the agent that made it is told
+;; (`agent-ui-type-reviewed-functions'): kept, its example's drawing and its
+;; warnings; else why.
 
 ;;; Code:
 
@@ -65,6 +67,16 @@ Loaded at each start (`agent-ui-load-kept')."
 (defvar agent-ui-kept-functions nil
   "Called with a type's name and its file once the user kept it.")
 
+(defvar agent-ui-type-reviewed-functions nil
+  "Called once the user reviewed a type the agent made, to tell the agent.
+Called with the type's NAME (a symbol), what to tell the agent that made
+it (TEXT: kept, its example drawn and its warnings; discarded; or why it
+couldn't be kept) and the canvas of the session that made it (a name, or
+nil).  agent-ui-agent.el puts TEXT into that session's prompt.")
+
+(defvar agent-ui--staged-by (make-hash-table :test #'eq)
+  "The staged types' sessions: each name's, its session's canvas (a name).")
+
 (defconst agent-ui--definers
   '(defun defsubst cl-defun defmacro defconst defvar defvar-local defface defcustom
     declare-function)
@@ -72,17 +84,12 @@ Loaded at each start (`agent-ui-load-kept')."
 
 ;; ====== WHERE TYPES ARE ======
 
-(defun agent-ui--in-directory-p (file dir)
-  "Non-nil if FILE is under the directory DIR."
-  (and file (string-prefix-p (file-name-as-directory (file-truename dir)) (file-truename file))))
-
 (defun agent-ui-staged-p (name)
-  "Whether the type NAME is one the agent made, not yet reviewed."
-  (let ((type (gethash name agent-ui--types)))
-    (and type (agent-ui--in-directory-p (agent-ui-type-file type) agent-ui-staging-directory))))
+  "Whether the type NAME is one the agent made, waiting for the user's review."
+  (file-exists-p (expand-file-name (format "%s.el" name) agent-ui-staging-directory)))
 
 (defun agent-ui-staged-files ()
-  "The staged types' files, loaded or not (after a restart), newest first."
+  "The staged types' files, newest first: none is loaded before it's kept."
   (when (file-directory-p agent-ui-staging-directory)
     (sort (directory-files agent-ui-staging-directory t "\\`[a-z][a-z0-9-]*\\.el\\'")
           (lambda (a b) (time-less-p (file-attribute-modification-time (file-attributes b))
@@ -105,7 +112,8 @@ One that fails to load is said, the others go on."
   (with-temp-buffer
     (insert code)
     (goto-char (point-min))
-    (let (forms)
+    (let ((read-circle nil)
+          (forms nil))
       (condition-case err
           ;; Lisp's comments skipped (a plain buffer has none: a comment
           ;; after the last form was read as one, cut short).
@@ -146,7 +154,7 @@ An error for a form a type's code mustn't have (see `agent-ui-stage')."
                              (truncate-string-to-width (format "%S" form) 60 nil nil "…"))))))
     name))
 
-;; ====== STAGING ======
+;; ====== COMPILING ======
 
 (defun agent-ui--byte-compile (file &optional offset what)
   "Byte-compile FILE (nothing written, no log shown).
@@ -184,83 +192,38 @@ Signals `agent-ui-error' with its errors if it doesn't compile, led by WHAT
                                    "; ")))
     (mapcar #'cadr messages)))
 
-(defun agent-ui--forget-type (name)
-  "Forget the type NAME, and remove the components of it from every canvas."
-  (agent-ui-undefine name)
-  (dolist (canvas (agent-ui-canvases))
-    (dolist (component (agent-ui-components :canvas canvas))
-      (when (equal (plist-get component :type) (symbol-name name))
-        (agent-ui-remove (plist-get component :id) :canvas canvas)))))
+;; ====== STAGING ======
 
-(defun agent-ui--redraw-type (name)
-  "Redraw the components of the type NAME, everywhere."
-  (dolist (canvas (agent-ui-canvases))
-    (with-current-buffer canvas
-      (agent-ui--dirty (cl-loop for id in agent-ui--order
-                                when (equal (plist-get (agent-ui--entry-component (gethash id agent-ui--entries)) :type)
-                                            (symbol-name name))
-                                collect id)))))
+(defun agent-ui--staged-text (name code)
+  "CODE, the agent's type NAME, as its file holds it: lexical binding."
+  (if (string-match-p "lexical-binding: *t" (car (split-string code "\n")))
+      code
+    (format ";;; %s.el --- Agent UI type %s, made by the agent -*- lexical-binding: t; -*-\n%s"
+            name name code)))
 
-(defun agent-ui-stage (code)
-  "Stage the component type CODE defines.
-Checked, compiled, loaded, its example drawn (see the top of this
-file).  Returns (:type NAME :file FILE
-:warnings LIST :preview TEXT).  Signals `agent-ui-error' if it's refused;
+(defun agent-ui-stage (code &optional canvas)
+  "Stage the component type CODE defines, for the user's review.
+CODE is read and checked (its forms, its name), never evaluated, and
+written to `agent-ui-staging-directory': nothing of it is compiled, loaded
+or run until the user keeps it (`agent-ui-keep').  One staged before under
+the same name is replaced.  CANVAS: the canvas of the agent's session (a
+name), told once it's reviewed.  Returns (:type NAME :file FILE :status
+\"waiting\" :note TEXT).  Signals `agent-ui-error' if it's refused;
 then nothing of it stays."
-  (let* ((name (agent-ui--check-forms (agent-ui--read-forms code)))
-         (existing (gethash name agent-ui--types)))
-    (when (and existing (not (agent-ui-staged-p name)))
+  (let ((name (agent-ui--check-forms (agent-ui--read-forms code))))
+    (when (gethash name agent-ui--types)
       (agent-ui--fail "define: %s is a type already (built in or kept): name yours otherwise" name))
     (make-directory agent-ui-staging-directory t)
-    (let* ((file (expand-file-name (format "%s.el" name) agent-ui-staging-directory))
-           (temp (make-temp-file (format "agent-ui-%s-" name) nil ".el"))
-           (header (not (string-match-p "lexical-binding: *t" (car (split-string code "\n")))))
-           (text (if (not header)
-                     code
-                   (format ";;; %s.el --- Agent UI type %s, made by the agent -*- lexical-binding: t; -*-\n%s"
-                           name name code))))
-      (unwind-protect
-          (progn
-            (with-temp-file temp
-              (setq-local coding-system-for-write 'utf-8)
-              (insert text))
-            (let ((warnings (agent-ui--byte-compile temp (if header 1 0)))
-                  (previous existing))
-              (condition-case err
-                  (progn
-                    (agent-ui-undefine name)
-                    (load temp nil t t)
-                    (let ((type (gethash name agent-ui--types)))
-                      (unless type
-                        (agent-ui--fail "define: loaded, it defined no type %s" name))
-                      (unless (agent-ui-type-example type)
-                        (agent-ui--fail "define: %s has no :example (the user's preview, the agent's catalog)" name))
-                      (let ((preview (agent-ui-render (append (list :type (symbol-name name))
-                                                              (agent-ui-type-example type))
-                                                      (agent-ui-context :width 80))))
-                        (when (eq (get-text-property (max 0 (1- (length preview))) 'face preview) 'agent-ui-error)
-                          (agent-ui--fail "define: its example doesn't draw: %s"
-                                          (substring-no-properties preview)))
-                        ;; Right: its file in the staging folder, where it's from.
-                        (rename-file temp file t)
-                        (setf (agent-ui-type-file type) file)
-                        (agent-ui--redraw-type name)
-                        (run-hook-with-args 'agent-ui-staged-functions name)
-                        (list :type (symbol-name name) :file file
-                              :warnings (vconcat warnings)
-                              :preview (substring-no-properties preview)))))
-                (error
-                 ;; Refused: the type it replaced, back (or none).
-                 (agent-ui-undefine name)
-                 (when previous (puthash name previous agent-ui--types))
-                 (signal (car err) (cdr err))))))
-        (when (file-exists-p temp) (delete-file temp))))))
-
-(defun agent-ui-stage-file (file)
-  "Stage the type in FILE again (after a restart: for its review)."
-  (agent-ui-stage (with-temp-buffer
-                    (insert-file-contents file)
-                    (buffer-string))))
+    (let ((file (expand-file-name (format "%s.el" name) agent-ui-staging-directory)))
+      (let ((coding-system-for-write 'utf-8))
+        (write-region (agent-ui--staged-text name code) nil file nil 'silent))
+      (puthash name canvas agent-ui--staged-by)
+      (run-hook-with-args 'agent-ui-staged-functions name)
+      (list :type (symbol-name name) :file file :status "waiting"
+            :note (concat "Waiting for the user's review: nothing of it runs before they keep it. "
+                          "Kept, it's compiled, loaded and its example drawn, and you're told in your prompt "
+                          "(its drawing, its warnings), or why it couldn't be; discarded, you're told too. "
+                          "Don't show it until then.")))))
 
 ;; ====== KEEPING, DISCARDING ======
 
@@ -271,29 +234,73 @@ then nothing of it stays."
       (agent-ui--fail "no staged type %s" name))
     file))
 
+(defun agent-ui--tell-reviewed (name text)
+  "Tell the agent that made the type NAME what became of it: TEXT."
+  (run-hook-with-args 'agent-ui-type-reviewed-functions name text (gethash name agent-ui--staged-by)))
+
+(defun agent-ui--load-staged (name file)
+  "Compile and load the staged type NAME from FILE, its example drawn.
+Its code runs: the user kept it.  Returns (:warnings LIST :preview TEXT).
+Signals `agent-ui-error' if it doesn't compile, defines no type NAME, has
+no example or one that doesn't draw; then the type is undefined."
+  (let* ((header (string-prefix-p (format ";;; %s.el --- Agent UI type %s, made by the agent" name name)
+                                  (with-temp-buffer
+                                    (insert-file-contents file nil 0 200)
+                                    (buffer-string))))
+         (warnings (agent-ui--byte-compile file (if header 1 0) "keep")))
+    (condition-case err
+        (progn
+          (agent-ui-undefine name)
+          (load file nil t t)
+          (let ((type (gethash name agent-ui--types)))
+            (unless type
+              (agent-ui--fail "keep: loaded, it defined no type %s" name))
+            (unless (agent-ui-type-example type)
+              (agent-ui--fail "keep: %s has no :example (the user's preview, the agent's catalog)" name))
+            (let ((preview (agent-ui-render (append (list :type (symbol-name name))
+                                                    (agent-ui-type-example type))
+                                            (agent-ui-context :width 80))))
+              (when (eq (get-text-property (max 0 (1- (length preview))) 'face preview) 'agent-ui-error)
+                (agent-ui--fail "keep: its example doesn't draw: %s" (substring-no-properties preview)))
+              (list :warnings warnings :preview (substring-no-properties preview)))))
+      (error (agent-ui-undefine name)
+             (signal (car err) (cdr err))))))
+
 (defun agent-ui-keep (name)
-  "Keep the staged type NAME.
-Its file moved to `agent-ui-kept-directory', loaded from there from now
-on.  Returns its new file."
+  "Keep the staged type NAME: the user's yes, its code run for the first time.
+Compiled, loaded, its example drawn (`agent-ui--load-staged'), its file
+moved to `agent-ui-kept-directory', loaded from there at each start.  The
+agent that made it told: its example's drawing and its warnings; if it
+can't be kept, why (its file left for the review, an error signalled).
+Returns (:file KEPT :warnings LIST :preview TEXT)."
   (let* ((file (agent-ui--staged-file name))
-         (kept (expand-file-name (format "%s.el" name) agent-ui-kept-directory)))
-    (unless (agent-ui-staged-p name)
-      (agent-ui-stage-file file))
+         (kept (expand-file-name (format "%s.el" name) agent-ui-kept-directory))
+         (loaded (condition-case err
+                     (agent-ui--load-staged name file)
+                   (error
+                    (agent-ui--tell-reviewed
+                     name (format "Agent UI: the user tried to keep your type %s, but %s. Fix it and define it again."
+                                  name (agent-ui-error-message err)))
+                    (signal (car err) (cdr err))))))
     (make-directory agent-ui-kept-directory t)
     (rename-file file kept t)
     (setf (agent-ui-type-file (agent-ui-type name)) kept)
     (run-hook-with-args 'agent-ui-kept-functions name kept)
-    kept))
+    (agent-ui--tell-reviewed
+     name (format "Agent UI: the user kept your type %s: it's loaded, you can show it now. Its example drawn:\n%s%s"
+                  name (plist-get loaded :preview)
+                  (if (plist-get loaded :warnings)
+                      (concat "\nIts warnings:\n" (string-join (plist-get loaded :warnings) "\n"))
+                    "")))
+    (remhash name agent-ui--staged-by)
+    (append (list :file kept) loaded)))
 
 (defun agent-ui-discard (name)
-  "Discard the staged type NAME.
-Its file deleted, the type forgotten, the components of it removed."
-  (let ((file (agent-ui--staged-file name)))
-    (when (agent-ui-staged-p name)
-      (agent-ui--forget-type name))
-    (delete-file file)
-    name))
-
+  "Discard the staged type NAME: its file deleted, the agent that made it told."
+  (delete-file (agent-ui--staged-file name))
+  (agent-ui--tell-reviewed name (format "Agent UI: the user discarded your type %s." name))
+  (remhash name agent-ui--staged-by)
+  name)
 
 (provide 'agent-ui-staging)
 

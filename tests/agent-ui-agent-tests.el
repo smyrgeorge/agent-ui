@@ -291,6 +291,24 @@ right, and does what it says on a canvas, in order."
         (agent-ui--flush)
         (should-not (string-search "⚠" (buffer-string)))))))
 
+;; ====== A TYPE IT MADE, REVIEWED ======
+
+(ert-deftest agent-ui-agent/told-what-became-of-its-type ()
+  "A type the agent made, reviewed by the user: what became of it put into
+the prompt of the session that made it, sent; none: nothing (doom-ht6.127)."
+  (agent-ui-test-aua
+    (should (memq #'agent-ui--tell-type-reviewed agent-ui-type-reviewed-functions))
+    (let* ((session (agent-ui-test-aua-session "Claude Agent @ proj" "/tmp/proj/"))
+           (name (agent-ui--session-name session))
+           (inserted nil))
+      (cl-letf (((symbol-function 'agent-shell-insert) (lambda (&rest args) (push args inserted))))
+        (agent-ui--tell-type-reviewed 'dial "Agent UI: the user kept your type dial." name)
+        (should (equal inserted (list (list :text "Agent UI: the user kept your type dial."
+                                            :submit t :shell-buffer session))))
+        (agent-ui--tell-type-reviewed 'dial "gone" "No such session")
+        (agent-ui--tell-type-reviewed 'dial "none" nil)
+        (should (= (length inserted) 1))))))
+
 ;; ====== ACTIONS ======
 
 (ert-deftest agent-ui-agent/an-action-into-the-sessions-prompt ()

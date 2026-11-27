@@ -91,29 +91,37 @@ component's place.
 When none of the types fits, the agent can write one: an Emacs Lisp file with one `agent-ui-define` and the
 definitions it uses, like the example above. `agent-ui define FILE` (the MCP tool `define`) stages it:
 
-1. **Checked.** Its forms are read. It must hold exactly one `agent-ui-define`, of a type that isn't already there
-   (built in or kept). Every other form must be a definition (`defun`, `defconst`, `defvar`, `defface` and the like)
-   named after the type, `agent-ui-NAME-...`, or a `require` of one of `agent-ui-staging-requires` (`cl-lib`, `subr-x`,
-   `seq`, `map`, `pcase`, `rx`, `svg`). Nothing else: no `setq`, nothing run at load.
-2. **Compiled** by the byte compiler, with nothing written. Errors refuse it; warnings go back to the agent, by line.
-3. **Loaded**, and **its example drawn.** The reply has that drawing as text (`preview`), so the agent sees what it
-   made. An example that doesn't draw refuses it.
+1. **Checked.** Its forms are read, never evaluated. It must hold exactly one `agent-ui-define`, of a type that isn't
+   already there (built in or kept). Every other form must be a definition (`defun`, `defconst`, `defvar`, `defface`
+   and the like) named after the type, `agent-ui-NAME-...`, or a `require` of one of `agent-ui-staging-requires`
+   (`cl-lib`, `subr-x`, `seq`, `map`, `pcase`, `rx`, `svg`). Nothing else: no `setq`.
+2. **Staged**: written to `agent-ui-staging-directory`, for your review. Nothing of it runs before you keep it: all of it
+   is the agent's code (a `defvar`'s value, an `eval-when-compile` the compiler runs, its drawing). The reply says
+   it's waiting; a type staged again under the same name replaces the one waiting.
 
-A refused type leaves nothing behind. A staged type can be used at once. A message says the agent made one, and each
-canvas's header line lists the types waiting for your review.
+A message says the agent made one, and each canvas's header line lists the types waiting for your review. Keeping one
+is your yes to its code:
+
+1. **Compiled** by the byte compiler, with nothing written. Errors refuse it.
+2. **Loaded**, and **its example drawn.** An example that doesn't draw refuses it.
+3. **Kept**: its file moves to `agent-ui-kept-directory`, loaded at each start from now on.
+
+The agent that made it is told in its session's prompt (sent): kept, its example's drawing and the compiler's warnings,
+by line; refused, why (its file stays for your review, nothing of it loaded); discarded, that too. After a restart, the
+session that made a type isn't known: nobody is told.
 
 | Key | What it does |
 |---|---|
 | `R` (in a canvas), or `M-x agent-ui-review` | List the types waiting for your review. |
-| `RET` | Preview it: what it is, its properties, its example drawn (as SVG if it has a graphical drawing), its code. |
-| `a` | Keep it: its file moves to `agent-ui-kept-directory`, and it's loaded at each start from now on. |
-| `x` | Discard it: its file is deleted, and its components are removed from every canvas. |
+| `RET` | Preview it, as its file says: what it is, its properties, its example, its code. Nothing of it runs. |
+| `a` | Keep it, asked first: compiled, loaded, its example drawn, its file moved to `agent-ui-kept-directory`. |
+| `x` | Discard it, asked first: its file is deleted. |
 | `v` | Its code, read-only. |
 | `q` | Close the list. |
 
-- Staged types wait in `agent-ui-staging-directory`. After a restart they aren't loaded again, but stay listed for
-  your review, which loads one to preview it.
+- Staged types wait in `agent-ui-staging-directory`, after a restart too, listed for your review.
 - Kept types are loaded when `agent-ui-mode` is first turned on. One that fails to load is reported, and the others
   still load.
-- `agent-ui-staged-functions` and `agent-ui-kept-functions` run when a type is staged or kept
+- `agent-ui-staged-functions` and `agent-ui-kept-functions` run when a type is staged or kept, and
+  `agent-ui-type-reviewed-functions` with what the agent is told
   ([Customization](customization.md#hooks)).

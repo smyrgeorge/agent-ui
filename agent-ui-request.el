@@ -249,7 +249,7 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
     ("define"
      (unless (and (stringp payload) (not (string-empty-p (string-trim payload))))
        (agent-ui--fail "define: give a type's code (a file, or on stdin)"))
-     (append (list :ok t) (agent-ui-stage payload)))
+     (append (list :ok t) (agent-ui-stage payload agent-ui--request-canvas)))
     ("types"
      (let ((catalog (agent-ui-catalog)))
        (when (and id (not (string-empty-p id)))

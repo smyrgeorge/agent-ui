@@ -40,7 +40,7 @@ agent-ui doctor                # what Agent UI needs, checked
 | `batch` | `[JSON]` | Several operations at once ([below](#batches)). |
 | `render` | `[--ansi] [JSON]` | A component drawn as text, as the canvas would draw it, without showing it. |
 | `snapshot` | `ID` | The component as an SVG image, with a Markdown link for a reply ([The canvas](canvas.md#in-the-conversation)). |
-| `define` | `[FILE]` | Stages a type of the agent's own, from FILE or stdin ([Custom types](custom-types.md)). |
+| `define` | `[FILE]` | Stages a type of the agent's own, from FILE or stdin, for the user's review: nothing of it runs before they keep it ([Custom types](custom-types.md)). |
 | `bug` | `[JSON]` | Reports a bug in Agent UI itself ([Bugs in Agent UI](bugs.md)). |
 | `dashboards` | | The project's dashboards: `{"dashboards": [{"name", "open"}]}` ([Project dashboards](dashboards.md)). |
 | `open` | `NAME` | Opens one of the project's dashboards in your Emacs. |
