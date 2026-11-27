@@ -154,9 +154,12 @@ undone) is no change."
 
 (defun agent-ui-todo--add (props ctx)
   "The user adds an item to PROPS (its label read in the minibuffer).
-The change goes through CTX."
+The change goes through CTX, to the todo as it is once read (in its
+canvas): the agent may have appended meanwhile."
   (let ((label (string-trim (read-string "Add to the todo: "))))
     (unless (string-empty-p label)
+      (when (and (plist-get ctx :id) (derived-mode-p 'agent-ui-canvas-mode))
+        (setq props (agent-ui-todo--check (agent-ui-get (plist-get ctx :id) :canvas (current-buffer)))))
       (when (seq-find (lambda (i) (equal (plist-get i :label) label)) (plist-get props :items))
         (user-error "Already there: %s" label))
       (agent-ui-ask-change

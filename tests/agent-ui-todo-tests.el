@@ -114,6 +114,31 @@ a new label after; its tick drops the user's change not sent of that item."
                                           (should-error (agent-ui-append "plan" '(:submit t))
                                                         :type 'agent-ui-error))))))
 
+(ert-deftest agent-ui-components/todo-added-while-the-agent-appends ()
+  "An item added while the agent appends (the minibuffer open): the agent's
+ticks and items kept, the user's item after them, the changes as they are
+now (doom-ht6.111)."
+  (agent-ui-test-aue-canvas
+    (agent-ui-show '(:id "plan" :type "todo" :items ("Reproduce" "Fix it")))
+    (with-current-buffer canvas
+      (agent-ui-test-aue-press "Fix it")
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _)
+                   ;; The agent ticks one, adds one, unticks the user's.
+                   (agent-ui-append "plan" '(:items ((:label "Reproduce" :done t) "Docs"
+                                                     (:label "Fix it" :done :false))))
+                   "Check Windows paths")))
+        (agent-ui-test-aue-press "Add an item"))
+      (let ((component (agent-ui-get "plan")))
+        (should (equal (plist-get component :items)
+                       '((:label "Reproduce" :done t :by "agent") (:label "Fix it" :done nil)
+                         (:label "Docs" :done nil) (:label "Check Windows paths" :done nil :added t))))
+        (should (equal (plist-get component :changes) '((:label "Check Windows paths" :change "added")))))
+      ;; One the agent added meanwhile: refused.
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _) (agent-ui-append "plan" '(:items ("Release"))) "Release")))
+        (should-error (agent-ui-test-aue-press "Add an item") :type 'user-error)))))
+
 (ert-deftest agent-ui-components/todo-wrong ()
   (should (string-match-p "item 2 must be a label"
                           (agent-ui-test-aue-error '(:type "todo" :items ("a" 3)))))
