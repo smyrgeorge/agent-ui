@@ -284,4 +284,25 @@ markdown one's block, inside a panel too."
       (agent-ui-mermaid-theme-changed))
     (should (equal redrawn '(all)))))
 
+;; mmdc (node, puppeteer) reads its configuration from its working folder up:
+;; a project's .puppeteerrc.cjs is JavaScript it runs.
+(ert-deftest agent-ui-mermaid/mmdc-run-outside-the-project ()
+  "mmdc runs in Agent UI's cache folder, never in the canvas's folder (the
+agent's project, whose .puppeteerrc.cjs it would run, doom-ht6.136)."
+  (agent-ui-test-mermaid--with-mmdc
+    (let* ((project (file-name-as-directory (make-temp-file (agent-ui-test-tmp-file "mermaid/project-") t)))
+           (pwd (expand-file-name "pwd" (file-name-directory mmdc)))
+           (done nil))
+      (with-temp-file mmdc
+        (insert "#!/bin/sh\npwd > \"$(dirname \"$0\")/pwd\"\n"
+                "while [ $# -gt 0 ]; do case \"$1\" in -o) out=\"$2\"; shift ;; esac; shift; done\n"
+                "printf '<svg viewBox=\"0 0 1 1\"></svg>' > \"$out\"\n"))
+      (let ((default-directory project))
+        (agent-ui-mermaid-render "graph TD\n  A --> B" (lambda (file _error) (setq done (or file t)))))
+      (should (agent-ui-test-mermaid--wait (lambda () done)))
+      (let ((ran (string-trim (with-temp-buffer (insert-file-contents pwd) (buffer-string)))))
+        (should-not (equal (file-truename (file-name-as-directory ran)) (file-truename project)))
+        (should (equal (file-truename (file-name-as-directory ran))
+                       (file-truename agent-ui-mermaid-cache-directory)))))))
+
 ;;; agent-ui-mermaid-tests.el ends here

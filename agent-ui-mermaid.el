@@ -132,32 +132,36 @@ the selected frame, on a transparent background."
             (output (make-temp-file "agent-ui-mermaid" nil ".svg"))
             (log (generate-new-buffer " *agent-ui mmdc*")))
         (puthash file (list callback) agent-ui-mermaid--waiting)
-        (make-process
-         :name "agent-ui-mmdc" :buffer log :noquery t :connection-type 'pipe
-         :command (list agent-ui-mmdc "-q" "-i" input "-o" output
-                        "-t" theme "-b" "transparent"
-                        "-c" (agent-ui-mermaid--config-file))
-         :sentinel
-         (lambda (process _event)
-           (unless (process-live-p process)
-             (let ((ok (and (zerop (process-exit-status process))
-                            (file-exists-p output)
-                            (> (file-attribute-size (file-attributes output)) 0)))
-                   (message (with-current-buffer log
-                              (agent-ui-mermaid--message (buffer-string)))))
-               (when ok
-                 (agent-ui-mermaid--fix-svg output)
-                 (rename-file output file t))
-               (ignore-errors (delete-file input))
-               (ignore-errors (delete-file output))
-               (kill-buffer log)
-               (dolist (callback (prog1 (gethash file agent-ui-mermaid--waiting)
-                                   (remhash file agent-ui-mermaid--waiting)))
-                 (if ok
-                     (funcall callback file nil)
-                   (funcall callback nil (if (string-empty-p message)
-                                             "Mermaid couldn't draw it"
-                                           message))))))))
+        (let (;; Not in the canvas's folder, the agent's project: mmdc
+              ;; (node, puppeteer) reads its configuration from its working
+              ;; folder up, and a .puppeteerrc.cjs is JavaScript it runs.
+              (default-directory (file-name-as-directory agent-ui-mermaid-cache-directory)))
+          (make-process
+           :name "agent-ui-mmdc" :buffer log :noquery t :connection-type 'pipe
+           :command (list agent-ui-mmdc "-q" "-i" input "-o" output
+                          "-t" theme "-b" "transparent"
+                          "-c" (agent-ui-mermaid--config-file))
+           :sentinel
+           (lambda (process _event)
+             (unless (process-live-p process)
+               (let ((ok (and (zerop (process-exit-status process))
+                              (file-exists-p output)
+                              (> (file-attribute-size (file-attributes output)) 0)))
+                     (message (with-current-buffer log
+                                (agent-ui-mermaid--message (buffer-string)))))
+                 (when ok
+                   (agent-ui-mermaid--fix-svg output)
+                   (rename-file output file t))
+                 (ignore-errors (delete-file input))
+                 (ignore-errors (delete-file output))
+                 (kill-buffer log)
+                 (dolist (callback (prog1 (gethash file agent-ui-mermaid--waiting)
+                                     (remhash file agent-ui-mermaid--waiting)))
+                   (if ok
+                       (funcall callback file nil)
+                     (funcall callback nil (if (string-empty-p message)
+                                               "Mermaid couldn't draw it"
+                                             message)))))))))
         nil)))))
 
 (defun agent-ui-mermaid--p ()
@@ -238,9 +242,9 @@ See `agent-ui-mermaid--sized'; its text's weight Agent UI's
              (failed (gethash key agent-ui-mermaid--errors))
              (file (and (not failed)
                         (funcall agent-ui-mermaid-render-function diagram
-                                            (lambda (_file message)
-                                              (when message (puthash key message agent-ui-mermaid--errors))
-                                              (agent-ui-mermaid--redraw diagram))))))
+                                 (lambda (_file message)
+                                   (when message (puthash key message agent-ui-mermaid--errors))
+                                   (agent-ui-mermaid--redraw diagram))))))
         (cond (file (agent-ui-mermaid--image file ctx))
               (failed (concat text "\n" (propertize (agent-ui-wrap failed width) 'face 'agent-ui-error)))
               (t (concat text "\n" (propertize "drawing…" 'face 'agent-ui-muted))))))))
@@ -277,14 +281,14 @@ For a hook run after a theme switch."
   (agent-ui-mermaid-draw (plist-get props :diagram) ctx))
 
 (agent-ui-define mermaid
-  "A Mermaid diagram: DIAGRAM in Mermaid's syntax (flowchart, sequence,
+                 "A Mermaid diagram: DIAGRAM in Mermaid's syntax (flowchart, sequence,
 state, class, ER, Gantt, mind map...). For a diagram that stays in view and
 changes as work goes on: an update with a new diagram draws it anew. An
 image in the GUI, in the theme's colours (mmdc, if installed); its source in
 a terminal."
-  :props ((diagram string "The diagram, in Mermaid's syntax: flowchart LR; build --> test" :required t))
-  :example (:title "Release" :diagram "flowchart LR\n    build --> test --> deploy")
-  :text #'agent-ui-mermaid--draw)
+                 :props ((diagram string "The diagram, in Mermaid's syntax: flowchart LR; build --> test" :required t))
+                 :example (:title "Release" :diagram "flowchart LR\n    build --> test --> deploy")
+                 :text #'agent-ui-mermaid--draw)
 
 
 (provide 'agent-ui-mermaid)
