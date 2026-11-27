@@ -50,6 +50,26 @@
   (should (natnump agent-ui-max-chars))
   (should (natnump agent-ui-max-rows)))
 
+;; doom-ht6.153
+(ert-deftest agent-ui-core/each-autoload-defined-by-its-library ()
+  "Each (autoload \\='FN \"LIB\") in Agent UI's files names a function LIB
+defines: one it doesn't (valid-image-p, from image) failed a panel with an
+image in it, \"⚠ Autoloading file .../image.elc failed to define function
+valid-image-p\", and the byte compiler says nothing of it."
+  (let (missing)
+    (dolist (file (directory-files agent-ui-test-root t "\\`agent-ui.*\\.el\\'"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward "^(autoload '\\([^ ]+\\) \"\\([^\"]+\\)\"" nil t)
+          (let ((fn (intern (match-string 1))) (lib (match-string 2)))
+            (if (not (locate-library lib))
+                (push (list fn lib "no such library") missing)
+              (require (intern lib))
+              (unless (and (fboundp fn) (not (autoloadp (symbol-function fn))))
+                (push (list fn lib (file-name-nondirectory file)) missing)))))))
+    (should-not missing)))
+
 (ert-deftest agent-ui-core/a-type-defined ()
   (agent-ui-test-aui
     (should (eq (agent-ui-test-aui--meter) 'meter))

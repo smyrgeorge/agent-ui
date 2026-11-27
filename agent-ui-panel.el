@@ -145,7 +145,7 @@ out a pixel short); nil if it can't be known."
             (size (cond ((and svg (or (null scale) (numberp scale)))
                          (when-let* ((own (agent-ui-snapshot--svg-size svg)))
                            (cons (* (car own) (or scale 1)) (* (cdr own) (or scale 1)))))
-                        ((and (display-graphic-p) (valid-image-p display)) (image-size display t))
+                        ((and (display-graphic-p) (imagep display)) (image-size display t))
                         (svg (agent-ui-snapshot--svg-size svg)))))
        (and size (cons (floor (car size)) (floor (cdr size))))))))
 

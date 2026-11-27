@@ -36,7 +36,6 @@
 (require 'subr-x)
 (autoload 'decoded-time-set-defaults "time-date")
 (autoload 'parse-time-string "parse-time")
-(autoload 'valid-image-p "image")
 (autoload 'color-name-to-rgb "color")
 (autoload 'color-rgb-to-hex "color")
 (autoload 'svg-circle "svg")

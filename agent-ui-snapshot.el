@@ -222,7 +222,7 @@ An image component's: (SVG . (W . H)); nil if it isn't one, or its size
 can't be had."
   (let* ((props (cdr display))
          (file (plist-get props :file))
-         (size (and file (file-readable-p file) (display-graphic-p) (valid-image-p display)
+         (size (and file (file-readable-p file) (display-graphic-p) (imagep display)
                     (image-size display t))))
     (when size
       (let ((mime (or (cdr (assoc (downcase (or (file-name-extension file) ""))
@@ -250,7 +250,7 @@ can't be had."
         (when (eq (car-safe display) 'image)
           (let ((size (if-let* ((data (plist-get (cdr display) :data)))
                           (agent-ui-snapshot--svg-size data)
-                        (and (display-graphic-p) (valid-image-p display) (image-size display t)))))
+                        (and (display-graphic-p) (imagep display) (image-size display t)))))
             (when size (setq height (max height (round (cdr size))))))))
       (setq pos (or (next-single-property-change pos 'display line) (length line))))
     height))
