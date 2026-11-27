@@ -62,7 +62,7 @@ with a line saying so."
   :type 'natnum)
 
 (defcustom agent-ui-max-rows 500
-  "The most rows (a table's) or values (a chart's) a component draws."
+  "The most rows (a table's, a heatmap's) or values (a chart's) a component draws."
   :type 'natnum)
 
 (defcustom agent-ui-max-cell-lines 20

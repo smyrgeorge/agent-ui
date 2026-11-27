@@ -33,7 +33,7 @@ A few settings are plain variables rather than user options; they're marked *(va
 | `agent-ui-default-canvas` | `"default"` | The canvas used when none is named and no session is found. |
 | `agent-ui-display-function` | `agent-ui-display-canvas` | Called with a canvas's buffer to show it when a new component is shown on it while it's in no window. |
 | `agent-ui-max-components` | `100` | The most components a canvas holds; showing one more is an error. |
-| `agent-ui-max-rows` | `500` | The most rows (a table's) or values (a chart's) a component draws. |
+| `agent-ui-max-rows` | `500` | The most rows (a table's, a heatmap's) or values (a chart's) a component draws. |
 | `agent-ui-max-chars` | `20000` | The most characters a component's drawing has; the rest is left out, with a line saying so. |
 | `agent-ui-max-cell-lines` | `20` | The most lines a table's cell, or a line of a log, code or diff, wraps onto. |
 | `agent-ui-milliseconds-below` | `1.5` | Seconds below which a time taken is shown in milliseconds (a timeline's, a finished step's). |

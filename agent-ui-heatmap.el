@@ -45,6 +45,8 @@
 (autoload 'svg-create "svg")
 (autoload 'svg-rectangle "svg")
 (autoload 'svg-text "svg")
+(autoload 'svg--append "svg")
+(autoload 'dom-node "dom")
 (require 'agent-ui-core)
 (require 'agent-ui-chart)
 
@@ -176,9 +178,27 @@ wide at 60."
     (propertize (agent-ui-truncate (format "… %d earlier %s left out" out (if (= out 1) "column" "columns")) width)
                 'face 'agent-ui-muted)))
 
+(defun agent-ui-heatmap--first-rows (props)
+  "PROPS with their first `agent-ui-max-rows' rows only."
+  (if (<= (length (plist-get props :rows)) agent-ui-max-rows)
+      props
+    (thread-first (copy-sequence props)
+                  (plist-put :rows (seq-take (plist-get props :rows) agent-ui-max-rows))
+                  (plist-put :values (seq-take (plist-get props :values) agent-ui-max-rows)))))
+
+(defun agent-ui-heatmap--more-rows (props width)
+  "The line saying how many of PROPS' rows aren't drawn, in WIDTH; nil if none."
+  (let ((more (- (length (plist-get props :rows)) agent-ui-max-rows)))
+    (when (> more 0)
+      (propertize (agent-ui-truncate (format "… %d more %s" more (if (= more 1) "row" "rows")) width)
+                  'face 'agent-ui-muted))))
+
 (defun agent-ui-heatmap--text (props ctx)
-  "Draw heatmap PROPS as text, as CTX says."
-  (let* ((range (agent-ui-heatmap--range props))
+  "Draw heatmap PROPS as text, as CTX says.
+Its first `agent-ui-max-rows' rows, the rest said."
+  (let* ((more (agent-ui-heatmap--more-rows props (plist-get ctx :width)))
+         (props (agent-ui-heatmap--first-rows props))
+         (range (agent-ui-heatmap--range props))
          (label-width (min (apply #'max (mapcar #'string-width (plist-get props :rows))) (/ (plist-get ctx :width) 3)))
          ;; The latest columns that fit (a cell 3 columns at least).
          (latest (agent-ui-heatmap--latest props (- (plist-get ctx :width) label-width 1)))
@@ -207,6 +227,7 @@ wide at 60."
                                        (cdr row) " ")
                             (mapconcat (lambda (l) (concat "\n" l)) (cdr labels) ""))))
                 (cl-mapcar #'cons rows (plist-get props :values)) "\n")
+     (when more (concat "\n" more))
      (when-let* ((note (agent-ui-heatmap--left-out (cdr latest) (plist-get ctx :width))))
        (concat "\n" note))
      (if (cdr heads) (concat "\n" (agent-ui-heatmap--key columns (plist-get ctx :width))) "")
@@ -215,8 +236,13 @@ wide at 60."
      (agent-ui-heatmap--legend props range (plist-get ctx :width)))))
 
 (defun agent-ui-heatmap--gui (props ctx)
-  "Draw heatmap PROPS as an image, as CTX says."
-  (let* ((cw (plist-get ctx :char-width)) (lh (plist-get ctx :line-height))
+  "Draw heatmap PROPS as an image, as CTX says.
+Its first `agent-ui-max-rows' rows, the rest said; built a row at a time:
+each row's cells in a group of its own (svg.el appends to the end of an
+element's children: all the cells in one, the drawing was quadratic)."
+  (let* ((more (agent-ui-heatmap--more-rows props (plist-get ctx :width)))
+         (props (agent-ui-heatmap--first-rows props))
+         (cw (plist-get ctx :char-width)) (lh (plist-get ctx :line-height))
          (range (agent-ui-heatmap--range props))
          (label-w (* cw (+ 2 (min (apply #'max (mapcar #'string-width (plist-get props :rows)))
                                   (/ (plist-get ctx :width) 3)))))
@@ -248,27 +274,33 @@ wide at 60."
              do (svg-text svg c :x (+ label-w (* j cell-w) (/ cell-w 2)) :y (* 0.9 lh)
                           :font-size (round size) :font-family (agent-ui--svg-font) :font-weight agent-ui-svg-font-weight
                           :fill muted :text-anchor "middle"))
-    (cl-loop for row in (plist-get props :values) for label in labels for y in ys for h in heights
-             do (progn
-                  ;; In its column, wrapped (whole on one line, it ran through
-                  ;; the cells).
-                  (cl-loop for part in label for i from 0
-                           do (agent-ui-chart--svg-text svg ctx part 0 (+ y (* 0.68 cell-h) (* i lh)) :fill fg))
-                  (cl-loop for v in row for j from 0
-                           do (let ((color (agent-ui-heatmap--color props v range))
-                                    (x (+ label-w (* j cell-w))))
-                                (svg-rectangle svg (+ x 1) (+ y 1) (- cell-w 2) (- h 2) :rx 3
-                                               :fill (or color "none") :stroke (if color "none" muted) :stroke-opacity 0.4)
-                                ;; Its number, if it fits the cell (~0.5 of a
-                                ;; line a character): else its colour says it
-                                ;; (numbers overlapped the next cell's).
-                                (when (and v (numberp v)
-                                           (<= (* 0.5 lh (string-width (agent-ui-format-number v))) (- cell-w 4)))
-                                  (agent-ui-chart--svg-text svg ctx (agent-ui-format-number v) (+ x (/ cell-w 2)) (+ y (/ h 2.0) (* 0.18 cell-h))
-                                                            :fill (if (> (/ (- v (car range)) (float (max 1e-9 (- (cdr range) (car range))))) 0.55)
-                                                                      "#1b1b1b" fg)
-                                                            :text-anchor "middle"))))))
+    (svg--append
+     svg
+     (apply #'dom-node 'g nil
+            (cl-loop for row in (plist-get props :values) for label in labels for y in ys for h in heights
+                     collect
+                     (let ((g (dom-node 'g nil)))
+                       ;; In its column, wrapped (whole on one line, it ran
+                       ;; through the cells).
+                       (cl-loop for part in label for i from 0
+                                do (agent-ui-chart--svg-text g ctx part 0 (+ y (* 0.68 cell-h) (* i lh)) :fill fg))
+                       (cl-loop for v in row for j from 0
+                                do (let ((color (agent-ui-heatmap--color props v range))
+                                         (x (+ label-w (* j cell-w))))
+                                     (svg-rectangle g (+ x 1) (+ y 1) (- cell-w 2) (- h 2) :rx 3
+                                                    :fill (or color "none") :stroke (if color "none" muted) :stroke-opacity 0.4)
+                                     ;; Its number, if it fits the cell (~0.5 of a
+                                     ;; line a character): else its colour says it
+                                     ;; (numbers overlapped the next cell's).
+                                     (when (and v (numberp v)
+                                                (<= (* 0.5 lh (string-width (agent-ui-format-number v))) (- cell-w 4)))
+                                       (agent-ui-chart--svg-text g ctx (agent-ui-format-number v) (+ x (/ cell-w 2)) (+ y (/ h 2.0) (* 0.18 cell-h))
+                                                                 :fill (if (> (/ (- v (car range)) (float (max 1e-9 (- (cdr range) (car range))))) 0.55)
+                                                                           "#1b1b1b" fg)
+                                                                 :text-anchor "middle"))))
+                       g))))
     (concat (agent-ui-chart--image svg) "\n"
+            (if more (concat more "\n") "")
             (if-let* ((note (agent-ui-heatmap--left-out (cdr latest) (plist-get ctx :width)))) (concat note "\n") "")
             (if (cdr heads) (concat (agent-ui-heatmap--key columns (plist-get ctx :width)) "\n") "")
             ;; The legend, as text: all its lines (only its last was kept).

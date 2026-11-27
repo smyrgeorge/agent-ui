@@ -121,6 +121,31 @@ doom-cbj)."
     (should (string-match-p ">7</text>" svg))
     (should (string-suffix-p "3 █████ 7" (substring-no-properties text)))))
 
+(ert-deftest agent-ui-components/heatmap-many-rows-capped-built-linearly ()
+  "A heatmap of more rows than drawn (`agent-ui-max-rows'): the first drawn,
+the rest said; its SVG built a row at a time (each element appended to one
+with few children: appended to a long list each, it took 35 s for 1000
+rows) (doom-ht6.139)."
+  (let* ((agent-ui-max-rows 50)
+         (columns (mapcar (lambda (i) (format "d%d" i)) (number-sequence 1 10)))
+         (component (list :type "heatmap" :columns columns
+                          :rows (mapcar (lambda (i) (format "test-%d" i)) (number-sequence 1 120))
+                          :values (make-list 120 (make-list 10 3))))
+         (text (agent-ui-test-aue-draw component)))
+    (should (string-search "test-50 " text))
+    (should-not (string-search "test-51 " text))
+    (should (string-search "70 more rows" text))
+    (let ((most 0))
+      (cl-letf* ((append-fn (symbol-function 'dom-append-child))
+                 ((symbol-function 'dom-append-child)
+                  (lambda (node child)
+                    (setq most (max most (length (dom-children node))))
+                    (funcall append-fn node child))))
+        (let ((drawn (agent-ui-render component (agent-ui-context :width 120 :graphic t :char-width 8 :line-height 16))))
+          (should (string-search "70 more rows" drawn))))
+      ;; A row's cells and labels, the columns' heads: never all the cells.
+      (should (< most 40)))))
+
 (ert-deftest agent-ui-components/heatmap-wrong ()
   (should (string-match-p "values has 1 rows, for 2" (agent-ui-test-aue-error '(:type "heatmap" :rows ("a" "b") :columns ("x") :values ((1))))))
   (should (string-match-p "row 1 has 2 cells, for 1" (agent-ui-test-aue-error '(:type "heatmap" :rows ("a") :columns ("x") :values ((1 2))))))

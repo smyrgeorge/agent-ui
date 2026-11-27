@@ -350,7 +350,8 @@ lines `from` to `to`, read when drawn. `marks` are `{"line", "kind", "note"}`, w
 A grid of cells: `rows` and `columns` (their labels), and `values`, a row of cells for each row. A number is coloured
 on a `scale`, `blue` (the default), `green-red` (low good, high bad) or `red-green`; a word by its state (`passed`,
 `failed`, `flaky`, `skipped`...); `null` is empty. A legend goes under it, and in a graphical frame the cells are SVG
-with their values. Columns whose labels don't fit are numbered, with a key under the grid.
+with their values. Columns whose labels don't fit are numbered, with a key under the grid. At most `agent-ui-max-rows`
+rows (500) are drawn, the first, with a line saying how many more there are.
 
 ```json
 {"id": "runs", "type": "heatmap", "title": "Test runs by OS",
