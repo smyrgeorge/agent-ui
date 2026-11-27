@@ -54,6 +54,7 @@ agent-ui bug JSON             # a bug in Agent UI itself, filed in its own issue
 agent-ui panels               # the project's panels, kept in its repo (references/panels.md)
 agent-ui open NAME            # one opened for the user; --panel NAME: any operation on it
 agent-ui check NAME           # a panel's file checked, nothing run
+agent-ui doctor               # its setup checked
 ```
 
 The same operations are MCP tools too, where your session has the `agent-ui` server: same arguments (an `component`, an

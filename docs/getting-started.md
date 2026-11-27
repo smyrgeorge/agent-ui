@@ -34,6 +34,8 @@ Optional tools, each used only by the components that need it:
 | `rsvg-convert` (librsvg) | Exporting a canvas as a PDF |
 | [mermaid-mode](https://github.com/abrochard/mermaid-mode) | Colouring a diagram's source when it isn't drawn |
 
+[Checking the setup](#checking-the-setup) checks them all.
+
 ## Installing
 
 Agent UI is being prepared for MELPA. Once it's there, `M-x package-install RET agent-ui` will install it. Until then,
@@ -115,6 +117,29 @@ You may also want a key to jump to a question waiting for your answer, from any 
 (with-eval-after-load 'agent-shell
   (keymap-set agent-shell-mode-map "C-c C-q" #'agent-ui-goto-question))
 ```
+
+## Checking the setup
+
+`M-x agent-ui-doctor` checks what Agent UI needs in your Emacs and shows the report in `*Agent UI doctor*`: each check
+marked `✓` (fine), `!` (a warning) or `✗` (a problem), what it found, and the fix for each one that isn't fine. `g`
+there checks again.
+
+| Group | What it checks |
+|---|---|
+| Required | Emacs's version; agent-shell and vui, and what they need in turn (shell-maker, acp): each installed, at the version needed, and loading; JSON support; the package's `bin/`, `skills/` and `assets/` folders (a recipe without them in its `:files` leaves them out); `bin/agent-ui` executable. |
+| Setup | Emacs's server; `emacsclient` and `bash` on the `PATH` agents get; `agent-ui-mode`; the agent-shell functions Agent UI ties into; its MCP server, registered. |
+| Optional | SVG support and a graphical frame (drawings shown as images); `mmdc`; MathJax or LaTeX; `curl`; `rsvg-convert`; the Markdown renderer; `git`; nerd-icons. A missing one is only a warning. |
+
+The doctor loads nothing else of Agent UI's, so it runs even when the rest fails to load, a package missing; it loads
+agent-shell and vui, if they aren't loaded yet, to see that they load.
+
+From a shell, `agent-ui doctor` makes the same checks and replies with them as JSON. It first checks what it can
+without Emacs (an `emacsclient` on its `PATH`, the session it runs in), so it still says what's wrong when no Emacs
+answers ([The command line](command-line.md#checking-the-setup-doctor)). An agent can run it too: the `doctor` MCP
+tool.
+
+From Lisp, `(agent-ui-doctor-checks)` returns the checks, each a plist with `:group`, `:name`, `:status` (`ok`, `warn`
+or `fail`), `:detail` and `:fix`.
 
 ## A first component
 

@@ -98,7 +98,7 @@ nil if it can't be reached."
     (vconcat
      (mapcar
       (lambda (tool)
-        (if (member (plist-get tool :name) '("types" "define" "check" "panels" "open"))
+        (if (member (plist-get tool :name) '("types" "define" "check" "panels" "open" "doctor"))
             tool
           (agent-ui-mcp--with-canvas tool)))
       (list
@@ -149,6 +149,8 @@ nil if it can't be reached."
             :inputSchema '(:type "object"
                            :properties (:name (:type "string" :description "The panel's name (its file's, without .el), or its file"))
                            :required ["name"]))
+      (list :name "doctor" :description "Is everything Agent UI needs here? Its checks, the command's side (an emacsclient, a server answering, your session) and the user's Emacs's: Emacs and the packages it needs at their versions, the package's files, Emacs's server, agent-ui-mode, its MCP server, and the tools some components use (mmdc for mermaid, MathJax or LaTeX for math, curl, rsvg-convert, SVG support). Each check's status (ok, warn, fail), what it found and its fix. Run it when the canvas can't be reached or a component says something is missing, and tell the user the fixes."
+            :inputSchema '(:type "object"))
       (list :name "define" :description "A type of your own: Emacs Lisp code with one agent-ui-define and its definitions, each named agent-ui-NAME-... (see the agent-ui skill). Checked, compiled, loaded, its example drawn (the reply's preview); the user keeps or discards it."
             :inputSchema '(:type "object" :properties (:code (:type "string")) :required ["code"])))))))
 
@@ -199,6 +201,7 @@ reply if it said nothing readable)."
                    ("snapshot" (list "snapshot" (or (arg :id) "")))
                    ("check" (list "check" (or (arg :name) "")))
                    ("panels" (list "panels"))
+                   ("doctor" (list "doctor"))
                    ("open" (list "open" (or (arg :name) "")))
                    ("clear" (list "clear"))
                    ("list" (list "list"))
@@ -210,10 +213,10 @@ reply if it said nothing readable)."
              (args
               ;; Another canvas of the session, if it names one.
               (agent-ui-mcp--run (append args
-                                         (when (and canvas (not (equal name "types")))
+                                         (when (and canvas (not (member name '("types" "doctor"))))
                                            (list "--canvas" canvas))
                                          ;; One of the project's panels, open.
-                                         (when (and panel (not (member name '("types" "check" "panels" "open"))))
+                                         (when (and panel (not (member name '("types" "check" "panels" "open" "doctor"))))
                                            (list "--panel" panel)))
                                  input))
              ((equal name "define")

@@ -8,8 +8,8 @@ its session's pane, and updates each of them in place as the work goes on.
 
 ## Contents
 
-- [Getting started](getting-started.md): installing it, turning it on, a first component from a shell, what the agent
-  is told, and its MCP tools.
+- [Getting started](getting-started.md): installing it, turning it on, checking the setup (`agent-ui-doctor`), a first
+  component from a shell, what the agent is told, and its MCP tools.
 - [The command line](command-line.md): every `bin/agent-ui` operation, its JSON in and out, exit statuses, options,
   environment variables, and the same operations as MCP tools.
 - [The canvas](canvas.md): the canvas buffer, its views in the session's pane, its keys, finished components closing,

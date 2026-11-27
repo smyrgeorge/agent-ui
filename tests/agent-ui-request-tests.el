@@ -477,4 +477,59 @@ its reply with the report (agent-ui-bug.el, the filing stood in for)."
       (should (= (car run) 3))
       (should (string-match-p "no Emacs server answered" (cdr run))))))
 
+;; ====== doctor ======
+
+(defun agent-ui-test-aur-doctor ()
+  "Run bin/agent-ui doctor: (STATUS REPLY CHECKS), its checks as (NAME STATUS)."
+  (let* ((run (agent-ui-test-aur-run '("doctor")))
+         (reply (json-parse-string (cdr run) :object-type 'plist :array-type 'list)))
+    (list (car run) reply
+          (mapcar (lambda (c) (list (plist-get c :name) (plist-get c :status))) (plist-get reply :checks)))))
+
+(ert-deftest agent-ui-request/the-script-doctor ()
+  "bin/agent-ui doctor: its own checks (Command), then Emacs's."
+  (agent-ui-test-aur
+    (agent-ui-test-aur-with-server
+      (let ((agent-ui-doctor-functions '(agent-ui-doctor--json-support agent-ui-doctor--server)))
+        (pcase-let ((`(,status ,reply ,checks) (agent-ui-test-aur-doctor)))
+          (should (= status 0))
+          (should (eq (plist-get reply :ok) t))
+          (should (equal (plist-get reply :summary) "1 warning, 4 passed"))
+          ;; Its copy is the one Emacs gives agents; no session here.
+          (should (equal checks '(("emacsclient" "ok") ("Session" "warn") ("Its copy" "ok")
+                                  ("JSON" "ok") ("Emacs server" "ok"))))
+          (should (equal (plist-get (car (plist-get reply :checks)) :group) "Command")))
+        ;; One failing: exit 1.
+        (cl-letf (((symbol-function 'agent-ui-doctor--json-support)
+                   (lambda () (agent-ui-doctor--check "Required" "JSON" 'fail "none" "Get it"))))
+          (pcase-let ((`(,status ,reply ,_) (agent-ui-test-aur-doctor)))
+            (should (= status 1))
+            (should (eq (plist-get reply :ok) :false))))
+        ;; Emacs without Agent UI: this side's checks, and that, exit 3.
+        (cl-letf (((symbol-function 'agent-ui-doctor-request) nil))
+          (pcase-let ((`(,status ,reply ,checks) (agent-ui-test-aur-doctor)))
+            (should (= status 3))
+            (should (equal (plist-get reply :error) "Emacs runs, but without Agent UI"))
+            (should (equal (car (last checks)) '("Agent UI in Emacs" "fail")))))
+        ;; No arguments.
+        (should (= (car (agent-ui-test-aur-run '("doctor" "x"))) 2))))))
+
+(ert-deftest agent-ui-request/the-script-doctor-without-emacs ()
+  "No Emacs to ask: the command's own checks, what's wrong, exit 3."
+  (let ((process-environment (append '("EMACS_SOCKET_NAME=/tmp/no-such-agent-ui-server" "AGENT_UI_SESSION=s1")
+                                     process-environment)))
+    (pcase-let ((`(,status ,reply ,checks) (agent-ui-test-aur-doctor)))
+      (should (= status 3))
+      (should (eq (plist-get reply :ok) :false))
+      (should (equal (plist-get reply :error) "no Emacs server answered"))
+      (should (equal (plist-get reply :summary) "1 failed, 2 passed"))
+      (should (equal checks '(("emacsclient" "ok") ("Session" "ok") ("Emacs server" "fail"))))
+      (should (string-match-p "server-start" (plist-get (car (last (plist-get reply :checks))) :fix))))
+    ;; No emacsclient: said, nothing asked.
+    (let ((process-environment (cons "EMACSCLIENT=/no/such/emacsclient" process-environment)))
+      (pcase-let ((`(,status ,reply ,checks) (agent-ui-test-aur-doctor)))
+        (should (= status 3))
+        (should (equal (plist-get reply :error) "no emacsclient to reach Emacs with"))
+        (should (equal (car checks) '("emacsclient" "fail")))))))
+
 ;;; agent-ui-request-tests.el ends here

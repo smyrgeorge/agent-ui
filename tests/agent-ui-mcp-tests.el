@@ -72,7 +72,7 @@ recorded, its reply REPLY (a plist)."
   (agent-ui-test-aumcp '(:ok t :types [(:name "progress" :doc "A progress bar: VALUE of MAX.\nMore." :props [(:name "value" :kind "number")])])
     (let ((tools (append (plist-get (plist-get (agent-ui-test-aumcp-handle "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}") :result) :tools) nil)))
       (should (equal (mapcar (lambda (tool) (plist-get tool :name)) tools)
-                     '("show" "update" "append" "remove" "clear" "list" "get" "types" "render" "snapshot" "batch" "bug" "panels" "open" "check" "define")))
+                     '("show" "update" "append" "remove" "clear" "list" "get" "types" "render" "snapshot" "batch" "bug" "panels" "open" "check" "doctor" "define")))
       ;; Each its schema; show's description has the types, from Emacs.
       (dolist (tool tools)
         (should (equal (plist-get (plist-get tool :inputSchema) :type) "object")))
@@ -82,10 +82,10 @@ recorded, its reply REPLY (a plist)."
       ;; Another canvas of the session: an argument of each tool that has one.
       (dolist (tool tools)
         (should (eq (and (plist-get (plist-get (plist-get tool :inputSchema) :properties) :canvas) t)
-                    (not (member (plist-get tool :name) '("types" "define" "check" "panels" "open")))))
+                    (not (member (plist-get tool :name) '("types" "define" "check" "panels" "open" "doctor")))))
         ;; And one of the project's panels, open, the same tools (doom-3q5.6).
         (should (eq (and (plist-get (plist-get (plist-get tool :inputSchema) :properties) :panel) t)
-                    (not (member (plist-get tool :name) '("types" "define" "check" "panels" "open")))))))))
+                    (not (member (plist-get tool :name) '("types" "define" "check" "panels" "open" "doctor")))))))))
 
 (ert-deftest agent-ui-mcp/null-relayed-as-null ()
   "bin/agent-ui's reply relayed with its nulls null, not {} (doom-ht6.56)."
@@ -113,6 +113,9 @@ recorded, its reply REPLY (a plist)."
       ;; The project's panels, opening one, working on one (doom-3q5.6).
       (should (equal (call "panels" "{}") '("panels")))
       (should (equal (call "open" "{\"name\":\"service\"}") '("open" "service")))
+      ;; What Agent UI needs, checked: no canvas, no panel.
+      (should (equal (call "doctor" "{}") '("doctor")))
+      (should (equal (call "doctor" "{\"canvas\":\"tests\",\"panel\":\"service\"}") '("doctor")))
       (should (equal (call "update" "{\"id\":\"ci\",\"patch\":{\"rows\":[]},\"panel\":\"service\"}")
                      '("update" "ci" "--panel" "service" :stdin "{\"rows\":[]}")))
       (should (equal (call "clear" "{}") '("clear")))

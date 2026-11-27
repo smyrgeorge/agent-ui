@@ -56,6 +56,9 @@ An agent's session with its canvas, its tests canvas and a question waiting:
   - `curl` for images from URLs.
   - `rsvg-convert` (librsvg) to export a canvas as a PDF.
 
+`M-x agent-ui-doctor` checks all of these in your Emacs and says how to fix what's missing (`agent-ui doctor` does the
+same from a shell): see [Checking the setup](docs/getting-started.md#checking-the-setup).
+
 ## Install
 
 Agent UI isn't on MELPA yet. Install it from GitHub.

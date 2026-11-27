@@ -24,6 +24,7 @@ agent-ui bug < bug.json        # a bug in Agent UI itself
 agent-ui panels                # the project's panels, and which are open
 agent-ui open service          # one of them opened for the user
 agent-ui check service         # a panel's file checked, nothing run
+agent-ui doctor                # what Agent UI needs, checked
 ```
 
 | Operation | Arguments | What it does |
@@ -44,6 +45,7 @@ agent-ui check service         # a panel's file checked, nothing run
 | `panels` | | The project's panels: `{"panels": [{"name", "open"}]}` ([Project panels](panels.md)). |
 | `open` | `NAME` | Opens one of the project's panels in your Emacs. |
 | `check` | `NAME` | Checks a panel's file without running anything. |
+| `doctor` | | Checks what Agent UI needs, here and in Emacs ([below](#checking-the-setup-doctor)). |
 
 `agent-ui --help` prints the command's own summary.
 
@@ -135,6 +137,26 @@ with old data, is fetched first; the command waits for it, at most `AGENT_UI_WAI
   `.agent-shell/images/`, and replies with `{"file": ..., "markdown": "![...](...)"}`. The agent puts the Markdown in
   its reply, and agent-shell shows the image inline ([The canvas](canvas.md#in-the-conversation)).
 
+## Checking the setup: doctor
+
+`agent-ui doctor` checks what Agent UI needs, as `M-x agent-ui-doctor` does
+([Getting started](getting-started.md#checking-the-setup)), with this side's checks first, in the `Command` group: an
+`emacsclient` on its `PATH`, the session it runs in (`AGENT_UI_SESSION`), and whether it's the copy of `bin/agent-ui`
+Emacs gives agents (`agent-ui-command`). Each check has its status, what it found and, unless it's fine, its fix:
+
+```json
+{"ok": true, "summary": "2 warnings, 24 passed",
+ "checks": [{"group": "Command", "name": "emacsclient", "status": "ok", "detail": "/opt/homebrew/bin/emacsclient"},
+            {"group": "Optional", "name": "Mermaid diagrams", "status": "warn",
+             "detail": "mmdc isn't installed: mermaid components and diagrams in markdown not drawn",
+             "fix": "npm install -g @mermaid-js/mermaid-cli"}]}
+```
+
+`ok` is false, and the exit status 1, when a check fails; warnings don't count. When no Emacs answers, or Emacs runs
+without Agent UI, the reply has this side's checks alone (the last one says what failed) and an `error`; the exit status is 3.
+Emacs answers through `agent-ui-doctor-request`, which needs nothing else of Agent UI's, so the doctor works where the
+other operations can't.
+
 ## Which canvas
 
 - **The session's own.** agent-shell starts the agent with `AGENT_UI_SESSION` in its environment, naming its session
@@ -162,7 +184,8 @@ with old data, is fetched first; the command waits for it, at most `AGENT_UI_WAI
 | `AGENT_UI_DIR` | For the MCP server: the agent's directory (set by `agent-ui-mode` when it registers the server). |
 
 Emacs answers each request through its server, so it must run one (`M-x server-start`). Without one, the command fails
-with exit status 3 and says so; it says so too when Emacs runs but Agent UI isn't loaded.
+with exit status 3 and says so; it says so too when Emacs runs but Agent UI isn't loaded. `agent-ui doctor` says which,
+and how to fix it.
 
 ## MCP tools
 
@@ -190,8 +213,9 @@ It speaks MCP over stdio and does each call through `bin/agent-ui`, so replies a
 | `panels` | none |
 | `open`, `check` | `name` |
 | `define` | `code` |
+| `doctor` | none |
 
-Every tool except `types`, `define`, `check`, `panels` and `open` also takes `canvas` (the session's other canvas)
+Every tool except `types`, `define`, `check`, `panels`, `open` and `doctor` also takes `canvas` (the session's other canvas)
 and `panel` (an open project panel), as `--canvas` and `--panel` do. The server's instructions, which the agent reads
 too, say what the system prompt says: information goes on the canvas, questions there beyond a quick one, and Agent
 UI's own bugs are reported with the `bug` tool.

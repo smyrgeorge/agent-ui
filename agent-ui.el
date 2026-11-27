@@ -47,6 +47,8 @@
 ;; finds its own canvas, is told about it (`agent-ui-system-prompt') and
 ;; gets its MCP tools (`agent-ui-mcp').  The guide agents read before
 ;; using it is skills/agent-ui/SKILL.md; see the README for more.
+;; M-x agent-ui-doctor checks what it needs, and says how to fix what's
+;; missing.
 
 ;;; Code:
 
@@ -54,6 +56,8 @@
 (require 'map)
 (require 'seq)
 (require 'subr-x)
+;; First: it loads nothing else, so it's there when the rest fails to load.
+(require 'agent-ui-doctor)
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 (require 'agent-ui-request)

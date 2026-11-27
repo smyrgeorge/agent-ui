@@ -46,6 +46,7 @@
 (require 'subr-x)
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
+(require 'agent-ui-doctor)
 
 (declare-function agent-ui-bug-reply "agent-ui-bug")
 (declare-function agent-ui-open-panel "agent-ui-panels")
@@ -89,7 +90,7 @@ Its other canvases' names start with it.")
 
 (defconst agent-ui-operations
   '("show" "update" "append" "remove" "clear" "list" "get" "types" "batch" "render" "define" "snapshot" "bug" "check"
-    "panels" "open")
+    "panels" "open" "doctor")
   "What bin/agent-ui does.")
 
 ;; ====== THE CANVAS ======
@@ -239,6 +240,9 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
                            (format " (this project's: %s)" (string-join panels ", "))
                          "")))
      (agent-ui-panel-check (agent-ui-panel-file id agent-ui--request-cwd)))
+    ;; What Agent UI needs, checked (agent-ui-doctor.el): bin/agent-ui asks
+    ;; `agent-ui-doctor-request' itself, with its own checks.
+    ("doctor" (agent-ui-doctor-reply))
     ;; A bug in Agent UI itself, filed in its own issues (agent-ui-bug.el).
     ("bug"
      (agent-ui-bug-reply (agent-ui--payload-object payload "bug") canvas))
@@ -278,7 +282,8 @@ update, append: the id and the change; remove: the id)."
         (cond
          ((not (stringp op))
           (agent-ui--fail "batch: each operation has \"op\": show, update, append or remove"))
-         ((member op '("batch" "types" "list" "get" "render" "define" "snapshot" "bug" "check" "panels" "open"))
+         ((member op '("batch" "types" "list" "get" "render" "define" "snapshot" "bug" "check" "panels" "open"
+                       "doctor"))
           (agent-ui--fail "batch: %s isn't done in a batch" op)))
         (agent-ui-do op (plist-get rest :id)
                      (if (equal op "show") rest (agent-ui--plist-delete rest :id))

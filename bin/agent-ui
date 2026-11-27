@@ -46,6 +46,13 @@
 #                                "component": ID, "repro": {component}} ->
 #                                {"ok": true, "issue": ID}; not filed:
 #                                {"ok": false, "error", "report"}
+#   agent-ui doctor              is everything Agent UI needs here? this
+#                                command's checks (an emacsclient, a server
+#                                answering, its session), then Emacs's:
+#                                {"ok", "summary", "checks": [{"group",
+#                                "name", "status": ok|warn|fail, "detail",
+#                                "fix"}]}; ok false (exit 1) when one fails;
+#                                no Emacs to ask: this side's alone (exit 3)
 #
 # --panel NAME (any operation): the project's open panel NAME's canvas.
 # --canvas NAME (any operation): the session's other canvas NAME ("tests"),
@@ -143,10 +150,10 @@ case "$op" in
       json=$(cat "$1")
       [ -n "$json" ] || fail 2 "define: $1 is empty"
     fi ;;
-  clear|list)
+  clear|list|doctor)
     [ $# -gt 0 ] && fail 2 "$op: takes no arguments" ;;
   *)
-    fail 2 "unknown operation \"$op\"; operations: show, update, append, remove, clear, list, get, types, batch, render, define, snapshot, bug, check, panels, open" ;;
+    fail 2 "unknown operation \"$op\"; operations: show, update, append, remove, clear, list, get, types, batch, render, define, snapshot, bug, check, panels, open, doctor" ;;
 esac
 case "$id" in *$'\n'*) fail 2 "an id is one line" ;; esac
 
@@ -155,18 +162,65 @@ if [ "$takes_json" = 1 ] && [ -z "$json" ]; then
   json=$(cat)
 fi
 
+# doctor: this side's checks first, each a line for Emacs (STATUS, NAME,
+# DETAIL, FIX, separated by tabs) and JSON for a reply without it.
+checks="" checks_json=""
+check() {  # check STATUS NAME DETAIL [FIX]: one of this side's checks
+  local detail=${3//[$'\t\n']/ } fix=${4:-}
+  fix=${fix//[$'\t\n']/ }
+  checks+="$1"$'\t'"$2"$'\t'"$detail"$'\t'"$fix"$'\n'
+  checks_json+="${checks_json:+,}{\"group\":\"Command\",\"name\":$(json_string "$2"),\"status\":\"$1\",\"detail\":$(json_string "$detail")${fix:+,\"fix\":$(json_string "$fix")}}"
+}
+doctor_alone() {  # doctor_alone ERROR: this side's checks, no Emacs to ask; exit 3
+  local n kind summary=""
+  for kind in fail warn ok; do
+    n=$(printf '%s' "$checks" | grep -c "^$kind")
+    [ "$n" -eq 0 ] && [ "$kind" != ok ] && continue
+    case $kind in
+      fail) summary+="$n failed, " ;;
+      warn) summary+="$n warning$([ "$n" -eq 1 ] || echo s), " ;;
+      ok) summary+="$n passed" ;;
+    esac
+  done
+  printf '{"ok":false,"error":%s,"summary":%s,"checks":[%s]}\n' \
+         "$(json_string "$1")" "$(json_string "$summary")" "$checks_json"
+  exit 3
+}
+if [ "$op" = doctor ]; then
+  client=${EMACSCLIENT:-emacsclient}
+  if client_file=$(command -v "$client"); then
+    check ok emacsclient "$client_file"
+  else
+    check fail emacsclient "$client isn't on PATH" \
+          "Put emacsclient (it comes with Emacs) on PATH, or set EMACSCLIENT to it"
+  fi
+  if [ -n "${AGENT_UI_SESSION:-}" ]; then
+    check ok Session "agent-shell session $AGENT_UI_SESSION"
+  else
+    check warn Session "not run by an agent-shell session: the canvas is the session's working here, else the default" \
+          "Run it from an agent's shell (agent-ui-mode gives each session's agent AGENT_UI_SESSION)"
+  fi
+  [ -n "$client_file" ] || doctor_alone "no emacsclient to reach Emacs with"
+fi
+
 dir=$(mktemp -d "${TMPDIR:-/tmp}/agent-ui.XXXXXXXXXX") || fail 3 "no temp folder"
 trap 'rm -rf "$dir"' EXIT
 printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$op" "$id" "${AGENT_UI_SESSION:-}" "$PWD" "$options" "$canvas" "$panel" >"$dir/request"
 [ "$takes_json" = 1 ] && printf '%s' "$json" >"$dir/payload"
+# doctor's payload: this command's file, then its checks.
+[ "$op" = doctor ] && printf '%s\n%s' "$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")" "$checks" >"$dir/payload"
 
 # The folder as a Lisp string.
 lisp_dir=${dir//\\/\\\\}
 lisp_dir=${lisp_dir//\"/\\\"}
+# Who answers in Emacs: doctor's own (agent-ui-doctor.el, loading nothing
+# else), there even when the rest of Agent UI failed to load.
+answer=agent-ui-request
+[ "$op" = doctor ] && answer=agent-ui-doctor-request
 ask() {  # ask: Emacs answers the request (its reply in $dir/reply)
   rm -f "$dir/reply"
   out=$("${EMACSCLIENT:-emacsclient}" --timeout=30 --eval \
-          "(if (fboundp 'agent-ui-request) (agent-ui-request \"$lisp_dir\") 'agent-ui-not-loaded)" 2>&1)
+          "(if (fboundp '$answer) ($answer \"$lisp_dir\") 'agent-ui-not-loaded)" 2>&1)
   status=$?
 }
 ask
@@ -186,6 +240,21 @@ if [ -f "$dir/reply" ]; then
   cat "$dir/reply"
   grep -q '^{"ok":true' "$dir/reply" && exit 0
   exit 1
+fi
+if [ "$op" = doctor ]; then
+  case "$out" in
+    *agent-ui-not-loaded*)
+      check fail "Agent UI in Emacs" "Emacs answered, but Agent UI isn't loaded there" \
+            "(require 'agent-ui) and (agent-ui-mode 1) in your init, then M-x agent-ui-doctor there"
+      doctor_alone "Emacs runs, but without Agent UI" ;;
+  esac
+  if [ $status -ne 0 ]; then
+    check fail "Emacs server" "no Emacs server answered: $out" \
+          "M-x server-start in Emacs, or (server-start) in your init; EMACS_SOCKET_NAME if it listens elsewhere"
+    doctor_alone "no Emacs server answered"
+  fi
+  check fail "Emacs server" "Emacs didn't answer: $out" "Check Emacs isn't busy, then M-x agent-ui-doctor there"
+  doctor_alone "Emacs didn't answer"
 fi
 case "$out" in
   *agent-ui-not-loaded*) fail 3 "Emacs runs, but without Agent UI (M-x agent-ui-mode)" ;;
