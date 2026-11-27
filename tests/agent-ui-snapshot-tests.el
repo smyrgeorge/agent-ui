@@ -114,6 +114,7 @@
          (ctx (agent-ui-context :width 40 :graphic t :char-width 8 :line-height 16))
          (text (agent-ui-render (list :type "image" :file file :title "Splash") ctx)))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
+              ((symbol-function 'valid-image-p) #'always)
               ((symbol-function 'image-size) (lambda (&rest _) '(120 . 90))))
       (let ((svg (agent-ui-snapshot-svg text ctx)))
         (should (string-match-p ">Splash</text>" svg))

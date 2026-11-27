@@ -947,7 +947,7 @@ own in its column, if that changed since it was last given its height."
                              (scale (if (> sum height) (/ (float height) sum) 1.0)))
                         (cl-loop for cell in (butlast column)
                                  for need in column-needs
-                                 do (ignore-errors
+                                 do (ignore-error user-error ; No room: as it is.
                                       (adjust-window-trailing-edge
                                        cell (- (floor (* scale need)) (window-pixel-height cell)) nil t))))))))))
 

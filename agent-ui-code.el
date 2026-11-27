@@ -58,7 +58,9 @@ something of its own (doc-view, a special mode)."
   (when (and (symbolp mode) (fboundp mode))
     ;; An autoload: loaded, to know what it is.
     (when (autoloadp (symbol-function mode))
-      (ignore-errors (autoload-do-load (symbol-function mode) mode)))
+      ;; Its library broken: said, and taken as no mode (plain text).
+      (with-demoted-errors "Agent UI: a language's mode didn't load: %S"
+        (autoload-do-load (symbol-function mode) mode)))
     (and (not (memq mode minor-mode-list))
          (or (seq-some (lambda (parent) (provided-mode-derived-p mode parent))
                        '(prog-mode text-mode conf-mode))
@@ -97,8 +99,11 @@ Nothing of CODE run by MODE (`agent-ui-code--inert')."
       (insert code)
       (let ((inert (seq-filter (lambda (binding) (boundp (car binding))) agent-ui-code--inert)))
         (cl-progv (mapcar #'car inert) (mapcar #'cdr inert)
-          (delay-mode-hooks (ignore-errors (funcall mode)))
-          (ignore-errors (font-lock-ensure))))
+          ;; Another package's mode and font-lock: failing, said, and the
+          ;; code shown as far as it got (plain).
+          (with-demoted-errors "Agent UI: a snippet's highlighting failed: %S"
+            (delay-mode-hooks (funcall mode))
+            (font-lock-ensure))))
       ;; font-lock-face as face: shown outside its buffer.
       (let ((pos (point-min)))
         (while (< pos (point-max))

@@ -194,7 +194,7 @@ example drawn)."
                 (agent-ui-review--heading "Properties")
                 (agent-ui-review--props name keys)
                 "\n" (agent-ui-review--heading "Its example")
-                (or (ignore-errors (json-serialize (agent-ui-to-json example))) (format "%S" example))
+                (or (ignore-error (json-error wrong-type-argument) (json-serialize (agent-ui-to-json example))) (format "%S" example))
                 "\n" (propertize "Drawn once you keep it: its code runs then (compiled, loaded, at each start)."
                                  'face 'agent-ui-muted)
                 "\n\n" (agent-ui-review--heading (format "Its code (%s)" (abbreviate-file-name file)))

@@ -465,10 +465,13 @@ That's if it's still in no window (room made since)."
   "The current canvas's text's font as WINDOW shows it.
 \(SIZE . ASCENT) in pixels, or nil (not in a window, empty, a terminal)."
   (when-let* ((window window)
+              ((window-live-p window))
+              ;; font-at signals for a window showing another buffer.
+              ((eq (window-buffer window) (current-buffer)))
               ((display-graphic-p (window-frame window)))
               ((> (buffer-size) 0))
               ;; Its first character, its top line's.
-              (font (ignore-errors (font-at (point-min) window)))
+              (font (font-at (point-min) window))
               (info (query-font font)))
     (cons (aref info 2) (aref info 4))))
 
@@ -722,10 +725,13 @@ its type can't (then it's drawn whole)."
                     (ignore-error agent-ui-error (agent-ui-type (plist-get new :type)))))
          (extend (and type (agent-ui-type-extend type)))
          (edits (and extend
-                     ;; Wrong, or failing: drawn whole, which says so.
-                     (ignore-errors
-                       (funcall extend (agent-ui-check type old) (agent-ui-check type new)
-                                (plist-put (copy-sequence ctx) :id (agent-ui--entry-id entry)))))))
+                     ;; Wrong (`agent-ui-error'): drawn whole, which says
+                     ;; so.  Its :extend failing (a bug, maybe an agent's
+                     ;; type's): said, and drawn whole.
+                     (with-demoted-errors "Agent UI: drawing only what changed failed, drawn whole: %S"
+                       (ignore-error agent-ui-error
+                         (funcall extend (agent-ui-check type old) (agent-ui-check type new)
+                                  (plist-put (copy-sequence ctx) :id (agent-ui--entry-id entry))))))))
     (when edits
       ;; Its drawing's lines counted from its own first, under its title's
       ;; (they were the entry's: a titled log's counts went over its title),

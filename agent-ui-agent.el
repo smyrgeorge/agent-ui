@@ -404,11 +404,14 @@ Whether SESSION can't take a prompt now: one sent (SUBMIT) while its agent
 works; one put into its prompt while that takes no text (its agent working,
 no prompt kept live meanwhile).  Not known (not a shell yet): not busy,
 `agent-shell' then has its say."
-  (ignore-errors
-    (with-current-buffer session
-      (if (and (not submit) (fboundp 'agent-shell--can-insert-into-prompt-p))
-          (not (agent-shell--can-insert-into-prompt-p :shell-buffer session))
-        (and (fboundp 'shell-maker-busy) (shell-maker-busy))))))
+  (and (buffer-live-p session)
+       (with-current-buffer session
+         ;; shell-maker-busy signals outside a shell set up.
+         (and (derived-mode-p 'agent-shell-mode)
+              (bound-and-true-p shell-maker--config)
+              (if (and (not submit) (fboundp 'agent-shell--can-insert-into-prompt-p))
+                  (not (agent-shell--can-insert-into-prompt-p :shell-buffer session))
+                (and (fboundp 'shell-maker-busy) (shell-maker-busy)))))))
 
 (defun agent-ui--act (prompt submit)
   "Put an action's PROMPT into its canvas's session.

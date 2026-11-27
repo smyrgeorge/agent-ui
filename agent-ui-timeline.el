@@ -59,12 +59,10 @@ was yellow, the colour of what needs you; done blue).")
 (defun agent-ui-timeline--time (value)
   "VALUE, seconds or a timestamp, as seconds (a float); nil if neither.
 An ISO 8601 timestamp keeps its fraction of a second (21:17:49.461Z), which
-`date-to-time' drops (a task of 690 ms drawn as 1 s); another, as date
-parses it."
+`date-to-time' drops (a task of 690 ms drawn as 1 s); another, RFC 822's
+\(`agent-ui--time-seconds')."
   (cond ((numberp value) (float value))
-        ((stringp value)
-         (or (ignore-errors (float-time (encode-time (iso8601-parse value t))))
-             (ignore-errors (float-time (date-to-time value)))))))
+        ((stringp value) (agent-ui--time-seconds value))))
 
 (defun agent-ui-timeline--check (props)
   "Signal an error unless PROPS describe a valid timeline."

@@ -97,7 +97,7 @@ VALUE is a timestamp, epoch seconds, or seconds ago: a number under a
 billion."
   (cond ((and (numberp value) (< value 1e9)) (- now value))
         ((numberp value) value)
-        ((stringp value) (ignore-errors (float-time (parse-iso8601-time-string value))))))
+        ((stringp value) (agent-ui--time-seconds value))))
 
 (defun agent-ui-progress--times (props)
   "PROPS' times noted: a plist, nil if none (or not right)."

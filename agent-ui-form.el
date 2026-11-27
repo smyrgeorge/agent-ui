@@ -434,9 +434,10 @@ Its changes go to form ID on CANVAS."
           ;; Laid out again for the window it's in (then as that changes:
           ;; vui's resize hook).
           (with-current-buffer buffer (vui-rerender instance)))
-        ;; On its first field.
+        ;; On its first field (there's one, and Send and Cancel: never
+        ;; widget-forward's "No buttons or fields found").
         (goto-char (point-min))
-        (ignore-errors (widget-forward 1))))))
+        (widget-forward 1)))))
 
 (defun agent-ui-form--show (buffer canvas)
   "Show BUFFER, a form of CANVAS, in CANVAS's window, selected.

@@ -374,9 +374,12 @@ It is nerd-icons' dashboard where it and its font are there (in the GUI),
 else ▦; DIM, dimmed."
   (let* ((nerd (and (display-graphic-p)
                     (require 'nerd-icons nil t)
-                    (ignore-errors (find-font (font-spec :family (or (bound-and-true-p nerd-icons-font-family)
-                                                                     "Symbols Nerd Font Mono"))))
-                    (ignore-errors (nerd-icons-mdicon "nf-md-view_dashboard"))))
+                    (find-font (font-spec :family (or (bound-and-true-p nerd-icons-font-family)
+                                                      "Symbols Nerd Font Mono")))
+                    ;; Its icon there (an older nerd-icons: an error).
+                    (fboundp 'nerd-icons-mdicon-data)
+                    (assoc "nf-md-view_dashboard" (nerd-icons-mdicon-data))
+                    (nerd-icons-mdicon "nf-md-view_dashboard")))
          (icon (copy-sequence (or nerd "▦"))))
     (add-face-text-property 0 (length icon) (if dim 'agent-ui-muted 'agent-ui-accent) t icon)
     (let ((icon (concat icon (make-string (max 0 (- 2 (string-width icon))) ?\s))))
@@ -628,7 +631,12 @@ repository isn't: its scripts aren't the ones you let run."
                            (and (equal (car-safe entry) hash)
                                 (stringp (nth 1 entry))
                                 (or (equal (nth 1 entry) file)
-                                    (and here (equal (ignore-errors (funcall project (nth 1 entry))) here)))))
+                                    ;; A file kept trusted may be gone, or remote:
+                                    ;; no project there to look for.
+                                    (and here
+                                         (not (file-remote-p (nth 1 entry)))
+                                         (file-directory-p (file-name-directory (nth 1 entry)))
+                                         (equal (funcall project (nth 1 entry)) here)))))
                          (agent-ui-dashboards--trusted))))
          t)))
 

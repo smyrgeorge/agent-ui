@@ -17,6 +17,7 @@ panel (\"⚠ Wrong type argument: number-or-marker-p, default\"); a file's
 size, from image-size, counts its scale already (a number scaled it twice);
 an SVG's data size is scaled by a number."
   (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
+            ((symbol-function 'valid-image-p) #'always)
             ((symbol-function 'image-size) (lambda (&rest _) '(552.4 . 135))))
     (should (equal (agent-ui-panel--image-size '(image :type png :file "x.png" :scale default)) '(552 . 135)))
     (should (equal (agent-ui-panel--image-size '(image :type png :file "x.png" :scale 2)) '(552 . 135)))

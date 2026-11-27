@@ -106,11 +106,7 @@ WHAT names them in the message."
 TIME is seconds since 1970, or an ISO 8601 date and time."
   (cond
    ((numberp time) (float time))
-   ((stringp time)
-    (let ((text (if (string-match-p "\\`[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\'" time)
-                    (concat time "T00:00:00")
-                  time)))
-      (ignore-errors (float-time (parse-iso8601-time-string text)))))))
+   ((stringp time) (agent-ui--time-seconds time))))
 
 (defun agent-ui-chart--check (props)
   "Return PROPS checked and normalized, failing if they are wrong.

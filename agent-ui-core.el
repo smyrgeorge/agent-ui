@@ -34,6 +34,9 @@
 
 (require 'cl-lib)
 (require 'subr-x)
+(autoload 'decoded-time-set-defaults "time-date")
+(autoload 'parse-time-string "parse-time")
+(autoload 'valid-image-p "image")
 (autoload 'color-name-to-rgb "color")
 (autoload 'color-rgb-to-hex "color")
 (autoload 'svg-circle "svg")
@@ -131,6 +134,17 @@ The message of ERR, a signal's data: its own text for `agent-ui-error'
   (if (eq (car err) 'agent-ui-error)
       (cadr err)
     (error-message-string err)))
+
+(defun agent-ui--time-seconds (string)
+  "Return STRING, a date and time, as epoch seconds (a float); nil if it isn't.
+
+STRING is ISO 8601's (2026-11-10T18:30:00Z, its fraction of a second
+kept) or RFC 822's, as `parse-time-string' reads them.  A date alone is
+its midnight; without a zone, local time.  Its date checked first, never
+encoded without one: `encode-time' signals on what's missing."
+  (let ((time (parse-time-string string t)))
+    (when (and (decoded-time-year time) (decoded-time-month time) (decoded-time-day time))
+      (float-time (encode-time (decoded-time-set-defaults time))))))
 
 ;; ====== DEFINING A TYPE ======
 

@@ -40,6 +40,15 @@ killed after."
     (push buffer agent-ui-test-aua-sessions)
     buffer))
 
+(defun agent-ui-test-aua-shell (session)
+  "SESSION as an agent-shell buffer set up: its mode, shell-maker's config.
+Whether it's busy is then asked (`agent-ui--session-busy-p'), not taken
+as no."
+  (with-current-buffer session
+    (setq major-mode 'agent-shell-mode)
+    (setq-local shell-maker--config t))
+  session)
+
 ;; ====== THE AGENT'S ENVIRONMENT ======
 
 (ert-deftest agent-ui-agent/the-session-in-the-agents-environment ()
@@ -413,7 +422,7 @@ buffer still where agent-shell put it (doom-vb9)."
 sending its prompt queues it; one putting it into the prompt offers it,
 changed or not, to queue. Never agent-shell's \"Busy, try later\"."
   (agent-ui-test-aua
-    (let* ((session (agent-ui-test-aua-session "Claude Agent @ busy" "/tmp/busy/"))
+    (let* ((session (agent-ui-test-aua-shell (agent-ui-test-aua-session "Claude Agent @ busy" "/tmp/busy/")))
            (name (agent-ui--session-name session))
            (busy t) inserted queued offered)
       (agent-ui-show '(:id "t" :type "text" :text "2 failed"
@@ -450,7 +459,7 @@ sent once the agent's done, said so. It was sent, agent-shell said \"Busy,
 try later\", the answer neither sent nor queued (doom-nw7). A button putting
 its text into the prompt: there, as the prompt takes it."
   (agent-ui-test-aua
-    (let* ((session (agent-ui-test-aua-session "Claude Agent @ working" "/tmp/working/"))
+    (let* ((session (agent-ui-test-aua-shell (agent-ui-test-aua-session "Claude Agent @ working" "/tmp/working/")))
            (name (agent-ui--session-name session))
            (ask (agent-ui-sub-canvas name "ask"))
            (agent-ui-focus-questions nil)
