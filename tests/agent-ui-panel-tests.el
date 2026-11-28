@@ -102,28 +102,47 @@ frame saying how many more, its bottom border kept; nested ones too."
                                    :children ((:type "text" :text "x") (:type "text" :text "y"))))
                  "x\n\ny")))
 
+;; doom-ht6.156
 (ert-deftest agent-ui-components/panel-its-title-in-its-border ()
-  "A canvas's lone panel, the canvas going by a name of its own (a project
-panel): its title in its top border (CTX's :border-title), in the title's
-face, cut with … when narrow; a panel in it not given it; no room for a
-character of it: a plain border."
-  (let* ((panel '(:type "panel" :children ((:type "panel" :children ((:type "text" :text "x"))))))
-         (drawn (lambda (width title)
-                  (agent-ui-render panel (plist-put (agent-ui-context :width width) :border-title title))))
-         (draw (lambda (width title) (substring-no-properties (funcall drawn width title)))))
-    (should (string-prefix-p (concat "╭─ Alerts ─────────╮\n"
-                                     "│ ╭──────────────╮ │\n")
-                             (funcall draw 20 "Alerts")))
-    (let ((text (funcall drawn 20 "Alerts")))
+  "A panel with a border has its title in its top border, not over it, in
+the title's face, cut with … when narrow, its newlines spaces; each nested
+panel its own, its children not given it.  No title, or a blank one: a
+plain border.  Without a border, or no room for a character of it: over
+it.  A caption still over it.  Left out (CTX's :untitled, a canvas's lone
+panel): a plain border, a nested panel's its own."
+  (let* ((panel (lambda (title &rest props)
+                  (append (list :type "panel"
+                                :children '((:type "panel" :title "Inner" :children ((:type "text" :text "x")))))
+                          (and title (list :title title))
+                          props)))
+         (drawn (lambda (component width &optional ctx)
+                  (agent-ui-render component (append ctx (agent-ui-context :width width)))))
+         (draw (lambda (&rest args) (substring-no-properties (apply drawn args)))))
+    (should (equal (funcall draw (funcall panel "Alerts") 20)
+                   (concat "╭─ Alerts ─────────╮\n"
+                           "│ ╭─ Inner ──────╮ │\n"
+                           "│ │ x            │ │\n"
+                           "│ ╰──────────────╯ │\n"
+                           "╰──────────────────╯")))
+    (let ((text (funcall drawn (funcall panel "Alerts") 20)))
       (should (eq (get-text-property (string-search "Alerts" text) 'face text) 'agent-ui-title))
       (should (eq (get-text-property 0 'face text) 'agent-ui-muted)))
-    ;; Narrow: cut with …, the border as wide.
-    (should (string-prefix-p "╭─ IC aler… ─╮\n" (funcall draw 14 "IC alerts: Datadog")))
-    ;; No room for it, none given: plain.
-    (should (string-prefix-p "╭────╮\n" (funcall draw 6 "Alerts")))
-    (should (string-prefix-p "╭──────────────────╮\n" (funcall draw 20 nil)))
-    ;; Its children drawn as ever (a nested panel's border plain).
-    (should-not (string-search "Alerts" (substring (funcall draw 20 "Alerts") 20)))))
+    ;; Narrow: cut with …, the border as wide; its newlines spaces.
+    (should (string-prefix-p "╭─ IC aler… ─╮\n" (funcall draw (funcall panel "IC alerts: Datadog") 14)))
+    (should (string-prefix-p "╭─ IC alerts ─╮\n" (funcall draw (funcall panel "IC\nalerts") 15)))
+    ;; No title, or a blank one: plain.
+    (should (string-prefix-p "╭──────────────────╮\n│ ╭─ Inner" (funcall draw (funcall panel nil) 20)))
+    (should (string-prefix-p "╭──────────────────╮\n│ ╭─ Inner" (funcall draw (funcall panel "  ") 20)))
+    ;; No room for a character of it: over it.
+    (should (string-prefix-p "Alerts\n╭────╮\n" (funcall draw (funcall panel "Alerts") 6)))
+    ;; Without a border: over it, a nested panel's in its own.
+    (should (string-prefix-p "Alerts\n╭─ Inner" (funcall draw (funcall panel "Alerts" :border :false) 20)))
+    ;; A caption: over it still.
+    (should (string-prefix-p "2 firing\n╭─ Alerts ─"
+                             (funcall draw (funcall panel "Alerts" :caption "2 firing") 20)))
+    ;; Left out: plain, a nested panel's its own.
+    (should (string-prefix-p "╭──────────────────╮\n│ ╭─ Inner"
+                             (funcall draw (funcall panel "Alerts") 20 '(:untitled t))))))
 
 (ert-deftest agent-ui-components/panel-nested-and-live ()
   ;; A panel in a panel; an animated child makes it animated.

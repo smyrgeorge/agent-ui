@@ -378,6 +378,10 @@ Components laid out together: `children` (ordinary components), as a `row` (side
 `weights`, equal by default) or a `column` (the default), in a `border` (on by default). Panels nest: rows of
 columns, columns of rows. A row too narrow (a child under `min-width`, 24) stacks its children.
 
+- Its `title` is drawn in its top border, `╭─ Release ───╮`, cut with `…` when narrow, and each nested panel's in its
+  own. Without a border, it's over the panel, as any component's title; without a title, the border is plain. A canvas
+  showing only this panel has its title on the pane's bar instead
+  ([In the session's pane](canvas.md#in-the-sessions-pane)).
 - In a graphical frame, a row with a chart, graph or image is drawn as one image, its children side by side; their
   buttons can't be clicked there. Chips and pies, a line high, stay in its text.
 - Each child is a component of its own: updated, appended to, removed, shown again, snapshot and linked by its id. Its

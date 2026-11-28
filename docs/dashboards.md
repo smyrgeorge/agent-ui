@@ -28,8 +28,8 @@ the repository in Emacs and `M-x agent-ui-open-dashboard`, or copy one into your
   be read shows its error, dimmed.
 - The one you pick opens in a canvas of its own, `Agent UI: NAME (PROJECT)`, in its own window. Its directory is the
   project's root, and it belongs to no session. If it's open already, its window is shown.
-- Its title is drawn in its top border, `╭─ TITLE ───╮`, cut with `…` when the window is narrow. A dashboard without a
-  border has its title over it.
+- Its title is drawn in its top border, `╭─ TITLE ───╮`, as any panel's, cut with `…` when the window is narrow. A
+  dashboard without a border has its title over it.
 - `q` closes it and kills its buffer. Opened again later, after a restart too, it's read anew and drawn empty, and its
   code fills it.
 - `E` saves the dashboard as it shows now, in your theme's colours, as a one-page PDF beside its file:

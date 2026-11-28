@@ -54,6 +54,7 @@ The type's name is a symbol of `a-z`, `0-9` and `-`. Its documentation string is
 | `:extend` | `(lambda (OLD NEW CTX) ...)`: for components that grow, such as a long log. When the component was drawn as OLD and is now NEW, it returns edits that turn OLD's drawing into NEW's, done in order on its lines (from 0): `(replace LINE TEXT)`, `(delete LINE COUNT)`, `(insert BEFORE-END TEXT)`. Or it returns nil, to draw it again. An append then draws only what's appended. |
 | `:finished` | `(lambda (PROPS) ...)`: `done` when all of it went well, `failed` when some of it didn't, nil while it isn't finished. A type that finishes takes `close` and closes itself once done ([Finished components close](canvas.md#finished-components-close)). |
 | `:whole` | `t`: its drawing isn't cut at `agent-ui-max-chars` as a whole; the type keeps its own size in bounds (as a panel does). |
+| `:framed` | `(lambda (COMPONENT CTX) ...)`: whether the component, as given (not checked), draws its title in its own frame, as a panel with a border does in its top border. Its title is then not drawn over it but given to `:text` and `:gui` as CTX's `:border-title`, to draw cut to fit; its caption stays over it. Without it, the title is over the component. |
 
 `:text` and `:gui` take the component's properties (checked, defaults filled) and a context, `CTX`, a plist:
 
@@ -65,6 +66,7 @@ The type's name is a symbol of `a-z`, `0-9` and `-`. Its documentation string is
 | `:char-width`, `:line-height` | A character's width and a line's height in pixels, to size an image to the text. |
 | `:still` | Non-nil for a still picture (a snapshot): draw no buttons, since they'd do nothing there. |
 | `:id` | The component's id, on a canvas. |
+| `:border-title` | Its title, for a type whose `:framed` said so: draw it in its frame. Nil otherwise. |
 
 They return the text to insert and don't touch the buffer, so a type can be tested by calling them. Drawing runs in
 Emacs's only thread, on each change, so keep it quick. A drawing that signals an error shows the error in the

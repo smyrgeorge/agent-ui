@@ -116,7 +116,7 @@ agent-ui show '{"id":"touched","type":"files","title":"What I changed","tree":tr
 
 Components laid out together: `children` are ordinary components (each its `type`, `title`, `id`), as a `"row"` (side by
 side, each its share of the width: `weights`, equal by default) or a `"column"` (the default), in a border (`"border":
-false` for none). Panels nest: rows of columns, columns of rows. A row too narrow (under `min-width` a child) stacks
+false` for none), its `title` in the border's top (over it without one). Panels nest: rows of columns, columns of rows. A row too narrow (under `min-width` a child) stacks
 its children. In the GUI, a row holding a chart, graph or image is drawn as one image, side by side (its children's
 buttons not clickable there: put a `choice` in a row of its own); a `tags` component's chips (a line high) keep the row
 text, clickable; in a terminal, as text. Keep related components in one panel.

@@ -552,12 +552,12 @@ again soon."
 ;; own: its tab), not drawn over the panel too: two headings for one thing.
 ;; A second component shown, a section: drawn over it again, the bar the
 ;; canvas's name.  Its snapshot, its PDF and what's sent to the prompt keep
-;; it: drawn by `agent-ui-render' as ever.  A canvas with a name of its own
-;; (`agent-ui-canvas-name': a project dashboard) goes by it, in its tab (Agent
-;; UI: alerts) and its view's bar, and draws its lone panel's title in the
-;; panel's top border (╭─ TITLE ───╮, cut with … when narrow): a title a
-;; sentence long made its tab as long.  A panel without a border: its title
-;; drawn over it, as any component's.
+;; it: drawn by `agent-ui-render' as ever (in its top border, if it has
+;; one).  A canvas with a name of its own (`agent-ui-canvas-name': a project
+;; dashboard) goes by it, in its tab (Agent UI: alerts) and its view's bar
+;; (a title a sentence long made its tab as long): its lone panel's title is
+;; drawn as any panel's, in its top border (╭─ TITLE ───╮, see
+;; agent-ui-panel.el), or over it without a border.
 ;;
 ;; A TITLE GIVEN
 ;; A canvas showing more than a lone panel has no title of its own: its bar
@@ -646,23 +646,16 @@ one given it), nil otherwise."
     (agent-ui-canvas-buffer-name name)))
 
 (defun agent-ui--untitled-p (entry)
-  "Whether ENTRY is its canvas's lone panel, its title not drawn over it.
-\(See above.)  In a canvas with a name of its own, if it has a border
-\(its title drawn there)."
-  (and (equal (agent-ui--entry-id entry) (car (agent-ui--lone-panel)))
-       (or (not agent-ui-canvas-name)
-           (not (eq (plist-get (agent-ui--entry-component entry) :border) :false)))))
+  "Whether ENTRY is its canvas's lone panel, its title not drawn (see above).
+Not in a canvas with a name of its own: drawn as any panel's there."
+  (and (not agent-ui-canvas-name)
+       (equal (agent-ui--entry-id entry) (car (agent-ui--lone-panel)))))
 
 (defun agent-ui--entry-context (entry ctx)
-  "CTX for drawing ENTRY.
-Its title not drawn over it if it's the lone panel (see above); in a
-canvas with a name of its own, drawn in its top border (:border-title)."
-  (if (not (agent-ui--untitled-p entry))
-      ctx
-    (let ((ctx (plist-put (copy-sequence ctx) :untitled t)))
-      (if agent-ui-canvas-name
-          (plist-put ctx :border-title (cdr (agent-ui--lone-panel)))
-        ctx))))
+  "CTX for drawing ENTRY: its title left out if it's the lone panel (see above)."
+  (if (agent-ui--untitled-p entry)
+      (plist-put (copy-sequence ctx) :untitled t)
+    ctx))
 
 (defun agent-ui--check-untitled ()
   "In a canvas, after its components changed.

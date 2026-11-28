@@ -241,8 +241,8 @@ selected; opened again: the same; closed, opened again anew (doom-3q5.2)."
   "A project dashboard's canvas goes by the dashboard's name: its tab says
 Agent UI: NAME (its title a sentence long made its tab as long), its lone
 panel's title drawn in the panel's top border, not over it; its view's bar
-(under a session) its name too. A second component: its title over it again,
-the tab still its name. A lone panel without a border: its title over it."
+(under a session) its name too. A second component: its title still in its
+border, the tab still its name. A panel without a border: its title over it."
   (agent-ui-test-aud `(("service" . ,agent-ui-test-aud-service))
     (save-window-excursion
       (delete-other-windows)
@@ -259,9 +259,10 @@ the tab still its name. A lone panel without a border: its title over it."
               (should (string-match-p "^╭─ Service ─+╮$" (funcall text)))
               (should-not (string-match-p "^Service$" (funcall text)))
               (should (equal (agent-ui-pane-view-name canvas) "service"))
-              ;; A second component: its title over it, a plain border.
+;; A second component: its title still in its border (doom-ht6.156).
               (agent-ui-show '(:id "note" :type "text" :text "a note") :canvas canvas)
-              (should (string-match-p "^Service\n╭─+╮$" (funcall text)))
+              (should (string-match-p "^╭─ Service ─+╮$" (funcall text)))
+              (should-not (string-match-p "^Service$" (funcall text)))
               (should (equal (agent-ui-canvas-label canvas) "Agent UI: service"))
               (agent-ui-remove "note" :canvas canvas)
               (should (string-match-p "^╭─ Service ─+╮$" (funcall text)))

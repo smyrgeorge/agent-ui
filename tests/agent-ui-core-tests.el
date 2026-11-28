@@ -332,6 +332,33 @@ at `agent-ui-max-chars'."
                        (make-string 50 ?x))))
     (agent-ui-undefine 'whole-one)))
 
+;; doom-ht6.156
+(ert-deftest agent-ui-core/a-type-framing-its-title ()
+  "A type whose :framed says so: its title not over it but given to its
+drawing (CTX's :border-title), its caption over it still, not given to
+what it draws in it.  Saying no, failing, or a title left out (CTX's
+:untitled): its title over it, or nowhere."
+  (agent-ui-define framed-one "Framed." :props ((frame boolean "In its frame" :default t)
+                                                 (broken boolean "Its :framed failing"))
+    :framed (lambda (component _ctx)
+              (when (eq (plist-get component :broken) t) (error "Broken"))
+              (not (eq (plist-get component :frame) :false)))
+    :text (lambda (_props ctx)
+            (format "[%s] %s" (plist-get ctx :border-title)
+                    (substring-no-properties (agent-ui-render '(:type "text" :text "in") ctx)))))
+  (unwind-protect
+      (let ((draw (lambda (component &rest ctx)
+                    (substring-no-properties (agent-ui-render component (append ctx (agent-ui-context)))))))
+        (should (functionp (agent-ui-type-framed (agent-ui-type 'framed-one))))
+        (should (equal (funcall draw '(:type "framed-one" :title "Its\ntitle")) "[Its title] in"))
+        (should (equal (funcall draw '(:type "framed-one" :title "T" :caption "c")) "c\n[T] in"))
+        (should (equal (funcall draw '(:type "framed-one" :title "T" :frame :false)) "T\n[nil] in"))
+        (should (equal (funcall draw '(:type "framed-one" :title "T" :broken t)) "T\n[nil] in"))
+        (should (equal (funcall draw '(:type "framed-one" :title "T") :untitled t) "[nil] in"))
+        ;; Not a parent's: a type without :framed drawn in it isn't given it.
+        (should (equal (funcall draw '(:type "text" :title "T" :text "x") :border-title "Parent") "T\nx")))
+    (agent-ui-undefine 'framed-one)))
+
 (ert-deftest agent-ui-core/animated ()
   (agent-ui-test-aui
     (agent-ui-test-aui--meter)

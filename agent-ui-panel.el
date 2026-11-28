@@ -40,10 +40,13 @@
 ;;   │ ████████░░  8/12   │  lexer  passed  │
 ;;   ╰──────────────────────────────────────╯
 ;;
-;; A canvas's lone panel, the canvas going by a name of its own (a project
-;; panel: agent-ui-canvas.el, A LONE PANEL'S TITLE): its title in its
-;; top border (CTX's :border-title), cut with … when narrow, its children
-;; not given it.
+;; A panel with a border and a title has its title in its top border, not
+;; over it (its type :framed: CTX's :border-title, see `agent-ui-define'),
+;; cut with … when narrow, its children not given it; each nested panel its
+;; own.  Without a border, or too narrow for a character of it: over it, as
+;; any component's.  Without a title: a plain border.  A canvas's lone panel
+;; has its title on its view's bar instead (agent-ui-canvas.el, A LONE
+;; PANEL'S TITLE), its border plain.
 ;;
 ;;   ╭─ IC alerts: Datadog monitors tagged team:ic, every 2 minutes ───╮
 
@@ -398,6 +401,14 @@ Cut with … to fit; nil or no room for a character of it: none."
                 (propertize text 'face 'agent-ui-title)
                 (funcall edge (concat " " (make-string (- width 5 (string-width text)) ?─) "╮")))))))
 
+(defun agent-ui-panel--framed (component ctx)
+  "Whether panel COMPONENT, as given, has its title in its border in CTX.
+A border (not false), at a width with room for a character of a title in
+it (see `agent-ui-panel--top')."
+  (and (not (and (plist-member component :border)
+                 (memq (plist-get component :border) '(nil :false))))
+       (>= (or (plist-get ctx :width) 0) 7)))
+
 (defun agent-ui-panel--draw (props ctx)
   "Draw a panel of PROPS in context CTX: its children, framed if bordered."
   (let* ((children (plist-get props :children))
@@ -495,7 +506,8 @@ Cut with … to fit; nil or no room for a character of it: none."
   "Components laid out together, as a row or a column, in a border.
 CHILDREN, ordinary components (each its type, title, id), as a ROW (side by
 side, each its share of the width, WEIGHTS equal by default) or a COLUMN,
-in a BORDER.  Panels nest (rows of columns, columns of rows).  A row too
+in a BORDER, its title in its top border.  Panels nest (rows of columns,
+columns of rows).  A row too
 narrow (under MIN-WIDTH a child) stacks its children.  In a row with a chart
 or an image (in the GUI), the row is one SVG: its children's buttons aren't
 clickable there (chips, a line high, stay text)."
@@ -511,6 +523,7 @@ clickable there (chips, a line high, stay text)."
   :animated (lambda (props) (seq-some #'agent-ui-animated-p (plist-get props :children)))
   :check #'agent-ui-panel--check
   :whole t
+  :framed #'agent-ui-panel--framed
   :text #'agent-ui-panel--draw)
 
 

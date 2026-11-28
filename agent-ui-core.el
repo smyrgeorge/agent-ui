@@ -131,7 +131,7 @@ Loaded at each start (`agent-ui-load-kept'), when there are any."
 
 (cl-defstruct (agent-ui-type (:constructor agent-ui--make-type))
   "A component type (see `agent-ui-define')."
-  name doc props example animated text gui append check prepare extend file finished whole)
+  name doc props example animated text gui append check prepare extend file finished whole framed)
 
 (defvar agent-ui--types (make-hash-table :test #'eq)
   "The component types, by name (a symbol).")
@@ -212,19 +212,19 @@ as an `agent-ui-prop'."
                        type entry))))
 
 (cl-defun agent-ui--register (name doc &key props example animated text gui append check prepare extend finished
-                                   whole file)
+                                   whole framed file)
   "Define the component type NAME with documentation DOC.
 
 See `agent-ui-define'; replaces one so named.  The keys PROPS, EXAMPLE,
-ANIMATED, TEXT, GUI, APPEND, CHECK, PREPARE, EXTEND, FINISHED, WHOLE and
-FILE are those of `agent-ui-define'."
+ANIMATED, TEXT, GUI, APPEND, CHECK, PREPARE, EXTEND, FINISHED, WHOLE,
+FRAMED and FILE are those of `agent-ui-define'."
   (unless (and (symbolp name) (string-match-p "\\`[a-z][a-z0-9-]*\\'" (symbol-name name)))
     (agent-ui--fail "%S: a type's name is a symbol of a-z, 0-9 and -" name))
   (unless (stringp doc)
     (agent-ui--fail "%s: no documentation string" name))
   (unless (functionp text)
     (agent-ui--fail "%s: no :text function drawing it" name))
-  (dolist (fn (list gui append check prepare extend finished (and (not (eq animated t)) animated)))
+  (dolist (fn (list gui append check prepare extend finished framed (and (not (eq animated t)) animated)))
     (when (and fn (not (functionp fn)))
       (agent-ui--fail "%s: %S isn't a function" name fn)))
   (let* ((props (mapcar (lambda (entry) (agent-ui--parse-prop name entry)) props))
@@ -232,7 +232,8 @@ FILE are those of `agent-ui-define'."
          (type (agent-ui--make-type :name name :doc doc :props props :example example
                                     :animated animated :text text :gui gui
                                     :append append :check check :prepare prepare :extend extend
-                                    :finished finished :whole whole :file file)))
+                                    :finished finished :whole whole :framed framed
+                                    :file file)))
     (when (/= (length keys) (length (delete-dups (copy-sequence keys))))
       (agent-ui--fail "%s: a property is named twice" name))
     ;; Its example must be right: the agent copies it.
@@ -282,12 +283,17 @@ ARGS are keywords:
   :whole    t: its drawing isn't cut at `agent-ui-max-chars' as a whole
             (each component it draws in it is: a panel's children); it keeps
             its own size in bounds (a panel cuts its lines inside its frame).
+  :framed   (lambda (COMPONENT CTX) ...) whether COMPONENT (as given, not
+            checked) draws its title in its frame (a panel's top border),
+            not over it: its title then CTX's :border-title, for :text and
+            :gui to draw (cut to fit), its caption still over it (optional:
+            else its title is over it).
 
 Defining a type again replaces it."
   (declare (indent defun) (doc-string 2))
   (let ((unknown (cl-loop for (k _) on args by #'cddr
                           unless (memq k '(:props :example :text :gui :animated :append :check :prepare :extend
-                                               :finished :whole))
+                                               :finished :whole :framed))
                           collect k)))
     (when unknown
       (error "Agent UI: agent-ui-define %s: unknown keys %S" name unknown)))
@@ -303,6 +309,7 @@ Defining a type again replaces it."
                        :extend ,(plist-get args :extend)
                        :finished ,(plist-get args :finished)
                        :whole ,(plist-get args :whole)
+                       :framed ,(plist-get args :framed)
                        :file (or load-file-name buffer-file-name)))
 
 (defun agent-ui-autoload-type (name feature)
@@ -702,22 +709,39 @@ or sends, after its own :help."
       actions)
      width)))
 
+(defun agent-ui--border-title (component ctx)
+  "Return COMPONENT's title if it's drawn in its frame in CTX, else nil.
+Its type's :framed saying so (a panel with a border: its top border, see
+`agent-ui-define'), its title some text, not left out (CTX's :untitled):
+its newlines spaces.  A :framed failing: its title over it, as any."
+  (when-let* (((not (plist-get ctx :untitled)))
+              (title (plist-get component :title))
+              ((stringp title))
+              ((not (string-blank-p title)))
+              (framed (ignore-errors (agent-ui-type-framed (agent-ui-type (plist-get component :type)))))
+              ((ignore-errors (funcall framed component ctx))))
+    (string-trim (replace-regexp-in-string "[\n\r]+" " " title))))
+
 (defun agent-ui--title-text (component ctx)
   "Return COMPONENT's title and caption as drawn in CTX.
 
 COMPONENT's title as drawn above it in CTX, then its caption (a muted line,
 as a log's counts: 12 files changed), each with the newline after it; nil
-if it has neither (or one that isn't text: the component's error to show).
+if it has neither (or one that isn't text: the component's error to show;
+a blank title is none).
 Their newlines spaces; a title too long for the width wrapped (it was one
 line cut with …, its rest nowhere; `agent-ui-max-cell-lines' lines at
 most), a caption cut with ….  CTX's :untitled: its title left out, its
 caption kept (a canvas's lone panel: its bar says it, see
-`agent-ui-canvas-title')."
-  (let ((title (and (not (plist-get ctx :untitled)) (plist-get component :title)))
+`agent-ui-canvas-title'); drawn in its frame (`agent-ui--border-title'):
+the same."
+  (let ((title (and (not (plist-get ctx :untitled))
+                    (not (agent-ui--border-title component ctx))
+                    (plist-get component :title)))
         (caption (plist-get component :caption))
         (width (plist-get ctx :width)))
     (agent-ui--non-empty
-     (when (and (stringp title) (not (equal title "")))
+     (when (and (stringp title) (not (string-blank-p title)))
        (let ((title (replace-regexp-in-string "[\n\r]+" " " title)))
          (concat (propertize (if (and width (> (string-width title) width))
                                  (string-join (agent-ui-wrap-lines title width) "\n")
@@ -764,8 +788,9 @@ if it has none, in a still picture (CTX's :still), or beside its Answer
 (defun agent-ui-render (component ctx)
   "Draw COMPONENT as text in CTX.
 
-COMPONENT drawn as text, its title above (`agent-ui--title-text'), its
-actions under it: by its type's :gui in a graphic frame (CTX's :graphic) if
+COMPONENT drawn as text, its title above (`agent-ui--title-text') or in
+its frame (`agent-ui--border-title': CTX's :border-title), its actions
+under it: by its type's :gui in a graphic frame (CTX's :graphic) if
 it has one, else :text.  An error (an unknown type, a property wrong, the
 drawing failing) is drawn in its place, so a canvas goes on with its other
 components.  No newline at its end."
@@ -777,6 +802,12 @@ components.  No newline at its end."
               (draw (or (and (plist-get ctx :graphic) (agent-ui-type-gui type))
                         (agent-ui-type-text type)))
               (titled (agent-ui--title-text component ctx))
+              ;; Its title in its frame: its own, not its children's (a
+              ;; panel's: they're drawn with its context), nor its parent's.
+              (border-title (agent-ui--border-title component ctx))
+              (ctx (if (or border-title (plist-get ctx :border-title))
+                       (plist-put (copy-sequence ctx) :border-title border-title)
+                     ctx))
               ;; Its title left out: its own, not its children's (a
               ;; panel's, drawn with its context).
               (ctx (if (plist-get ctx :untitled) (plist-put (copy-sequence ctx) :untitled nil) ctx))

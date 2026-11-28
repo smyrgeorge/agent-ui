@@ -898,6 +898,31 @@ its newlines spaces; the same title again, nothing told."
         (should-not (buffer-local-value 'agent-ui--given-title canvas))
         (should (= told 6))))))
 
+;; doom-ht6.156
+(ert-deftest agent-ui-canvas/panels-titles-in-their-borders ()
+  "Panels with borders on a session's canvas: each its title in its top
+border, none over it.  One left alone: its title on its bar (see
+`agent-ui-canvas-title'), its border plain.  Another component shown: in
+its border again."
+  (let ((panel (agent-ui-type "panel")))
+    (agent-ui-test-auc
+      (puthash 'panel panel agent-ui--types)
+      (agent-ui-show '(:id "p" :type "panel" :title "Release" :children ((:id "m" :type "meter"))))
+      (agent-ui-show '(:id "q" :type "panel" :title "Health" :children ((:id "n" :type "meter"))))
+      (agent-ui-test-auc-flush)
+      (let ((text (agent-ui-test-auc-text)))
+        (should (string-match-p "^╭─ Release ─+╮$" text))
+        (should (string-match-p "^╭─ Health ─+╮$" text))
+        (should-not (string-match-p "^\\(Release\\|Health\\)$" text)))
+      (agent-ui-remove "q")
+      (agent-ui-test-auc-flush)
+      (should (equal (agent-ui-canvas-title canvas) "Release"))
+      (should (string-match-p "\\`╭─+╮$" (agent-ui-test-auc-text)))
+      (should-not (string-search "Release" (agent-ui-test-auc-text)))
+      (agent-ui-show '(:id "c" :type "meter"))
+      (agent-ui-test-auc-flush)
+      (should (string-match-p "^╭─ Release ─+╮$" (agent-ui-test-auc-text))))))
+
 (ert-deftest agent-ui-canvas/a-title-given-wrong-or-early ()
   "A title that isn't text, or for a canvas going by a name of its own (a
 dashboard): refused. For a canvas not there yet: it's made, its pane not
