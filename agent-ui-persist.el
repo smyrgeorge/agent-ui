@@ -3,6 +3,7 @@
 ;; Copyright (C) 2026 Yorgos S.
 
 ;; Author: Yorgos S. <https://github.com/smyrgeorge>
+;; Assisted-by: Claude:claude-opus-5-5
 ;; URL: https://github.com/smyrgeorge/agent-ui
 
 ;; This file is not part of GNU Emacs.

@@ -3,6 +3,7 @@
 ;; Copyright (C) 2026 Yorgos S.
 
 ;; Author: Yorgos S. <https://github.com/smyrgeorge>
+;; Assisted-by: Claude:claude-opus-5-5
 ;; URL: https://github.com/smyrgeorge/agent-ui
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1") (agent-shell "0.99.0") (vui "1.4.0"))
