@@ -43,9 +43,8 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'agent-ui-core)
-(require 'agent-ui-canvas)
-(require 'agent-ui-request)
+;; Its form in a canvas, from anywhere (M-x): all of Agent UI's parts.
+(require 'agent-ui-parts)
 (require 'agent-ui-snapshot)
 
 ;; ====== VARIABLES ======

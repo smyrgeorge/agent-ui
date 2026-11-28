@@ -36,8 +36,8 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'agent-ui-core)
-(require 'agent-ui-canvas)
+;; Its previews in a canvas, from anywhere (M-x): all of Agent UI's parts.
+(require 'agent-ui-parts)
 (require 'agent-ui-staging)
 (require 'tabulated-list)
 

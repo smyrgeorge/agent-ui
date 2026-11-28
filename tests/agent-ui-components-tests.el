@@ -28,37 +28,96 @@
                            (list name width line (min (string-width line) (max width 30)))))))))))
 
 (ert-deftest agent-ui-components/types-loaded-when-used ()
-  "No type's file is loaded at Emacs's start (Agent UI loaded, its mode
-on): 0.3 s, for types a session may never show.  The catalog names them
-all meanwhile; each is loaded the first time it's used, its commands
-there before (a key of the canvas's)."
+  "No type's file is loaded with Agent UI's parts (its mode on, the parts
+loaded): 0.3 s, for types a session may never show.  The catalog names
+them all meanwhile; each is loaded the first time it's used, its
+commands there before (a key of the canvas's)."
   (should (equal (agent-ui-test-fresh
-                  '(list (seq-filter (lambda (entry) (featurep (cdr entry))) agent-ui--type-features)
-                         (featurep 'vui)
-                         (length (agent-ui-types))
-                         (commandp 'agent-ui-table-sort)
-                         (and (string-match-p "hi" (agent-ui-render '(:type "text" :text "hi")
-                                                                    (agent-ui-context :width 40)))
-                              t)
-                         (seq-filter (lambda (entry) (featurep (cdr entry))) agent-ui--type-features)))
+                  '(progn
+                     (require 'agent-ui-parts)
+                     (list (seq-filter (lambda (entry) (featurep (cdr entry))) agent-ui--type-features)
+                           (featurep 'vui)
+                           (length (agent-ui-types))
+                           (commandp 'agent-ui-table-sort)
+                           (and (string-match-p "hi" (agent-ui-render '(:type "text" :text "hi")
+                                                                      (agent-ui-context :width 40)))
+                                t)
+                           (seq-filter (lambda (entry) (featurep (cdr entry))) agent-ui--type-features))))
                  '(nil nil 30 t t ((text . agent-ui-text))))))
 
 (ert-deftest agent-ui-components/parts-loaded-when-used ()
-  "Agent UI loaded, its mode on, doesn't load what only some sessions use
-(each file ~8 ms of Emacs's start): the doctor, snapshots, bugs, the
-types the agent makes (none kept, none waiting), lisp-mnt and map.  Their
-commands are there, and the doctor's answer; a show's reply still links
-to its component."
+  "Agent UI loaded, its mode on, as at Emacs's start: agent-ui.el only (its
+parts took 65-90 ms of it), nor lisp-mnt, map or browse-url.  Its
+commands are there, and the answers to bin/agent-ui's requests and the
+doctor's.  Its parts loaded (together, when first used), what only some
+sessions use isn't loaded with them: the doctor, snapshots, bugs, the
+types the agent makes (none kept, none waiting).  Their commands are
+there then; a show's reply links to its component."
   (should (equal (agent-ui-test-fresh
-                  '(list (seq-filter #'featurep '(agent-ui-doctor agent-ui-staging agent-ui-review
-                                                  agent-ui-snapshot agent-ui-bug lisp-mnt map))
+                  '(list (seq-filter (lambda (feature) (string-prefix-p "agent-ui" (symbol-name feature)))
+                                     features)
+                         (seq-filter #'featurep '(lisp-mnt map browse-url))
                          (seq-every-p #'commandp '(agent-ui-doctor agent-ui-review agent-ui-report-bug
                                                    agent-ui-open-dashboard agent-ui-open-dashboard-here
-                                                   agent-ui-export-pdf agent-ui-send-component
+                                                   agent-ui-dashboard-forget-project
+                                                   agent-ui-goto-question agent-ui-pane-toggle))
+                         (seq-every-p #'fboundp '(agent-ui-request agent-ui-doctor-request
+                                                  agent-ui-show agent-ui-update agent-ui-get
+                                                  agent-ui-section agent-ui-render agent-ui-context))
+                         (and (macrop 'agent-ui-define) t)
+                         (progn (require 'agent-ui-parts)
+                                (seq-filter #'featurep '(agent-ui-doctor agent-ui-staging agent-ui-review
+                                                         agent-ui-snapshot agent-ui-bug lisp-mnt map)))
+                         (seq-every-p #'commandp '(agent-ui-export-pdf agent-ui-send-component
                                                    agent-ui-dashboard-reload agent-ui-save-dashboard))
-                         (fboundp 'agent-ui-doctor-request)
                          (agent-ui-link "a b" "c")))
-                 '(nil t t "agent-ui://canvas/a%20b#c"))))
+                 '((agent-ui) nil t t t nil t "agent-ui://canvas/a%20b#c"))))
+
+(ert-deftest agent-ui-components/a-type-defined-before-its-parts ()
+  "A type defined in an init file (`agent-ui-define', only agent-ui.el
+loaded) and drawn: its core loaded for it, not its parts."
+  (should (equal (agent-ui-test-fresh
+                  '(progn
+                     (eval '(agent-ui-define test-mine "Mine." :text (lambda (_props _ctx) "mine, drawn")) t)
+                     (list (and (string-match-p "mine, drawn"
+                                                (agent-ui-render '(:type "test-mine") (agent-ui-context :width 30)))
+                                t)
+                           (featurep 'agent-ui-core)
+                           (featurep 'agent-ui-parts))))
+                 '(t t nil))))
+
+(ert-deftest agent-ui-components/parts-loaded-with-agent-shell ()
+  "The mode on, Agent UI's parts are loaded with agent-shell (its sessions
+need them all), and the rest of the mode turned on with them: its
+pane's, the fonts', Emacs's end's hooks, its question in the mode line.
+Off, that's off; on again, on."
+  (should (equal (agent-ui-test-fresh
+                  '(let ((on (lambda ()
+                               (list (and (memq 'agent-ui--pane-sync-h window-state-change-functions) t)
+                                     (and (memq 'agent-ui--font-changed after-setting-font-hook) t)
+                                     (and (memq 'agent-ui--persist-all-now kill-emacs-hook) t)
+                                     (and (boundp 'agent-ui--question-mode-line-entry)
+                                          (member agent-ui--question-mode-line-entry mode-line-misc-info)
+                                          t)))))
+                     (list (funcall on)
+                           (progn (require 'agent-shell)
+                                  (featurep 'agent-ui-parts))
+                           (funcall on)
+                           (progn (agent-ui-mode -1) (funcall on))
+                           (progn (agent-ui-mode 1) (funcall on)))))
+                 '((nil nil nil nil) t (t t t t) (nil nil nil nil) (t t t t)))))
+
+(ert-deftest agent-ui-components/parts-loaded-by-a-command ()
+  "Without agent-shell, the first of Agent UI's commands used (here, a
+project's dashboard) loads its parts, the rest of the mode on with them."
+  (should (equal (agent-ui-test-fresh
+                  '(progn
+                     (autoload-do-load (symbol-function 'agent-ui-open-dashboard) 'agent-ui-open-dashboard)
+                     (list (featurep 'agent-ui-parts)
+                           (featurep 'agent-shell)
+                           (and (memq 'agent-ui--pane-sync-h window-state-change-functions) t)
+                           (commandp 'agent-ui-save-dashboard))))
+                 '(t nil t t))))
 
 ;; doom-ht6.29
 (ert-deftest agent-ui-components/no-issues-board ()

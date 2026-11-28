@@ -149,7 +149,7 @@ The package needs its `bin/`, `skills/` and `assets/` folders, not only its Lisp
 
 `agent-ui-mode` ties Agent UI to agent-shell. Each session's agent finds its own canvas, is told about it in its
 system prompt (for the agents that take one), and gets Agent UI's MCP tools. Nothing is set up just by loading the
-package.
+package, and only `agent-ui.el` loads with Emacs: the rest loads the first time agent-shell does or you use Agent UI.
 
 Start an agent-shell session and ask the agent to show you its plan. It reads `skills/agent-ui/SKILL.md` before its
 first use, as its system prompt tells it.

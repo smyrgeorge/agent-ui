@@ -31,8 +31,8 @@
 ;; light as the frame), at its size, at most the canvas's width; until it's
 ;; there, its source.  An error: Mermaid's message under its source.  In a
 ;; terminal, or without a renderer, its source, coloured by mermaid-mode if
-;; it's installed.  `agent-ui-mermaid-theme-changed' draws them again (after
-;; a theme switch).
+;; it's installed.  `agent-ui-mermaid-theme-changed' (agent-ui.el) draws them
+;; again (after a theme switch).
 
 ;;; Code:
 
@@ -271,11 +271,6 @@ A mermaid component's, or a markdown component's block."
                          (seq-some (lambda (child) (agent-ui-mermaid--shows-p child diagram))
                                    (agent-ui--descendants component)))
                 collect id)))))
-
-(defun agent-ui-mermaid-theme-changed ()
-  "Draw each diagram again, in the colours of the theme now.
-For a hook run after a theme switch."
-  (agent-ui-mermaid--redraw))
 
 (defun agent-ui-mermaid--draw (props ctx)
   "PROPS' diagram drawn for CTX."

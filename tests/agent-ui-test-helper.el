@@ -84,6 +84,8 @@
 
 (add-to-list 'load-path agent-ui-test-root)
 (require 'agent-ui)
+;; Its parts, loaded with agent-shell or when first used otherwise.
+(require 'agent-ui-parts)
 ;; Every type's file, loaded when first used otherwise: not while a test
 ;; has `agent-ui--types' bound to a copy (the type would be in it only).
 (agent-ui-load-types)

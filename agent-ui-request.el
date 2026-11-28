@@ -216,11 +216,11 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
                                               agent-ui-default-width)))))
          ;; --ansi: in its faces' colours, for a terminal.
          (list :ok t :text (if (member "ansi" agent-ui--request-options)
-                               (progn (require 'agent-ui-snapshot)
+                               (progn (agent-ui--require 'agent-ui-snapshot)
                                       (agent-ui-ansi text))
                              (substring-no-properties text))))))
     ("snapshot"
-     (require 'agent-ui-snapshot)
+     (agent-ui--require 'agent-ui-snapshot)
      (append (list :ok t)
              (agent-ui-snapshot (agent-ui--need-id op id) :canvas canvas :directory agent-ui--request-cwd)))
     ;; The project's dashboards (agent-ui-dashboards.el): which, opening one.
@@ -256,14 +256,14 @@ plist for `agent-ui-to-json'.  Signals `agent-ui-error' if it can't."
     ;; What Agent UI needs, checked (agent-ui-doctor.el): bin/agent-ui asks
     ;; `agent-ui-doctor-request' itself, with its own checks.
     ("doctor"
-     (require 'agent-ui-doctor)
+     (agent-ui--require 'agent-ui-doctor)
      (agent-ui-doctor-reply))
     ;; A bug in Agent UI itself, filed in its own issues (agent-ui-bug.el).
     ("bug"
-     (require 'agent-ui-bug)
+     (agent-ui--require 'agent-ui-bug)
      (agent-ui-bug-reply (agent-ui--payload-object payload "bug") canvas))
     ("define"
-     (require 'agent-ui-staging)
+     (agent-ui--require 'agent-ui-staging)
      (unless (and (stringp payload) (not (string-empty-p (string-trim payload))))
        (agent-ui--fail "define: give a type's code (a file, or on stdin)"))
      (append (list :ok t) (agent-ui-stage payload agent-ui--request-canvas)))

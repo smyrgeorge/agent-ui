@@ -48,8 +48,6 @@
   "Draw SOURCE, a Mermaid diagram, as an SVG with mmdc, in the background.")
 (autoload 'agent-ui-mermaid-theme-key "agent-ui-mermaid"
   "How diagrams are drawn now: dark or light, as the selected frame.")
-(autoload 'agent-ui-mermaid-theme-changed "agent-ui-mermaid"
-  "Draw each diagram again, in the colours of the theme now.")
 
 (provide 'agent-ui-components)
 

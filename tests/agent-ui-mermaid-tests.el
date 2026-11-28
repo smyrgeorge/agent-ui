@@ -284,6 +284,15 @@ markdown one's block, inside a panel too."
       (agent-ui-mermaid-theme-changed))
     (should (equal redrawn '(all)))))
 
+(ert-deftest agent-ui-mermaid/a-theme-switch-before-any-diagram ()
+  "A theme's hooks run as Emacs starts: before a diagram was drawn, a
+theme switch loads nothing (agent-ui-mermaid.el and Agent UI's parts
+with it took ~25 ms of Emacs's start)."
+  (should (equal (agent-ui-test-fresh
+                  '(progn (agent-ui-mermaid-theme-changed)
+                          (seq-filter #'featurep '(agent-ui-mermaid agent-ui-core agent-ui-canvas))))
+                 nil)))
+
 ;; mmdc (node, puppeteer) reads its configuration from its working folder up:
 ;; a project's .puppeteerrc.cjs is JavaScript it runs.
 (ert-deftest agent-ui-mermaid/mmdc-run-outside-the-project ()

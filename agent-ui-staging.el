@@ -210,7 +210,7 @@ then nothing of it stays."
         (write-region (agent-ui--staged-text name code) nil file nil 'silent))
       (puthash name canvas agent-ui--staged-by)
       ;; Its review's list and the canvases' header: told by this hook.
-      (require 'agent-ui-review)
+      (agent-ui--require 'agent-ui-review)
       (run-hook-with-args 'agent-ui-staged-functions name)
       (list :type (symbol-name name) :file file :status "waiting"
             :note (concat "Waiting for the user's review: nothing of it runs before they keep it. "

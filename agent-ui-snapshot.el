@@ -45,10 +45,9 @@
 (autoload 'url-target "url-parse")
 (autoload 'mailcap-file-name-to-mime-type "mailcap")
 (autoload 'xml-escape-string "xml")
-(require 'agent-ui-core)
-(require 'agent-ui-canvas)
-(require 'agent-ui-agent)
-(require 'agent-ui-dashboards)
+;; Its links opened from anywhere (browse-url), in a canvas: all of Agent
+;; UI's parts.
+(require 'agent-ui-parts)
 
 (declare-function image-size "ext:image.c")
 ;; Only in an Emacs built for graphical frames: called after display-graphic-p.

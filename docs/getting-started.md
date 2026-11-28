@@ -103,12 +103,23 @@ touches agent-shell and Emacs, and turning it off removes it again:
 Emacs must run a server, since the command line talks to it through `emacsclient`. Without one, the command fails with
 exit status 3 and a message saying so, and agents aren't told about the canvas at all.
 
-The canvas's keys are plain Emacs keys in `agent-ui-canvas-mode-map` ([The canvas](canvas.md#keys)). If you use Evil,
-bind them in its normal state, or let canvases start in Emacs state:
+Only `agent-ui.el` is loaded with Emacs, so its start doesn't wait for Agent UI. The rest, its parts
+(`agent-ui-parts.el`), is loaded the first time agent-shell is loaded or you use Agent UI: a request from the command
+line, a dashboard, one of its commands or [Lisp functions](lisp.md). What of the mode needs them (its hooks on windows,
+fonts and Emacs's exit, the types you kept) comes on with them. Set its options with `setq` at any time; to bind one
+with `let` before Agent UI was used, `(require 'agent-ui-parts)` first, since a variable bound before it's defined is
+lexical, and Emacs signals an error when its file is then loaded.
+
+The canvas's keys are plain Emacs keys in `agent-ui-canvas-mode-map` ([The canvas](canvas.md#keys)), defined once its
+parts are loaded. If you use Evil, bind them in its normal state, or let canvases start in Emacs state:
 
 ```elisp
 (with-eval-after-load 'evil
   (evil-set-initial-state 'agent-ui-canvas-mode 'emacs))
+
+;; A key of your own: once the canvas is loaded.
+(with-eval-after-load 'agent-ui-canvas
+  (keymap-set agent-ui-canvas-mode-map "C-c r" #'agent-ui-canvas-redraw))
 ```
 
 You may also want a key to jump to a question waiting for your answer, from any session:

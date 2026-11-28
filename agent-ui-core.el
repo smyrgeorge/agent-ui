@@ -315,6 +315,14 @@ are, each its file, so that Emacs's start doesn't wait for 30 of them.
   (setf (alist-get name agent-ui--type-features) feature)
   name)
 
+(defun agent-ui--require (feature)
+  "Load FEATURE (an Agent UI file's) if it isn't, from Agent UI's folder first.
+In a long `load-path' (265 folders, Agent UI's the 195th), finding a file
+took ~2 ms, as long as loading a small one."
+  (unless (featurep feature)
+    (let ((load-path (cons agent-ui-directory load-path)))
+      (require feature))))
+
 (defun agent-ui--type-get (name)
   "Return the component type NAME (a symbol), nil if there's none.
 Its file is loaded first if it's one of `agent-ui--type-features' not
@@ -322,13 +330,13 @@ loaded yet."
   (or (gethash name agent-ui--types)
       (when-let* ((feature (alist-get name agent-ui--type-features))
                   ((not (featurep feature))))
-        (require feature)
+        (agent-ui--require feature)
         (gethash name agent-ui--types))))
 
 (defun agent-ui-load-types ()
   "Load the files of the component types not loaded yet (`agent-ui-autoload-type')."
   (pcase-dolist (`(,_ . ,feature) agent-ui--type-features)
-    (require feature)))
+    (agent-ui--require feature)))
 
 (defun agent-ui-undefine (name)
   "Forget the component type NAME."

@@ -9,7 +9,8 @@ with `setq` in your init file:
 ```
 
 A few settings are plain variables rather than user options; they're marked *(variable)* below and are set with
-`setq`. Paths under `user-emacs-directory` are given as `~/.emacs.d/`; they follow wherever yours is.
+`setq`. Most options are defined once Agent UI's parts are loaded (the first time agent-shell is, or Agent UI is used):
+to bind one with `let` before that, `(require 'agent-ui-parts)` first ([Getting started](getting-started.md#setting-it-up)). Paths under `user-emacs-directory` are given as `~/.emacs.d/`; they follow wherever yours is.
 
 ## Setup
 

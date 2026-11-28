@@ -255,7 +255,7 @@ level, a lambda's body isn't looked at (its warnings unsaid)."
             (goto-char (point-max))
             (insert "\n)\n"))
           ;; The types the agent makes' compiler (loaded when first used).
-          (require 'agent-ui-staging)
+          (agent-ui--require 'agent-ui-staging)
           (agent-ui--byte-compile temp 2 (format "dashboard %s" name)))
       (delete-file temp))))
 
@@ -1058,7 +1058,7 @@ it, it goes on as it was."
   "Where DASHBOARD's PDF goes now, beside its file.
 It is NAME-YYYYMMDD-HHMMSS.pdf (another in the same second:
 NAME-...-2.pdf)."
-  (require 'agent-ui-snapshot)
+  (agent-ui--require 'agent-ui-snapshot)
   (let ((file (agent-ui-dashboards--file dashboard)))
     (agent-ui-pdf-unique-file (file-name-base file) (file-name-directory file))))
 
