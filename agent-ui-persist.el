@@ -185,10 +185,9 @@ A save failing is said, never stops it closing (nor its session)."
         (agent-ui-persist-save (current-buffer))
       (error (message "Agent UI: the canvas couldn't be saved: %S" err)))))
 
-(add-hook 'agent-ui-changed-hook #'agent-ui--persist-later)
-(add-hook 'agent-ui-title-changed-hook #'agent-ui--persist-later)
-(add-hook 'agent-ui-canvas-hook
-          (lambda () (add-hook 'kill-buffer-hook #'agent-ui--persist-closing -50 t)))
+(defun agent-ui--persist-closing-h ()
+  "Save a canvas made as it's killed (`agent-ui--persist-closing')."
+  (add-hook 'kill-buffer-hook #'agent-ui--persist-closing -50 t))
 
 (defun agent-ui--persist-kept-h ()
   "Keep what was saved before, when a canvas is made, tied to its session.
@@ -200,7 +199,6 @@ in its saves (see above); not one coming back with its session
                 ((file-readable-p file)))
       (setq agent-ui--persist-kept (seq-filter #'agent-ui--plist-p (agent-ui-persist--read file))))))
 
-(add-hook 'agent-ui-canvas-hook #'agent-ui--persist-kept-h t)
 
 (defun agent-ui--persist-shown-h (id _component)
   "Drop the component kept from before, when component ID is shown.
@@ -209,7 +207,6 @@ The one with its id is replaced (removed, it's gone)."
     (setq agent-ui--persist-kept
           (seq-remove (lambda (e) (equal (plist-get e :id) id)) agent-ui--persist-kept))))
 
-(add-hook 'agent-ui-shown-functions #'agent-ui--persist-shown-h)
 
 (defun agent-ui--persist-cleared-h ()
   "The canvas cleared: what was kept from before dropped too, saved empty."
@@ -217,7 +214,6 @@ The one with its id is replaced (removed, it's gone)."
     (setq agent-ui--persist-kept nil)
     (agent-ui--persist-later)))
 
-(add-hook 'agent-ui-cleared-hook #'agent-ui--persist-cleared-h)
 
 (defun agent-ui--persist-all-now ()
   "Do the canvases' saves waiting now, as Emacs exits.

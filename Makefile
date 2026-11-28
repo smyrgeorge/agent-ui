@@ -44,11 +44,10 @@ package-lint:
 	  --eval "(setq package-lint-main-file \"agent-ui.el\")" \
 	  -f package-lint-batch-and-exit $(ELS)
 
-# The checks MELPA's reviewers run on its recipe (needs Docker), as CI does.
-RECIPE = (agent-ui :fetcher github :repo "smyrgeorge/agent-ui" :files (:defaults "bin" "skills" "assets"))
+# The checks MELPA's reviewers run on its recipe (needs Docker), as CI does
+# (scripts/melpazoid.sh): a warning fails it.
 melpazoid:
-	@test -d $(DEPS_DIR)/melpazoid || git clone --depth 1 https://github.com/riscy/melpazoid $(DEPS_DIR)/melpazoid
-	LOCAL_REPO="$(CURDIR)" RECIPE='$(RECIPE)' EXIST_OK=false $(MAKE) -C $(DEPS_DIR)/melpazoid
+	DEPS_DIR=$(DEPS_DIR) scripts/melpazoid.sh
 
 checkdoc:
 	$(BATCH) -l scripts/checkdoc-batch.el $(ELS)

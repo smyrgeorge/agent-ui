@@ -59,7 +59,7 @@ there then; a show's reply links to its component."
                          (seq-filter #'featurep '(lisp-mnt map browse-url))
                          (seq-every-p #'commandp '(agent-ui-doctor agent-ui-review agent-ui-report-bug
                                                    agent-ui-open-dashboard agent-ui-open-dashboard-here
-                                                   agent-ui-dashboard-forget-project
+                                                   agent-ui-trust-project agent-ui-forget-project
                                                    agent-ui-goto-question agent-ui-pane-toggle))
                          (seq-every-p #'fboundp '(agent-ui-request agent-ui-doctor-request
                                                   agent-ui-show agent-ui-update agent-ui-get

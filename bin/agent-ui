@@ -72,19 +72,30 @@
 #
 # AGENT_UI_SESSION (set by agent-shell for its agents) names the session whose
 # canvas it is; without it, the session working in this directory's. EMACSCLIENT
-# (default: emacsclient) is the client, EMACS_SOCKET_NAME its server.
+# (default: emacsclient) is the client, EMACS_SOCKET_NAME its server. Run
+# outside a desktop session (cron: no XDG_RUNTIME_DIR), it finds a desktop
+# Emacs's server in /run/user/UID/emacs/ on Linux, which emacsclient alone
+# wouldn't look in.
 
 set -u
 
 usage() { sed -n '2,/^$/{s/^# \{0,1\}//;p;}' "$0"; }
 
 json_string() {  # json_string TEXT: TEXT as a JSON string
-  local s=$1
+  local s=$1 i c u
   s=${s//\\/\\\\}
   s=${s//\"/\\\"}
   s=${s//$'\n'/\\n}
   s=${s//$'\t'/\\t}
   s=${s//$'\r'/\\r}
+  # Every other control character as \u00XX: JSON allows none raw.
+  for ((i = 1; i < 32; i++)); do
+    case $i in 9|10|13) continue ;; esac
+    printf -v c "\\x$(printf %02x "$i")"
+    [[ $s == *"$c"* ]] || continue
+    printf -v u '\\u%04x' "$i"
+    s=${s//"$c"/"$u"}
+  done
   printf '"%s"' "$s"
 }
 
@@ -219,6 +230,15 @@ printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$op" "$id" "${AGENT_UI_SESSION:-}" "$PWD"
 [ "$takes_json" = 1 ] && printf '%s' "$json" >"$dir/payload"
 # doctor's payload: this command's file, then its checks.
 [ "$op" = doctor ] && printf '%s\n%s' "$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")" "$checks" >"$dir/payload"
+
+# On Linux emacsclient looks for its server under $XDG_RUNTIME_DIR/emacs/, or,
+# without that variable (cron), in ${TMPDIR:-/tmp}/emacsUID/ only: a desktop
+# Emacs's is in /run/user/UID/emacs/. AGENT_UI_RUNTIME_DIR: that folder
+# elsewhere (the tests).
+if [ -z "${EMACS_SOCKET_NAME:-}" ] && [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+  runtime=${AGENT_UI_RUNTIME_DIR:-/run/user/$(id -u)}
+  [ -S "$runtime/emacs/server" ] && export EMACS_SOCKET_NAME="$runtime/emacs/server"
+fi
 
 # The folder as a Lisp string.
 lisp_dir=${dir//\\/\\\\}

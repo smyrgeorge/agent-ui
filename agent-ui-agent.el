@@ -188,7 +188,6 @@ In a new canvas: tied to the session it's named after, if there's one
     (with-current-buffer (car found)
       (add-hook 'kill-buffer-hook #'agent-ui--kill-canvas nil t))))
 
-(add-hook 'agent-ui-canvas-hook #'agent-ui--link-session)
 
 (defun agent-ui-session-canvases (session)
   "SESSION's (an `agent-shell' buffer) canvases: its own and its others."
@@ -214,11 +213,17 @@ high).  In the session's pane: agent-ui-pane.el."
                                        (buffer-local-value 'agent-ui--canvas-part b)
                                        t))))))
 
-(add-hook 'agent-ui-share-window-functions #'agent-ui--session-window)
 
 (defun agent-ui--kill-canvas ()
   "The session's buffer is killed: its canvases too."
   (mapc #'kill-buffer (agent-ui-session-canvases (current-buffer))))
+
+(defun agent-ui-canvas-session (canvas)
+  "The session buffer whose canvas CANVAS is, or nil.
+A session's canvas, or one of its other canvases (SESSION / NAME)."
+  (and (buffer-live-p canvas)
+       (buffer-local-boundp 'agent-ui--session-buffer canvas)
+       (buffer-local-value 'agent-ui--session-buffer canvas)))
 
 (defun agent-ui--key-hosts (canvas key)
   "Return the canvas hosted by the section of key KEY in CANVAS.
@@ -226,7 +231,7 @@ high).  In the session's pane: agent-ui-pane.el."
 The canvas (its name) the section of the component of key KEY in CANVAS
 hosts (`agent-ui-host'), or nil."
   (with-current-buffer canvas
-    (when-let* ((section (agent-ui--find-section (agent-ui--key-section key))))
+    (when-let* ((section (agent-ui--find-section (agent-ui-key-section key))))
       (agent-ui--section-hosts section))))
 
 (defun agent-ui--key-session (canvas key)
@@ -262,7 +267,6 @@ killed, the session's question mark looked at again."
     (with-current-buffer host
       (add-hook 'kill-buffer-hook #'agent-ui--question-closed-h nil t))))
 
-(add-hook 'agent-ui-host-functions #'agent-ui--hosted-h)
 
 (defun agent-ui--unhost-session ()
   "Remove a killed session's components from the sections hosting its canvas.
@@ -281,7 +285,6 @@ no longer, its components there removed (`agent-ui-unhost')."
 a session's other canvas (see above)."
   (and (buffer-local-value 'agent-ui--canvas-part canvas) t))
 
-(add-hook 'agent-ui-close-emptied-functions #'agent-ui--close-emptied-p)
 
 ;; ====== WHAT THE AGENT IS TOLD ======
 
@@ -434,7 +437,7 @@ of no session: the session working in its project, the latest."
                            (and (bound-and-true-p agent-ui-dashboards--state)
                                 (agent-ui--project-session default-directory))))))
     ;; What it says of its component, of a section's: its id, not its key.
-    (setq prompt (agent-ui--unkeyed prompt (agent-ui--key-section key)))
+    (setq prompt (agent-ui--unkeyed prompt (agent-ui-key-section key)))
     ;; A canvas holding its prompts (an untrusted dashboard's): into the
     ;; prompt, for the user to read, never sent at once.
     (when (and canvas agent-ui-actions-held)
@@ -482,7 +485,6 @@ no such session (gone, or a restart since): nothing."
           (agent-ui--act-in session text t))
       (error (message "Agent UI: %s couldn't be told: %s" (buffer-name session) (error-message-string err))))))
 
-(add-hook 'agent-ui-type-reviewed-functions #'agent-ui--tell-type-reviewed)
 
 (declare-function agent-shell-insert "agent-shell")
 (declare-function agent-shell-prompt-queue "agent-shell-prompt-queue")
@@ -524,7 +526,7 @@ a section hosting its canvas too), but EXCEPT's (a canvas being killed):
                      (memq session (agent-ui--canvas-sessions canvas)))
            append (with-current-buffer canvas
                     (cl-loop for key in agent-ui--order
-                             for section = (agent-ui--key-section key)
+                             for section = (agent-ui-key-section key)
                              for component = (agent-ui--entry-component (gethash key agent-ui--entries))
                              when (eq (agent-ui--key-session canvas key) session)
                              append (cl-loop for e in (cons (plist-put (copy-sequence component) :id key)
@@ -566,7 +568,7 @@ lines its too)."
   (let* ((top (get-text-property start 'agent-ui-id))
          (prop (if (equal top id) 'agent-ui-id 'agent-ui-child))
          ;; A child's text says its id, not its key.
-         (id (if (eq prop 'agent-ui-child) (agent-ui--key-id id) id))
+         (id (if (eq prop 'agent-ui-child) (agent-ui-key-id id) id))
          (pos start)
          (end start))
     (while (and (< pos (point-max)) (equal (get-text-property pos 'agent-ui-id) top))
@@ -641,7 +643,6 @@ those that had one."
                (buffer-local-value 'agent-ui--question-waiting session))
       (agent-ui--question-check session))))
 
-(add-hook 'agent-ui-changed-hook #'agent-ui--question-changed-h)
 
 (defun agent-ui--question-closed-h ()
   "Update the marks of the sessions of a killed canvas.
@@ -735,7 +736,6 @@ Emacs is idle a moment (longer if the user types meanwhile)."
     (run-with-idle-timer agent-ui-focus-questions-delay nil
                          #'agent-ui--focus-question (current-buffer) id num-input-keys)))
 
-(add-hook 'agent-ui-shown-functions #'agent-ui--focus-question-h)
 
 (defun agent-ui--reveal-question-h (key component)
   "Reveal the question of key KEY, just shown in a section.
@@ -743,12 +743,11 @@ Emacs is idle a moment (longer if the user types meanwhile)."
 A question shown in a section (`agent-ui-shown-functions'): the section
 unfolded, the question in view (taking the focus is another matter).
 COMPONENT is the question's component."
-  (when (and (agent-ui--key-section key)
+  (when (and (agent-ui-key-section key)
              (not (bound-and-true-p agent-ui--restoring))
              (agent-ui-ask-waiting-p component))
     (agent-ui-reveal key (current-buffer))))
 
-(add-hook 'agent-ui-shown-functions #'agent-ui--reveal-question-h)
 
 (defun agent-ui--answered-going (canvas)
   "Return the keys of CANVAS's components that go now.
@@ -763,7 +762,7 @@ there was the question's (mockups, notes it asked about)."
            (answered (seq-filter (lambda (key) (agent-ui-ask-done-p (funcall component key))) agent-ui--order))
            ;; What's on an ask canvas together: the canvas, or a section's.
            (asking (lambda (key)
-                     (if-let* ((section (agent-ui--key-section key)))
+                     (if-let* ((section (agent-ui-key-section key)))
                          (and (equal (agent-ui--entry-part (gethash key agent-ui--entries)) "ask") section)
                        (and (equal agent-ui--canvas-part "ask") t))))
            (over (delete-dups
@@ -775,7 +774,7 @@ there was the question's (mockups, notes it asked about)."
       (when answered
         (seq-filter (lambda (key)
                       (or (member key answered)
-                          (member (agent-ui--key (plist-get (funcall component key) :with) (agent-ui--key-section key))
+                          (member (agent-ui--key (plist-get (funcall component key) :with) (agent-ui-key-section key))
                                   answered)
                           (member (funcall asking key) over)))
                     agent-ui--order)))))
@@ -812,7 +811,6 @@ goes (after the command that sent it)."
                        agent-ui--order))
     (run-with-timer 0 nil #'agent-ui--close-answered (current-buffer))))
 
-(add-hook 'agent-ui-changed-hook #'agent-ui--close-answered-h)
 
 (defun agent-ui-goto-question ()
   "Go to a question waiting for an answer.

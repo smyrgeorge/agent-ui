@@ -660,8 +660,6 @@ stopped."
                    (run-with-timer 0 (agent-ui-source--state-every state) #'agent-ui-source--poll canvas id))))
         (error (agent-ui-source--failed state err))))))
 
-(add-hook 'agent-ui-shown-functions #'agent-ui-source--start)
-(add-hook 'agent-ui-removed-functions #'agent-ui-source-stop)
 
 (cl-defun agent-ui-source-status (id &key canvas)
   "Return component ID's source in CANVAS as it goes, a plist for the agent.

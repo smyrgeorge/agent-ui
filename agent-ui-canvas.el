@@ -78,6 +78,14 @@ shows it, without selecting it.  By default, in its session's pane
 (defvar agent-ui-canvas-hook nil
   "Run in a canvas's buffer once it's made.")
 
+(defconst agent-ui--canvas-handlers
+  '(agent-ui-review--canvas-header agent-ui--persist-closing-h agent-ui--link-session
+    agent-ui--persist-kept-h)
+  "Agent UI's own, called first where `agent-ui-canvas-hook' runs:
+its review's header (agent-ui-review.el, once loaded), its saving as
+it closes and what was saved before (agent-ui-persist.el), its session
+\(agent-ui-agent.el).")
+
 (defvar agent-ui-check-source-function #'agent-ui-source-check
   "Called with a component's :source: an error if it's wrong.")
 
@@ -85,22 +93,54 @@ shows it, without selecting it.  By default, in its session's pane
   "Called in a canvas with a component's id and itself, once it's shown.
 It's new, or shown again.")
 
+(defconst agent-ui--shown-handlers
+  '(agent-ui-source--start agent-ui--persist-shown-h agent-ui--pane-shown-h
+    agent-ui--reveal-question-h agent-ui--focus-question-h)
+  "Agent UI's own, called first where `agent-ui-shown-functions' runs:
+its source started (agent-ui-source.el), its saving
+\(agent-ui-persist.el), its pane (agent-ui-pane.el), a question shown
+\(agent-ui-agent.el).")
+
 (defvar agent-ui-changed-hook nil
   "Run in a canvas when its components change.
 They're shown, updated, appended to, removed, cleared; not when the
 canvas closes.")
 
+(defconst agent-ui--changed-handlers
+  '(agent-ui--finished-check agent-ui--persist-later agent-ui--pane-changed-h
+    agent-ui--close-answered-h agent-ui--question-changed-h agent-ui--check-untitled)
+  "Agent UI's own, called first where `agent-ui-changed-hook' runs:
+finished components (agent-ui-finished.el), its saving
+\(agent-ui-persist.el), its pane (agent-ui-pane.el), its questions
+\(agent-ui-agent.el), its title (agent-ui-canvas.el).")
+
 (defvar agent-ui-cleared-hook nil
   "Run in a canvas once it's cleared (every component removed at once).")
+
+(defconst agent-ui--cleared-handlers
+  '(agent-ui--persist-cleared-h agent-ui--title-cleared)
+  "Agent UI's own, called first where `agent-ui-cleared-hook' runs:
+its saving (agent-ui-persist.el), its title (agent-ui-canvas.el).")
 
 (defvar agent-ui-title-changed-hook nil
   "Run in a canvas once its title changed (`agent-ui-canvas-title').
 Its lone panel's, come, changed or gone; the one an agent gave it, given
 or taken back (`agent-ui-set-title').  Its view's bar names it again.")
 
+(defconst agent-ui--title-changed-handlers
+  '(agent-ui--persist-later agent-ui--pane-retitle)
+  "Agent UI's own, called first where `agent-ui-title-changed-hook' runs:
+its saving (agent-ui-persist.el), its pane (agent-ui-pane.el).")
+
 (defvar agent-ui-removed-functions nil
   "Called in a canvas with a component's id once it's gone.
 It's removed, or its canvas killed.")
+
+(defconst agent-ui--removed-handlers
+  '(agent-ui-slider--removed agent-ui-source-stop)
+  "Agent UI's own, called first where `agent-ui-removed-functions' runs:
+a slider's (agent-ui-slider.el, once loaded), its source stopped
+\(agent-ui-source.el).")
 
 (defvar agent-ui-close-emptied-functions nil
   "Called with a canvas left without components, its panes closed.
@@ -108,11 +148,21 @@ That's cleared, or its last one removed.  Non-nil from one: it's killed
 too, gone from the windows' tabs (agent-ui-agent.el: a session's other
 canvas); else it stays.  The first one's.")
 
+(defconst agent-ui--close-emptied-handlers
+  '(agent-ui--close-emptied-p)
+  "Agent UI's own, called first where `agent-ui-close-emptied-functions' runs:
+a session's canvas kept (agent-ui-agent.el).")
+
 (defvar agent-ui-footer-functions nil
   "Called in a canvas with a component's id and the width it's drawn at (nil:
 any), as it's drawn: lines to draw under it, that wide at most (the
 canvas's, not the component's: a finished one's countdown), or nil.  The first
 one's are drawn.")
+
+(defconst agent-ui--footer-handlers
+  '(agent-ui--closing-footer)
+  "Agent UI's own, called first where `agent-ui-footer-functions' runs:
+a finished component's countdown (agent-ui-finished.el).")
 
 (cl-defstruct (agent-ui--entry (:constructor agent-ui--make-entry))
   "A component of a canvas: its key (ID: its id, SECTION/ID in a section, see
@@ -255,7 +305,7 @@ Made if there's none."
         (agent-ui-canvas-mode)
         (setq agent-ui--canvas-name name)
         (agent-ui--top-line)
-        (run-hooks 'agent-ui-canvas-hook)))
+        (agent-ui--run-hook agent-ui--canvas-handlers 'agent-ui-canvas-hook)))
     buffer))
 
 ;; ITS TOP LINE
@@ -365,6 +415,11 @@ A window to show it in, a tab there beside what it shows
 \(agent-ui-agent.el: another canvas of its session's), or nil: a window
 of its own.  The first one's.")
 
+(defconst agent-ui--share-window-handlers
+  '(agent-ui--session-window)
+  "Agent UI's own, called first where `agent-ui-share-window-functions' runs:
+its session's window (agent-ui-agent.el).")
+
 (defvar agent-ui--restoring)            ; agent-ui-persist.el's: canvases coming back
 
 (defun agent-ui-display-canvas (buffer)
@@ -372,7 +427,7 @@ of its own.  The first one's.")
 In the window `agent-ui-share-window-functions' gives, a tab there
 \(coming back with its session: behind what it shows), else in one of
 its own."
-  (if-let* ((window (run-hook-with-args-until-success 'agent-ui-share-window-functions buffer)))
+  (if-let* ((window (agent-ui--run-hook-until-success agent-ui--share-window-handlers 'agent-ui-share-window-functions buffer)))
       (agent-ui--display-in buffer window (bound-and-true-p agent-ui--restoring))
     (display-buffer buffer '(nil (inhibit-same-window . t)))))
 
@@ -622,7 +677,7 @@ divider names it).  Returns the title it has now, or nil."
                           agent-ui--canvas-name agent-ui-canvas-name))
         (unless (equal title agent-ui--given-title)
           (setq agent-ui--given-title title)
-          (run-hooks 'agent-ui-title-changed-hook)
+          (agent-ui--run-hook agent-ui--title-changed-handlers 'agent-ui-title-changed-hook)
           (force-mode-line-update t))))
     title))
 
@@ -630,10 +685,9 @@ divider names it).  Returns the title it has now, or nil."
   "The current canvas cleared: the title given it taken back with its components."
   (when agent-ui--given-title
     (setq agent-ui--given-title nil)
-    (run-hooks 'agent-ui-title-changed-hook)
+    (agent-ui--run-hook agent-ui--title-changed-handlers 'agent-ui-title-changed-hook)
     (force-mode-line-update t)))
 
-(add-hook 'agent-ui-cleared-hook #'agent-ui--title-cleared)
 
 (defun agent-ui-canvas-label (buffer)
   "What names canvas BUFFER where its name would (a tab): \"Agent UI:
@@ -669,10 +723,9 @@ its title or without; its view's bar and its tab told
                                (delete-dups (list (car agent-ui--untitled) (car lone))))))
           (setq agent-ui--untitled lone)
           (when ids (agent-ui--dirty ids))
-          (run-hooks 'agent-ui-title-changed-hook)
+          (agent-ui--run-hook agent-ui--title-changed-handlers 'agent-ui-title-changed-hook)
           (force-mode-line-update t))))))
 
-(add-hook 'agent-ui-changed-hook #'agent-ui--check-untitled)
 
 (defun agent-ui--draw (entry ctx)
   "Draw ENTRY again at CTX's width, in its place.
@@ -694,7 +747,7 @@ ENTRY is its own."
          (ctx (agent-ui--entry-context entry ctx))
          (start (agent-ui--entry-start entry))
          (end (agent-ui--entry-end entry))
-         (footer (run-hook-with-args-until-success 'agent-ui-footer-functions (agent-ui--entry-id entry)
+         (footer (agent-ui--run-hook-until-success agent-ui--footer-handlers 'agent-ui-footer-functions (agent-ui--entry-id entry)
                                                    (plist-get ctx :width)))
          ;; Its id in the context: a component's buttons may change it (a choice).
          (text (concat (agent-ui-render (agent-ui--entry-component entry)
@@ -776,7 +829,7 @@ its type can't (then it's drawn whole)."
                     (equal (plist-get old :title) (plist-get new :title))
                     (equal (plist-get old :caption) (plist-get new :caption))
                     (equal (plist-get old :actions) (plist-get new :actions))
-                    (not (run-hook-with-args-until-success 'agent-ui-footer-functions (agent-ui--entry-id entry)
+                    (not (agent-ui--run-hook-until-success agent-ui--footer-handlers 'agent-ui-footer-functions (agent-ui--entry-id entry)
                                                            (plist-get ctx :width)))
                     (equal (plist-get old :type) (plist-get new :type))
                     (ignore-error agent-ui-error (agent-ui-type (plist-get new :type)))))
@@ -806,7 +859,6 @@ That's before a button's action is looked up
   (when (derived-mode-p 'agent-ui-canvas-mode)
     (agent-ui--flush)))
 
-(add-hook 'agent-ui-before-press-hook #'agent-ui--flush-before-press)
 
 (defun agent-ui--flush ()
   "Redraw the current canvas's dirty components."
@@ -969,9 +1021,9 @@ started again once it's shown (`agent-ui--shown')."
 Its components go with it, panels' children too; the canvases its
 sections hosted, on their own again."
   (dolist (id agent-ui--order)
-    (run-hook-with-args 'agent-ui-removed-functions id)
+    (agent-ui--run-hook agent-ui--removed-handlers 'agent-ui-removed-functions id)
     (agent-ui--children-stopped (agent-ui--entry-component (gethash id agent-ui--entries))
-                                nil (agent-ui--key-section id)))
+                                nil (agent-ui-key-section id)))
   (setq agent-ui--hosts (seq-remove (lambda (host) (eq (cadr host) (current-buffer))) agent-ui--hosts))
   (dolist (timer (list agent-ui--redraw-timer agent-ui--animation-timer))
     (when (timerp timer)
@@ -993,12 +1045,14 @@ hasn't)."
       id
     (concat section "/" id)))
 
-(defun agent-ui--key-section (key)
-  "The section a component of key KEY is in: its name; nil for the canvas's own."
+(defun agent-ui-key-section (key)
+  "The section a component of key KEY is in: its name; nil for the canvas's own.
+A key is what a canvas's answer function gets (`agent-ui-answer-function'):
+SECTION/ID in a section, ID in the canvas's own."
   (when-let* ((at (and (stringp key) (string-search "/" key))))
     (substring key 0 at)))
 
-(defun agent-ui--key-id (key)
+(defun agent-ui-key-id (key)
   "The id of the component of key KEY."
   (if-let* ((at (and (stringp key) (string-search "/" key))))
       (substring key (1+ at))
@@ -1016,7 +1070,7 @@ component's key, as the section's components' agent knows them."
 (defun agent-ui--section-keys (section)
   "The keys of the current canvas's components in SECTION, in their order.
 SECTION is a name; nil: its own."
-  (seq-filter (lambda (key) (equal (agent-ui--key-section key) section)) agent-ui--order))
+  (seq-filter (lambda (key) (equal (agent-ui-key-section key) section)) agent-ui--order))
 
 (defun agent-ui--where (&optional section)
   "The current canvas, or its SECTION, as said in a message."
@@ -1029,12 +1083,12 @@ SECTION is a name; nil: its own."
 Or of key ID; an error naming the others if none."
   (let ((key (agent-ui--key id agent-ui--in-section)))
     (or (and (stringp id) (gethash key agent-ui--entries))
-        (let ((section (if (stringp key) (agent-ui--key-section key) agent-ui--in-section)))
+        (let ((section (if (stringp key) (agent-ui-key-section key) agent-ui--in-section)))
           (agent-ui--fail "no component %s in %s; its components: %s"
-                          (agent-ui--show-value (if (stringp key) (agent-ui--key-id key) id))
+                          (agent-ui--show-value (if (stringp key) (agent-ui-key-id key) id))
                           (agent-ui--where section)
                           (if-let* ((keys (agent-ui--section-keys section)))
-                              (mapconcat #'agent-ui--key-id keys ", ")
+                              (mapconcat #'agent-ui-key-id keys ", ")
                             "none"))))))
 
 ;; ====== A PANEL'S CHILDREN ======
@@ -1090,9 +1144,9 @@ Their buttons, keys and updates are then theirs, not their panel's."
   "The current canvas's component (its entry) holding child ID.
 In `agent-ui--in-section'; or of key ID; else nil."
   (let ((key (agent-ui--key id agent-ui--in-section)))
-    (seq-find (lambda (entry) (agent-ui--find-child (agent-ui--entry-component entry) (agent-ui--key-id key)))
+    (seq-find (lambda (entry) (agent-ui--find-child (agent-ui--entry-component entry) (agent-ui-key-id key)))
               (mapcar (lambda (top) (gethash top agent-ui--entries))
-                      (agent-ui--section-keys (agent-ui--key-section key))))))
+                      (agent-ui--section-keys (agent-ui-key-section key))))))
 
 (defun agent-ui--resolve (id)
   "Component ID of the current canvas (in `agent-ui--in-section').
@@ -1102,7 +1156,7 @@ else the child of ENTRY's panel.  An error if none."
     (if-let* ((entry (and key (gethash key agent-ui--entries))))
         (cons entry nil)
       (if-let* ((owner (and key (agent-ui--owner key))))
-          (cons owner (agent-ui--find-child (agent-ui--entry-component owner) (agent-ui--key-id key)))
+          (cons owner (agent-ui--find-child (agent-ui--entry-component owner) (agent-ui-key-id key)))
         (agent-ui--entry id)))))
 
 ;; ====== WHERE A COMPONENT IS ======
@@ -1113,7 +1167,7 @@ Its id; in a section, SECTION/ID: a panel's child's, if it's in one."
   (let ((top (or (get-text-property (point) 'agent-ui-id)
                  (and (not (bobp)) (get-text-property (1- (point)) 'agent-ui-id))))
         (child (get-text-property (point) 'agent-ui-child)))
-    (cond (child (agent-ui--key child (agent-ui--key-section top)))
+    (cond (child (agent-ui--key child (agent-ui-key-section top)))
           (top)
           (t (user-error "No component here")))))
 
@@ -1147,7 +1201,7 @@ A panel's child: its text's first character."
 Their sources started (`agent-ui-shown-functions', with their keys)."
   (dolist (child (agent-ui--descendants component))
     (when (plist-get child :id)
-      (run-hook-with-args 'agent-ui-shown-functions (agent-ui--key (plist-get child :id) section) child))))
+      (agent-ui--run-hook agent-ui--shown-handlers 'agent-ui-shown-functions (agent-ui--key (plist-get child :id) section) child))))
 
 (defun agent-ui--children-stopped (component &optional keep section)
   "COMPONENT's descendants (in SECTION) gone, but those whose ids are in KEEP:
@@ -1155,7 +1209,7 @@ their sources stopped (`agent-ui-removed-functions', with their keys)."
   (dolist (child (agent-ui--descendants component))
     (let ((id (plist-get child :id)))
       (when (and id (not (member id keep)))
-        (run-hook-with-args 'agent-ui-removed-functions (agent-ui--key id section))))))
+        (agent-ui--run-hook agent-ui--removed-handlers 'agent-ui-removed-functions (agent-ui--key id section))))))
 
 (defun agent-ui--children-changed (old new &optional section)
   "A panel (in SECTION) changed from OLD to NEW.
@@ -1166,7 +1220,7 @@ running)."
     (agent-ui--children-stopped old new-ids section)
     (dolist (child (agent-ui--descendants new))
       (when (and (plist-get child :id) (not (member (plist-get child :id) old-ids)))
-        (run-hook-with-args 'agent-ui-shown-functions (agent-ui--key (plist-get child :id) section) child)))))
+        (agent-ui--run-hook agent-ui--shown-handlers 'agent-ui-shown-functions (agent-ui--key (plist-get child :id) section) child)))))
 
 (defun agent-ui--ids-free (component section &optional except)
   "An error if an id of COMPONENT or its descendants is taken in SECTION.
@@ -1179,7 +1233,7 @@ its own place)."
         (dolist (top keys)
           (unless (equal top except)
             (let ((other (agent-ui--entry-component (gethash top agent-ui--entries))))
-              (when (or (and (equal (agent-ui--key-id top) id) (not (equal id (plist-get component :id))))
+              (when (or (and (equal (agent-ui-key-id top) id) (not (equal id (plist-get component :id))))
                         (agent-ui--find-child other id))
                 (agent-ui--fail "the id %s is taken in %s" (agent-ui--show-value id) (agent-ui--where section))))))))))
 
@@ -1311,7 +1365,7 @@ the id.  Signals `agent-ui-error' if COMPONENT is wrong."
                 (agent-ui--entry-shown owner)
                 (agent-ui--replace-child (or (agent-ui--entry-shown owner) (agent-ui--entry-component owner))
                                          id given))
-          (run-hook-with-args 'agent-ui-removed-functions key)
+          (agent-ui--run-hook agent-ui--removed-handlers 'agent-ui-removed-functions key)
           (agent-ui--children-stopped old nil section)
           (agent-ui--show-if-hidden)
           (agent-ui--dirty (list (agent-ui--entry-id owner)))))
@@ -1341,9 +1395,9 @@ the id.  Signals `agent-ui-error' if COMPONENT is wrong."
             (agent-ui--display (current-buffer)))
           (agent-ui--section-counted section)
           (agent-ui--animate))))
-      (run-hook-with-args 'agent-ui-shown-functions key component)
+      (agent-ui--run-hook agent-ui--shown-handlers 'agent-ui-shown-functions key component)
       (agent-ui--children-started component section)
-      (run-hooks 'agent-ui-changed-hook)
+      (agent-ui--run-hook agent-ui--changed-handlers 'agent-ui-changed-hook)
       id)))
 
 (cl-defun agent-ui-update (id patch &key canvas section)
@@ -1361,7 +1415,7 @@ CHANGE is a function of it returning it changed: checked, its panel's children
 started or stopped as they came or went, redrawn soon.  Returns ID."
   (pcase-let* ((`(,entry . ,child) (agent-ui--resolve id))
                (key (agent-ui--entry-id entry))
-               (section (agent-ui--key-section key))
+               (section (agent-ui-key-section key))
                (old (or child (agent-ui--entry-component entry)))
                (new (agent-ui--checked (agent-ui--children-named (funcall change old) (plist-get old :id)))))
     (if child
@@ -1373,7 +1427,7 @@ started or stopped as they came or went, redrawn soon.  Returns ID."
     (agent-ui--children-changed old new section)
     (agent-ui--show-if-hidden)
     (agent-ui--dirty (list key))
-    (run-hooks 'agent-ui-changed-hook)
+    (agent-ui--run-hook agent-ui--changed-handlers 'agent-ui-changed-hook)
     id))
 
 (cl-defun agent-ui-append (id patch &key canvas section)
@@ -1421,7 +1475,7 @@ already: `agent-ui--close-if-empty').  Called once what emptied it is
 done, outside it: its buffer current no more."
   (when (and (buffer-live-p canvas)
              (with-current-buffer canvas (agent-ui--empty-p))
-             (run-hook-with-args-until-success 'agent-ui-close-emptied-functions canvas))
+             (agent-ui--run-hook-until-success agent-ui--close-emptied-handlers 'agent-ui-close-emptied-functions canvas))
     (kill-buffer canvas)))
 
 (cl-defun agent-ui-remove (id &key canvas section)
@@ -1439,19 +1493,19 @@ The canvas kept.  Returns ID."
     (`(,owner . ,(and child (pred identity)))
      ;; A panel's child: out of its panel, redrawn.
      (let ((child-id (plist-get child :id))
-           (section (agent-ui--key-section (agent-ui--entry-id owner))))
+           (section (agent-ui-key-section (agent-ui--entry-id owner))))
        (setf (agent-ui--entry-component owner)
              (agent-ui--checked (agent-ui--replace-child (agent-ui--entry-component owner) child-id nil))
              (agent-ui--entry-shown owner)
              (and (agent-ui--entry-shown owner) (agent-ui--replace-child (agent-ui--entry-shown owner) child-id nil)))
-       (run-hook-with-args 'agent-ui-removed-functions (agent-ui--key child-id section))
+       (agent-ui--run-hook agent-ui--removed-handlers 'agent-ui-removed-functions (agent-ui--key child-id section))
        (agent-ui--children-stopped child nil section)
        (agent-ui--dirty (list (agent-ui--entry-id owner)))
-       (run-hooks 'agent-ui-changed-hook)
+       (agent-ui--run-hook agent-ui--changed-handlers 'agent-ui-changed-hook)
        id))
     (`(,entry . ,_)
      (let* ((key (agent-ui--entry-id entry))
-            (section (agent-ui--key-section key))
+            (section (agent-ui-key-section key))
             (inhibit-read-only t))
        ;; Its text and the blank line after it.
        (delete-region (agent-ui--entry-start entry)
@@ -1463,9 +1517,9 @@ The canvas kept.  Returns ID."
              agent-ui--dirty (delete key agent-ui--dirty))
        (agent-ui--section-counted section)
        (agent-ui--animate)
-       (run-hook-with-args 'agent-ui-removed-functions key)
+       (agent-ui--run-hook agent-ui--removed-handlers 'agent-ui-removed-functions key)
        (agent-ui--children-stopped (agent-ui--entry-component entry) nil section)
-       (run-hooks 'agent-ui-changed-hook)
+       (agent-ui--run-hook agent-ui--changed-handlers 'agent-ui-changed-hook)
        (agent-ui--close-if-empty)
        id))))
 
@@ -1492,7 +1546,7 @@ components only.  CANVAS emptied: its panes closed, it killed if it's to be
               (let ((inhibit-read-only t))
                 (erase-buffer))
               (agent-ui--top-line)
-              (run-hooks 'agent-ui-cleared-hook)
+              (agent-ui--run-hook agent-ui--cleared-handlers 'agent-ui-cleared-hook)
               (agent-ui--close-if-empty)))))
       (agent-ui--close-emptied buffer)))
   nil)
@@ -1519,7 +1573,7 @@ TYPE); none if it isn't there."
   (when (agent-ui--live-canvas-p canvas)
    (agent-ui--within (canvas section)
     (cl-loop for key in (agent-ui--section-keys agent-ui--in-section)
-             for id = (agent-ui--key-id key)
+             for id = (agent-ui-key-id key)
              for component = (agent-ui--entry-component (gethash key agent-ui--entries))
              collect (list :id id :type (plist-get component :type))
              ;; A panel's children (with ids), after it.
@@ -1575,6 +1629,11 @@ spinner), WORDS said over it.")
 (defvar agent-ui-host-functions nil
   "Called with a canvas's name, a canvas's buffer and a section's name.
 That's once the first is shown in that section (`agent-ui-host').")
+
+(defconst agent-ui--host-handlers
+  '(agent-ui--hosted-h)
+  "Agent UI's own, called first where `agent-ui-host-functions' runs:
+its session told (agent-ui-agent.el).")
 
 (defvar-keymap agent-ui-section-map
   :doc "Keys of a section's divider."
@@ -1780,7 +1839,7 @@ Its section unfolded, drawn, each window showing CANVAS scrolled to it
 if it starts out of its view."
   (agent-ui--in (or canvas (current-buffer))
     (pcase-let ((`(,entry . ,_) (agent-ui--resolve id)))
-      (when-let* ((section (agent-ui--find-section (agent-ui--key-section (agent-ui--entry-id entry)))))
+      (when-let* ((section (agent-ui--find-section (agent-ui-key-section (agent-ui--entry-id entry)))))
         (agent-ui--fold section nil))
       (agent-ui--flush)
       (let ((pos (marker-position (agent-ui--entry-start entry))))
@@ -1840,7 +1899,7 @@ Given again, only what's given changes.  Returns NAME.  Signals
           (agent-ui--draw-section section (agent-ui--context))
           (agent-ui--fold-refresh)
           (agent-ui--animate)))
-      (run-hooks 'agent-ui-changed-hook)
+      (agent-ui--run-hook agent-ui--changed-handlers 'agent-ui-changed-hook)
       name)))
 
 (defun agent-ui-sections (&optional canvas)
@@ -1890,7 +1949,7 @@ closed, it killed if it's to be.  Returns NAME."
       (let ((section (or (agent-ui--find-section name)
                          (agent-ui--fail "canvas %s has no section %s" agent-ui--canvas-name (agent-ui--show-value name)))))
         (agent-ui--remove-section section)
-        (run-hooks 'agent-ui-changed-hook)
+        (agent-ui--run-hook agent-ui--changed-handlers 'agent-ui-changed-hook)
         (agent-ui--close-if-empty)))
     (agent-ui--close-emptied buffer)
     name))
@@ -1942,7 +2001,7 @@ Until SECTION's removed, or `agent-ui-unhost'.  Returns NAME."
             (with-demoted-errors "Agent UI: %S"
               (agent-ui-show (agent-ui-get key :canvas buffer) :canvas as)))
           (kill-buffer buffer)))
-      (run-hook-with-args 'agent-ui-host-functions name host section)
+      (agent-ui--run-hook agent-ui--host-handlers 'agent-ui-host-functions name host section)
       name)))
 
 (defun agent-ui-unhost (name &optional keep)
@@ -1959,7 +2018,7 @@ were), its next component on a canvas of its own."
             (unless keep
               (dolist (key (agent-ui--section-keys (cddr host)))
                 (with-current-buffer buffer (agent-ui--remove key))))
-            (run-hooks 'agent-ui-changed-hook)))))
+            (agent-ui--run-hook agent-ui--changed-handlers 'agent-ui-changed-hook)))))
     name))
 
 

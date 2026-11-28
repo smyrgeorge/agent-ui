@@ -50,9 +50,17 @@ syslog's, Datadog's and Java's names: a script passing Datadog's status
   (should (eq (get-text-property 0 'face (agent-ui-log--line-text (agent-ui-log--line '(:level "warn" :text "slow")) 80))
               'agent-ui-warning))
   ;; Alert, ok, fine in a line's text are no level.
-  (should-not (agent-ui-log--level "alert: ok, all fine")))
+  (should-not (agent-ui-log-level "alert: ok, all fine")))
 
 ;; doom-nwj.75
+(ert-deftest agent-ui-components/log-level-public ()
+  "A line's level as a log finds it, for code of its own (a pane counting a
+script's errors): `agent-ui-log-level'."
+  (should (eq (agent-ui-log-level "ERROR: no such file") 'error))
+  (should (eq (agent-ui-log-level "warning: unused variable") 'warning))
+  (should-not (agent-ui-log-level "build: 0 errors, 0 warnings"))
+  (should-not (agent-ui-log-level "compiling")))
+
 (ert-deftest agent-ui-components/log-summaries-of-none-arent-errors ()
   "Success summaries aren't errors: a count of none (cargo's \"0 failed\",
 \"Errors: 0\") nor error_count (_ is part of a word); failures still are."
@@ -65,7 +73,7 @@ syslog's, Datadog's and Java's names: a script passing Datadog's status
                   "    0 Error(s)"
                   "Compiled with no errors"
                   "build: 0 errors, 0 warnings"))
-    (should-not (agent-ui-log--level line)))
+    (should-not (agent-ui-log-level line)))
   (dolist (line '("test result: FAILED. 11 passed; 1 failed; 0 ignored"
                   "========================= 1 failed, 11 passed in 0.31s ========================="
                   "FAILED tests/test_parser.py::test_empty - AssertionError"
@@ -73,8 +81,8 @@ syslog's, Datadog's and Java's names: a script passing Datadog's status
                   "Tests run: 12, Failures: 0, Errors: 1, Skipped: 0 <<< FAILURE!"
                   "10 failed"
                   "ERROR: 0 is not a valid port"))
-    (should (eq (agent-ui-log--level line) 'error)))
-  (should (eq (agent-ui-log--level "12 passed, 1 warning in 0.5s") 'warning))
+    (should (eq (agent-ui-log-level line) 'error)))
+  (should (eq (agent-ui-log-level "12 passed, 1 warning in 0.5s") 'warning))
   (should (equal (agent-ui-test-aue-draw '(:type "log" :lines "running 12 tests\ntest result: ok. 12 passed; 0 failed; 0 ignored"))
                  "2 lines\nrunning 12 tests\ntest result: ok. 12 passed; 0 failed; 0 ignored")))
 

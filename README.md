@@ -257,7 +257,7 @@ make deps      # clone the dependencies into .deps/
 make compile   # byte-compile, warnings as errors
 make lint      # package-lint and checkdoc
 make test      # the unit tests, in emacs -Q
-make melpazoid # the checks MELPA's reviewers run (needs Docker)
+make melpazoid # the checks MELPA's reviewers run (scripts/melpazoid.sh: Docker; a warning fails it)
 scripts/release.sh # a release: agent-ui.el's version tagged (vX.Y.Z) and pushed, checked first
 ```
 

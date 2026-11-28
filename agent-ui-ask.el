@@ -147,6 +147,17 @@ See `agent-ui-ask-question-p'."
   (and (not (plist-get component :answered))
        (agent-ui-ask-question-p component)))
 
+(defun agent-ui-canvas-asks-p (canvas)
+  "Whether a question waits in CANVAS: one of its components, in a section too.
+CANVAS is a canvas buffer; nil if it isn't a live one."
+  (and (buffer-live-p canvas)
+       (buffer-local-boundp 'agent-ui--order canvas)
+       (with-current-buffer canvas
+         (seq-some (lambda (key)
+                     (agent-ui-ask-waiting-p (agent-ui--entry-component (gethash key agent-ui--entries))))
+                   agent-ui--order))
+       t))
+
 (defun agent-ui-ask-done-p (component)
   "Whether COMPONENT asked the user and its answer was sent.
 Nothing left to do with it.  A plan approved too: the agent shows its

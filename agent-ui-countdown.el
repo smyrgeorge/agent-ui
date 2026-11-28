@@ -53,7 +53,7 @@
 A relative one is left as it is (made a time when shown); nil if it
 isn't a time."
   (cond ((numberp value) value)
-        ((stringp value) (agent-ui--time-seconds value))
+        ((stringp value) (agent-ui-time-seconds value))
         (t nil)))
 
 (defun agent-ui-countdown--check (props)

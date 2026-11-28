@@ -484,6 +484,35 @@ its reply with the report (agent-ui-bug.el, the filing stood in for)."
       (should (= (car run) 3))
       (should (string-match-p "no Emacs server answered" (cdr run))))))
 
+(ert-deftest agent-ui-request/the-script-s-json-with-control-characters ()
+  "A reply saying text with a control character (ESC, an operation typed with
+it): valid JSON, every control character escaped as \\u00XX."
+  (let ((run (agent-ui-test-aur-run (list "sh\eow"))))
+    (should (= (car run) 2))
+    (should (string-search "\\u001b" (cdr run)))
+    (should (string-search "sh\eow" (plist-get (json-parse-string (cdr run) :object-type 'plist) :error)))))
+
+(ert-deftest agent-ui-request/the-script-from-cron ()
+  "Run with no XDG_RUNTIME_DIR nor EMACS_SOCKET_NAME (cron, on Linux): a
+desktop Emacs's server found in its runtime folder (/run/user/UID/emacs/,
+AGENT_UI_RUNTIME_DIR here), which emacsclient alone wouldn't look in."
+  (agent-ui-test-aur
+    (let* ((runtime (make-temp-file "/tmp/aui-run-" t))
+           (server-socket-dir (expand-file-name "emacs" runtime))
+           (server-name "server")
+           (process-environment
+            (append (list (concat "AGENT_UI_RUNTIME_DIR=" runtime) "XDG_RUNTIME_DIR" "EMACS_SOCKET_NAME"
+                          "AGENT_UI_SESSION")
+                    process-environment)))
+      (unwind-protect
+          (progn
+            (server-start nil t)
+            (let ((run (agent-ui-test-aur-run '("list"))))
+              (should (= (car run) 0))
+              (should (string-prefix-p "{\"ok\":true" (cdr run)))))
+        (server-force-delete)
+        (delete-directory runtime t)))))
+
 ;; ====== doctor ======
 
 (defun agent-ui-test-aur-doctor ()

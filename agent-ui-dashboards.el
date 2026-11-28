@@ -50,6 +50,7 @@
 (require 'agent-ui-core)
 (require 'agent-ui-canvas)
 (require 'agent-ui-persist)
+(require 'agent-ui-trust)
 
 (declare-function nerd-icons-mdicon "ext:nerd-icons")
 (declare-function project-root "project")
@@ -70,11 +71,6 @@
   "Function giving a dashboard's canvas's name, called with its name and root.
 Another module names its own (the agent workspace: an agent's, \"tests ·
 ada\").")
-
-(defvar agent-ui-dashboard-trust-root-function #'identity
-  "Function giving the root whose trust a dashboard's root shares.
-Called with a dashboard's root: the root whose trust its dashboards share (the
-agent workspace: an agent's worktree shares its project's).")
 
 (defvar agent-ui-dashboard-display-function #'display-buffer
   "Function showing a dashboard's canvas opened for an agent.
@@ -555,67 +551,21 @@ take the keys the user is typing elsewhere.")
 ;; A dashboard's file comes from a repository and runs as Emacs itself: before
 ;; its code first runs, the user is asked (run it, trust its project, view its
 ;; file first, or not now); run, it's remembered by its file's content
-;; (sha256), in `agent-ui-dashboard-trust-file': asked again once it changes.
+;; (sha256), in `agent-ui-trust-file': asked again once it changes.
 ;; Not now: drawn, nothing run, said on it; r asks again.
 ;; Opened by an agent (not selected), it isn't asked from a timer (the keys
 ;; the user types elsewhere would answer): it waits, said on it, asked once
 ;; the user selects it (or r).
-;; Its project trusted (p, confirmed with a yes typed): every dashboard of the
-;; project runs without asking, whatever its file becomes (a dashboard being
-;; built, an agent editing it, asked about after each change), remembered by
-;; its root in the same file: the project's code trusted, the scripts its
-;; dashboards run too (which a dashboard's content never covered).  M-x
-;; agent-ui-dashboard-forget-project lists the projects trusted and forgets
-;; one: its dashboards asked about again.
-
-(defcustom agent-ui-dashboard-trust-file (locate-user-emacs-file "agent-ui/trusted-dashboards.eld")
-  "Where the dashboards whose code the user let run are remembered.
-Their files' content's sha256."
-  :type 'file :group 'agent-ui)
+;; Its project trusted (p, confirmed with a yes typed; agent-ui-trust.el):
+;; all of the project's code runs without asking, every dashboard whatever
+;; its file becomes (a dashboard being built, an agent editing it, asked about
+;; after each change), the scripts its dashboards run too (which a
+;; dashboard's content never covered).  M-x agent-ui-forget-project lists the
+;; projects trusted and forgets one: its dashboards asked about again.
 
 (defun agent-ui-dashboards--hash (file)
   "FILE's content's sha256."
   (secure-hash 'sha256 (agent-ui-dashboards--bytes file)))
-
-(defun agent-ui-dashboards--trusted ()
-  "The trusted dashboards and projects.
-The dashboards are ((HASH FILE TIME) ...), the projects (:project ROOT
-TIME)."
-  (when (file-readable-p agent-ui-dashboard-trust-file)
-    (condition-case nil
-        (with-temp-buffer
-          (insert-file-contents agent-ui-dashboard-trust-file)
-          (let ((data (read (current-buffer))))
-            (and (listp data) data)))
-      (error nil))))
-
-(defun agent-ui-dashboards--write-trusted (entries)
-  "Make ENTRIES (see `agent-ui-dashboards--trusted') the trusted ones."
-  (make-directory (file-name-directory agent-ui-dashboard-trust-file) t)
-  (with-temp-file agent-ui-dashboard-trust-file
-    (let ((print-length nil) (print-level nil))
-      (insert ";; Agent UI: the project dashboards whose code was let run, by content (sha256),\n"
-              ";; and the projects whose dashboards all run, by root.\n")
-      (prin1 entries (current-buffer))
-      (insert "\n"))))
-
-(defun agent-ui-dashboards--project (root)
-  "ROOT, a project's, as its trust is remembered.
-It is the root whose trust it shares
-\(`agent-ui-dashboard-trust-root-function'), its true name, a folder."
-  (file-name-as-directory
-   (file-truename (expand-file-name (funcall agent-ui-dashboard-trust-root-function
-                                             (file-name-as-directory (expand-file-name root)))))))
-
-(defun agent-ui-dashboard-trusted-projects ()
-  "The projects whose dashboards all run: ((ROOT . TIME) ...), the latest first."
-  (cl-loop for entry in (agent-ui-dashboards--trusted)
-           when (eq (car-safe entry) :project)
-           collect (cons (nth 1 entry) (nth 2 entry))))
-
-(defun agent-ui-dashboard-project-trusted-p (root)
-  "Whether the project at ROOT is trusted: its dashboards all run."
-  (and root (assoc (agent-ui-dashboards--project root) (agent-ui-dashboard-trusted-projects)) t))
 
 (defun agent-ui-dashboard-trusted-p (file &optional hash)
   "Whether dashboard FILE's code may run unasked.
@@ -625,9 +575,9 @@ trust: an agent's worktree its project's).  The same in another
 repository isn't: its scripts aren't the ones you let run."
   (let* ((file (expand-file-name file))
          (project (lambda (file) (when-let* ((root (agent-ui-dashboard-root (file-name-directory file))))
-                                   (agent-ui-dashboards--project root))))
+                                   (agent-ui-trust--root root))))
          (here (funcall project file)))
-    (and (or (agent-ui-dashboard-project-trusted-p (agent-ui-dashboard-root (file-name-directory file)))
+    (and (or (agent-ui-project-trusted-p (agent-ui-dashboard-root (file-name-directory file)))
              (let ((hash (or hash (agent-ui-dashboards--hash file))))
                (seq-some (lambda (entry)
                            (and (equal (car-safe entry) hash)
@@ -639,7 +589,7 @@ repository isn't: its scripts aren't the ones you let run."
                                          (not (file-remote-p (nth 1 entry)))
                                          (file-directory-p (file-name-directory (nth 1 entry)))
                                          (equal (funcall project (nth 1 entry)) here)))))
-                         (agent-ui-dashboards--trusted))))
+                         (agent-ui-trust--entries))))
          t)))
 
 (defun agent-ui-dashboard-trust (file &optional hash)
@@ -647,40 +597,10 @@ repository isn't: its scripts aren't the ones you let run."
 HASH: as it was read, its content's sha256.  Its older contents are
 forgotten."
   (let ((file (expand-file-name file)))
-    (agent-ui-dashboards--write-trusted
+    (agent-ui-trust--write
      (cons (list (or hash (agent-ui-dashboards--hash file)) file (format-time-string "%FT%T%z"))
            (seq-remove (lambda (e) (and (stringp (car-safe e)) (equal (nth 1 e) file)))
-                       (agent-ui-dashboards--trusted))))))
-
-(defun agent-ui-dashboard-trust-project (root)
-  "Trust the project at ROOT.
-Its dashboards all run, unasked, whatever their files become."
-  (let ((root (agent-ui-dashboards--project root)))
-    (agent-ui-dashboards--write-trusted
-     (cons (list :project root (format-time-string "%FT%T%z"))
-           (seq-remove (lambda (e) (and (eq (car-safe e) :project) (equal (nth 1 e) root)))
-                       (agent-ui-dashboards--trusted))))))
-
-(defun agent-ui-dashboard-forget-project (root)
-  "Stop trusting the project at ROOT.
-Its dashboards are asked about again (those let run as they are now, by their
-content, still run).  Interactively, the projects trusted to pick from."
-  (interactive
-   (let* ((projects (or (agent-ui-dashboard-trusted-projects)
-                        (user-error "No project is trusted: each dashboard is asked about")))
-          (names (mapcar (lambda (p) (abbreviate-file-name (car p))) projects))
-          (completion-extra-properties
-           (list :annotation-function
-                 (lambda (name)
-                   (concat "  trusted " (cdr (nth (seq-position names name) projects)))))))
-     (list (completing-read "Stop trusting the dashboards of: " names nil t))))
-  (let ((root (agent-ui-dashboards--project root)))
-    (unless (agent-ui-dashboard-project-trusted-p root)
-      (user-error "%s isn't trusted" (abbreviate-file-name root)))
-    (agent-ui-dashboards--write-trusted
-     (seq-remove (lambda (e) (and (eq (car-safe e) :project) (equal (nth 1 e) root)))
-                 (agent-ui-dashboards--trusted)))
-    (message "Agent UI: %s's dashboards asked about again" (abbreviate-file-name root))))
+                       (agent-ui-trust--entries))))))
 
 (defun agent-ui-dashboards--allowed-p (dashboard)
   "Whether DASHBOARD's code may run: its project trusted, or its file as read;
@@ -701,7 +621,7 @@ asked), a yes for the file lets nothing run, remembers nothing."
                                       (agent-ui-dashboards--name dashboard) (abbreviate-file-name file))
                               `((?y "run it" "Let its code run, remembered until its file changes")
                                 (?p "trust the project"
-                                    ,(format "Let all of %s's dashboards run, whatever they become (M-x agent-ui-dashboard-forget-project undoes it)"
+                                    ,(format "Let all of %s's code run, its dashboards whatever they become (M-x agent-ui-forget-project undoes it)"
                                              (abbreviate-file-name root)))
                                 (?v "view it" "Its file first, read-only; asked again after")
                                 (?n "not now" "Drawn, nothing run (r asks again)"))))
@@ -710,9 +630,9 @@ asked), a yes for the file lets nothing run, remembers nothing."
                                       (agent-ui-dashboard-trust file hash)
                                       'yes)))
                    (?p (when (let ((use-short-answers nil))
-                               (yes-or-no-p (format "Trust all of %s's dashboards, whatever their files become? "
+                               (yes-or-no-p (format "Trust %s: let all of its code run as you, whatever its files become? "
                                                     (abbreviate-file-name root))))
-                         (agent-ui-dashboard-trust-project root)
+                         (agent-ui-trust-project root)
                          (setq answer 'yes)))
                    (?v (view-file-other-window file))
                    (_ (setq answer 'no))))
@@ -720,7 +640,7 @@ asked), a yes for the file lets nothing run, remembers nothing."
 
 (defun agent-ui-dashboards--trusted-p (dashboard)
   "Whether DASHBOARD is trusted: its project, or its file as read."
-  (or (agent-ui-dashboard-project-trusted-p (agent-ui-dashboards--root dashboard))
+  (or (agent-ui-project-trusted-p (agent-ui-dashboards--root dashboard))
       (agent-ui-dashboard-trusted-p (agent-ui-dashboards--file dashboard)
                                     (agent-ui-dashboards--sha256 dashboard))))
 

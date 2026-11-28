@@ -98,7 +98,7 @@ to bind one with `let` before that, `(require 'agent-ui-parts)` first ([Getting 
 | Option | Default | What it does |
 |---|---|---|
 | `agent-ui-dashboard-directory` | `".agent-ui/dashboards/"` | Where a project's dashboards are, in its root. |
-| `agent-ui-dashboard-trust-file` | `~/.emacs.d/agent-ui/trusted-dashboards.eld` | Where the dashboards and projects whose code you let run are remembered. |
+| `agent-ui-trust-file` | `~/.emacs.d/agent-ui/trusted.eld` | Where the projects whose code you trust, and the dashboards you let run, are remembered. |
 | `agent-ui-dashboard-loading-delay` | `0.5` | Seconds a refreshing query runs before its component says it's loading. |
 | `agent-ui-dashboard-slow` | `0.1` | Seconds a dashboard's fetch may take itself before it's said to be slow. |
 

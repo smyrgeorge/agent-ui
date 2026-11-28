@@ -56,6 +56,11 @@
 (defvar agent-ui-staged-functions nil
   "Called with a type's name (a symbol) once the agent staged it.")
 
+(defconst agent-ui--staged-handlers
+  '(agent-ui-review--staged)
+  "Agent UI's own, called first where `agent-ui-staged-functions' runs:
+its review's list (agent-ui-review.el, once loaded).")
+
 (defvar agent-ui-kept-functions nil
   "Called with a type's name and its file once the user kept it.")
 
@@ -65,6 +70,11 @@ Called with the type's NAME (a symbol), what to tell the agent that made
 it (TEXT: kept, its example drawn and its warnings; discarded; or why it
 couldn't be kept) and the canvas of the session that made it (a name, or
 nil).  agent-ui-agent.el puts TEXT into that session's prompt.")
+
+(defconst agent-ui--type-reviewed-handlers
+  '(agent-ui--tell-type-reviewed)
+  "Agent UI's own, called first where `agent-ui-type-reviewed-functions' runs:
+its agent told (agent-ui-agent.el).")
 
 (defvar agent-ui--staged-by (make-hash-table :test #'eq)
   "The staged types' sessions: each name's, its session's canvas (a name).")
@@ -211,7 +221,7 @@ then nothing of it stays."
       (puthash name canvas agent-ui--staged-by)
       ;; Its review's list and the canvases' header: told by this hook.
       (agent-ui--require 'agent-ui-review)
-      (run-hook-with-args 'agent-ui-staged-functions name)
+      (agent-ui--run-hook agent-ui--staged-handlers 'agent-ui-staged-functions name)
       (list :type (symbol-name name) :file file :status "waiting"
             :note (concat "Waiting for the user's review: nothing of it runs before they keep it. "
                           "Kept, it's compiled, loaded and its example drawn, and you're told in your prompt "
@@ -229,7 +239,7 @@ then nothing of it stays."
 
 (defun agent-ui--tell-reviewed (name text)
   "Tell the agent that made the type NAME what became of it: TEXT."
-  (run-hook-with-args 'agent-ui-type-reviewed-functions name text (gethash name agent-ui--staged-by)))
+  (agent-ui--run-hook agent-ui--type-reviewed-handlers 'agent-ui-type-reviewed-functions name text (gethash name agent-ui--staged-by)))
 
 (defun agent-ui--load-staged (name file)
   "Compile and load the staged type NAME from FILE, its example drawn.

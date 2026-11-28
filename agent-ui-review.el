@@ -287,14 +287,12 @@ key kept (it was cut off in a narrow pane)."
   (dolist (canvas (agent-ui-canvases))
     (with-current-buffer canvas (agent-ui-review--canvas-header))))
 
-(add-hook 'agent-ui-canvas-hook #'agent-ui-review--canvas-header)
 
 (defun agent-ui-review--staged (name)
   "The agent staged NAME: said, the list and the headers redrawn."
   (agent-ui-review--refresh)
   (message "Agent UI: the agent made a type, %s; review it with M-x agent-ui-review (R in its canvas): it runs once you keep it" name))
 
-(add-hook 'agent-ui-staged-functions #'agent-ui-review--staged)
 
 
 (provide 'agent-ui-review)

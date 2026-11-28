@@ -482,6 +482,20 @@ frozen)."
     (should (equal (agent-ui-parse-json (json-serialize (agent-ui-to-json component)))
                    component))))
 
+(ert-deftest agent-ui-core/json-written-a-count-by-index ()
+  "An alist of numbers to atoms, a count by index: an object, its keys as
+strings; a matrix's rows (lists starting with a number) still an array."
+  (should (equal (json-serialize (agent-ui-to-json '(:tries ((0 . 2) (3 . 1)))))
+                 "{\"tries\":{\"0\":2,\"3\":1}}"))
+  (should (equal (json-serialize (agent-ui-to-json '(:values ((1 2) (3 4)))))
+                 "{\"values\":[[1,2],[3,4]]}")))
+
+(ert-deftest agent-ui-core/a-time-read ()
+  "ISO 8601's and RFC 822's, as epoch seconds; what isn't one, nil."
+  (should (= (agent-ui-time-seconds "2026-11-10T18:30:00Z") 1794335400.0))
+  (should (= (agent-ui-time-seconds "2026-11-10T18:30:00.500Z") 1794335400.5))
+  (should-not (agent-ui-time-seconds "soon")))
+
 ;; ====== THE CATALOG ======
 
 (ert-deftest agent-ui-core/the-catalog ()

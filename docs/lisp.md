@@ -79,8 +79,40 @@ it to a function called with each action's PROMPT, whether it's to be submitted,
 (`SECTION/ID` in a section), instead of putting the prompt into a session. An action's `help` is then shown when its
 button is hovered, as `RET: HELP`. A section hosting a session's canvas still answers to that session.
 
+| Function | What it does |
+|---|---|
+| `(agent-ui-key-section KEY)`, `(agent-ui-key-id KEY)` | The section (nil: the canvas's own) and the id of the component an answer's KEY names. |
+| `(agent-ui-canvas-asks-p CANVAS)` | Whether a question waits in CANVAS, in one of its sections too. |
+| `(agent-ui-canvas-session CANVAS)` | The session buffer whose canvas CANVAS is, or nil. |
+
 `agent-ui-closes-with`, set (buffer-local) to the key of one of the canvas's components, closes the whole canvas,
 sections too, when that component's countdown ends ([Finished components close](canvas.md#finished-components-close)).
+
+## Trust
+
+A project's code runs as you: its dashboards, and what a package built on Agent UI runs from it (agent-workflow's
+workflows). Before it first runs, you're asked; a project you trust runs all of its code unasked, whatever its files
+become. It's remembered by its root's true name in `agent-ui-trust-file`; an agent's worktree shares its project's
+trust through `agent-ui-trust-root-function`.
+
+| Function | What it does |
+|---|---|
+| `(agent-ui-project-trusted-p ROOT)` | Whether the project at ROOT is trusted. |
+| `(agent-ui-trust-project ROOT)` | Trusts it. `M-x agent-ui-trust-project`: the current project's, confirmed with `yes`. |
+| `(agent-ui-forget-project ROOT)` | Stops trusting it. `M-x agent-ui-forget-project`: the trusted ones to pick from. |
+| `(agent-ui-trusted-projects)` | The trusted projects, `((ROOT . TIME) ...)`, the latest first. |
+
+## Helpers
+
+What Agent UI draws with, for code of your own that shows things beside it:
+
+| Function | What it does |
+|---|---|
+| `(agent-ui-truncate STRING WIDTH)`, `(agent-ui-pad STRING WIDTH &optional ALIGN)` | Fitted to a width in columns, cut with `…`. |
+| `(agent-ui-format-duration SECONDS)`, `(agent-ui-format-compact N)` | `4m 05s`; `12.3k`. |
+| `(agent-ui-time-seconds STRING)` | An ISO 8601 or RFC 822 date and time as epoch seconds, or nil. |
+| `(agent-ui-log-level TEXT)` | A line's level as a log finds it by its words: `error`, `warning`, `info`, `debug` or nil. |
+| `(agent-ui-to-json VALUE)`, `(agent-ui-parse-json STRING)` | Lisp as `json-serialize` takes it (plists objects, lists arrays, nil null, an alist of numbers an object), and back (false as `:false`). |
 
 ## Hooks
 

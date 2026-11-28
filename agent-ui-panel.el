@@ -206,7 +206,7 @@ child whose type isn't animated: in an animation's frames, as last drawn
   (let* ((ctx (plist-put (plist-put (copy-sequence ctx) :width width)
                          :id (if (plist-get child :id)
                                  (agent-ui--key (plist-get child :id)
-                                                (agent-ui--key-section (plist-get ctx :id)))
+                                                (agent-ui-key-section (plist-get ctx :id)))
                                (plist-get ctx :id))))
          (draw (lambda ()
                  (let ((text (agent-ui-render child ctx)))

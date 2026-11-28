@@ -156,7 +156,7 @@ The message of ERR, a signal's data: its own text for `agent-ui-error'
       (cadr err)
     (error-message-string err)))
 
-(defun agent-ui--time-seconds (string)
+(defun agent-ui-time-seconds (string)
   "Return STRING, a date and time, as epoch seconds (a float); nil if it isn't.
 
 STRING is ISO 8601's (2026-11-10T18:30:00Z, its fraction of a second
@@ -718,8 +718,15 @@ its newlines spaces.  A :framed failing: its title over it, as any."
               (title (plist-get component :title))
               ((stringp title))
               ((not (string-blank-p title)))
-              (framed (ignore-errors (agent-ui-type-framed (agent-ui-type (plist-get component :type)))))
-              ((ignore-errors (funcall framed component ctx))))
+              ;; A type there's none of: drawn as its error, its title as any.
+              (framed (ignore-error agent-ui-error
+                        (agent-ui-type-framed (agent-ui-type (plist-get component :type)))))
+              ;; A :framed of the agent's that fails (a type it made): its
+              ;; title over it, said once drawn as any.
+              ((condition-case err (funcall framed component ctx)
+                 (error (message "Agent UI: %s's :framed failed: %s" (plist-get component :type)
+                                 (error-message-string err))
+                        nil))))
     (string-trim (replace-regexp-in-string "[\n\r]+" " " title))))
 
 (defun agent-ui--title-text (component ctx)
@@ -1208,6 +1215,25 @@ user, typing elsewhere, keeps their window and their keys.")
 While a button's action runs: the key of the component it's on, in its
 canvas (its id; in a section, SECTION/ID), or nil.")
 
+;; ITS HOOKS ARE YOURS
+;; A hook of Agent UI (`agent-ui-changed-hook', `agent-ui-shown-functions'...)
+;; is yours: its own handlers aren't added to it as its files load, but
+;; called first where it runs, in their order (each once its file is
+;; loaded: a type's, the review's, when first used).
+
+(defun agent-ui--run-hook (handlers hook &rest args)
+  "Call HANDLERS (Agent UI's own, those loaded) with ARGS, then HOOK's."
+  (dolist (handler handlers)
+    (when (fboundp handler)
+      (apply handler args)))
+  (apply #'run-hook-with-args hook args))
+
+(defun agent-ui--run-hook-until-success (handlers hook &rest args)
+  "The first non-nil of HANDLERS (Agent UI's own, those loaded), then HOOK's.
+Each called with ARGS, until one returns non-nil: its value."
+  (or (seq-some (lambda (handler) (and (fboundp handler) (apply handler args))) handlers)
+      (apply #'run-hook-with-args-until-success hook args)))
+
 (defvar agent-ui-before-press-hook nil
   "Run in a button's buffer before its action is looked up.
 A canvas draws what changed first (agent-ui-canvas.el), so the action is
@@ -1222,7 +1248,7 @@ A click: the region its press left (see `agent-ui-button-map') dropped first."
     (with-current-buffer buffer
       (when (mouse-event-p event)
         (deactivate-mark))
-      (run-hooks 'agent-ui-before-press-hook)))
+      (agent-ui--run-hook '(agent-ui--flush-before-press) 'agent-ui-before-press-hook)))
   (let* ((pos (if (mouse-event-p event) (posn-point (event-end event)) (point)))
          (buffer (if (mouse-event-p event) (window-buffer (posn-window (event-end event))) (current-buffer)))
          (action (get-text-property pos 'agent-ui-action buffer)))
@@ -1561,7 +1587,8 @@ surrogate) as U+FFFD; a unibyte one read as UTF-8 (it refuses them)."
 
 VALUE as `json-serialize' takes it: plists as objects, other lists as
 arrays, symbols as strings, nil as null; a string's raw bytes as U+FFFD
-\(see `agent-ui--json-string')."
+\(see `agent-ui--json-string'); an alist of numbers to atoms ((0 . 2)
+\(1 . 5)) as an object, its keys as strings (a count by index)."
   (cond
    ((eq value t) t)
    ((memq value '(nil :null)) :null)
@@ -1572,6 +1599,10 @@ arrays, symbols as strings, nil as null; a string's raw bytes as U+FFFD
    ((and (agent-ui--plist-p value)
          (not (cl-loop for (k _) on value by #'cddr thereis (memq k '(:false :null)))))
     (cl-loop for (k v) on value by #'cddr nconc (list k (agent-ui-to-json v))))
+   ;; Dotted pairs only: ((1 2) (3 4)), a matrix's rows, is an array.
+   ((and (consp value) (proper-list-p value)
+         (seq-every-p (lambda (pair) (and (consp pair) (numberp (car pair)) (atom (cdr pair)))) value))
+    (cl-loop for (k . v) in value nconc (list (intern (format ":%s" k)) (agent-ui-to-json v))))
    ((consp value) (vconcat (mapcar #'agent-ui-to-json value)))
    ((vectorp value) (vconcat (mapcar #'agent-ui-to-json value)))
    ((keywordp value) (substring (symbol-name value) 1))

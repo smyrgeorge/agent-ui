@@ -288,7 +288,7 @@ again unfolds it. Folded from Lisp too."
 (ert-deftest agent-ui-sections/a-question-unfolds-its-section ()
   "A question shown in a folded section unfolds it, in view; another
 component doesn't."
-  (should (memq #'agent-ui--reveal-question-h (default-value 'agent-ui-shown-functions)))
+  (should (memq 'agent-ui--reveal-question-h agent-ui--shown-handlers))
   (agent-ui-test-aus
     (let ((agent-ui-focus-questions nil))
       (agent-ui-section canvas "s" :folded t)
@@ -530,6 +530,11 @@ but those of a section hosting a session's canvas, to that session."
           (agent-ui-button-press)))
       ;; Its id in the answer's words, not its key.
       (should (equal answered '(("Answer to confirm ask (Merge?): proceed" t "needs/ask"))))
+      ;; The key read back by the canvas's own code.
+      (should (equal (agent-ui-key-section "needs/ask") "needs"))
+      (should (equal (agent-ui-key-id "needs/ask") "ask"))
+      (should-not (agent-ui-key-section "ask"))
+      (should (equal (agent-ui-key-id "ask") "ask"))
       (should (equal (agent-ui--unkeyed "Answer to steps job.a/plan (x): job.a/plan, ajob.a/no" "job.a")
                      "Answer to steps plan (x): plan, ajob.a/no"))
       (should (equal (plist-get (car inserted) :shell-buffer) session))

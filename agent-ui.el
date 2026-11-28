@@ -79,9 +79,14 @@
               agent-ui-remove-section agent-ui-host agent-ui-unhost))
   (autoload fn "agent-ui-parts"))
 (dolist (command '(agent-ui-open-dashboard agent-ui-open-dashboard-here
-                   agent-ui-dashboard-forget-project agent-ui-goto-question
-                   agent-ui-pane-toggle))
+                   agent-ui-goto-question agent-ui-pane-toggle))
   (autoload command "agent-ui-parts" nil t))
+;; Trust (agent-ui-trust.el): a project's code, its dashboards' and a
+;; package's built on Agent UI (agent-workflow's), run once you trust it.
+(dolist (fn '(agent-ui-trusted-projects agent-ui-project-trusted-p))
+  (autoload fn "agent-ui-trust"))
+(dolist (command '(agent-ui-trust-project agent-ui-forget-project))
+  (autoload command "agent-ui-trust" nil t))
 ;; Types, defined or drawn (docs/custom-types.md): its core only.
 (dolist (fn '(agent-ui-autoload-type agent-ui-load-types agent-ui-types
               agent-ui-undefine agent-ui-render agent-ui-context))
@@ -123,6 +128,10 @@
 (declare-function agent-ui--font-changed "agent-ui-canvas" ())
 (declare-function agent-ui--pane-sync-h "agent-ui-pane" (frame))
 (declare-function agent-ui-mermaid--redraw "agent-ui-mermaid" (&optional diagram))
+(declare-function agent-ui-agent-context "agent-ui-agent" ())
+(declare-function agent-ui--client-environment-a "agent-ui-agent" (args))
+(declare-function agent-ui--watch-questions-h "agent-ui-agent" ())
+(declare-function agent-ui--persist-watch "agent-ui-persist" ())
 
 ;; ====== OPTIONS ======
 

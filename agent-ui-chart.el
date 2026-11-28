@@ -107,7 +107,7 @@ WHAT names them in the message."
 TIME is seconds since 1970, or an ISO 8601 date and time."
   (cond
    ((numberp time) (float time))
-   ((stringp time) (agent-ui--time-seconds time))))
+   ((stringp time) (agent-ui-time-seconds time))))
 
 (defun agent-ui-chart--check (props)
   "Return PROPS checked and normalized, failing if they are wrong.

@@ -114,6 +114,27 @@ text), said."
     (should-error (agent-ui-ask-change '(:id "x") '(:selected ("a"))) :type 'user-error))
   (should-error (agent-ui-ask-change nil '(:selected ("a"))) :type 'user-error))
 
+;; ====== A CANVAS ASKING ======
+
+(ert-deftest agent-ui-ask/a-canvas-asking ()
+  "`agent-ui-canvas-asks-p': a question unanswered in a canvas, in a section
+too; answered, or none, not; a buffer that's no canvas, not."
+  (let* ((agent-ui-display-function #'ignore)
+         (canvas (agent-ui-canvas (make-temp-name "asks-"))))
+    (unwind-protect
+        (progn
+          (should-not (agent-ui-canvas-asks-p canvas))
+          (agent-ui-show '(:id "t" :type "text" :text "x") :canvas canvas)
+          (should-not (agent-ui-canvas-asks-p canvas))
+          (agent-ui-section canvas "s")
+          (agent-ui-show '(:id "q" :type "confirm" :question "Go?") :canvas canvas :section "s")
+          (should (agent-ui-canvas-asks-p canvas))
+          (agent-ui-update "q" '(:answered "proceed") :canvas canvas :section "s")
+          (should-not (agent-ui-canvas-asks-p canvas))
+          (should-not (agent-ui-canvas-asks-p (get-buffer-create "*scratch*")))
+          (should-not (agent-ui-canvas-asks-p nil)))
+      (kill-buffer canvas))))
+
 ;; ====== A TYPE MADE OF THEM ======
 
 (ert-deftest agent-ui-ask/answered-on-a-canvas ()

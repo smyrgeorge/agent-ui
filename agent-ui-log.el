@@ -80,7 +80,7 @@ Not beside a letter, a digit or _ (with \\b, error_count was an error)."
   "A count of none, not an error nor a warning.
 Cargo's \"0 failed\", \"no errors\", Maven's \"Errors: 0\", \"0 Warning(s)\".")
 
-(defun agent-ui-log--level (text)
+(defun agent-ui-log-level (text)
   "TEXT's level, by its words (counts of none aside); nil if none."
   (let* ((case-fold-search t)
          (text (replace-regexp-in-string agent-ui-log--none " " text)))
@@ -101,7 +101,7 @@ statuses...; read by the words a line's text is and
   (when-let* ((name (cond ((stringp level) level)
                           ((and level (symbolp level)) (symbol-name level)))))
     (or (cdr (assoc-string (string-trim name) agent-ui-log--given-words t))
-        (agent-ui-log--level name))))
+        (agent-ui-log-level name))))
 
 (defun agent-ui-log--plain (text)
   "Return TEXT without a terminal's escape sequences.
@@ -170,7 +170,7 @@ ENTRY is text, {level, text}, or one in columns; one in columns as
       (puthash entry
                (cond ((stringp entry)
                       (let ((text (agent-ui-log--plain entry)))
-                        (cons (agent-ui-log--level text) text)))
+                        (cons (agent-ui-log-level text) text)))
                      ((plist-get entry :gap)
                       (cons 'gap (list :gap (agent-ui-cell (plist-get entry :gap)))))
                      ((agent-ui-log--columns-p entry)

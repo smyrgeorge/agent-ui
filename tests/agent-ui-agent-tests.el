@@ -145,6 +145,9 @@ as no."
       (agent-ui-show '(:id "a" :type "text" :text "x") :canvas name)
       (let ((canvas (get-buffer "Agent UI: Claude Agent @ proj")))
         (should (eq (buffer-local-value 'agent-ui--session-buffer canvas) session))
+        ;; Asked from code of its own (a package keeping its canvases).
+        (should (eq (agent-ui-canvas-session canvas) session))
+        (should-not (agent-ui-canvas-session (get-buffer-create "*scratch*")))
         ;; Killed with its session.
         (kill-buffer session)
         (should-not (buffer-live-p canvas))))))
@@ -306,7 +309,7 @@ right, and does what it says on a canvas, in order."
   "A type the agent made, reviewed by the user: what became of it put into
 the prompt of the session that made it, sent; none: nothing (doom-ht6.127)."
   (agent-ui-test-aua
-    (should (memq #'agent-ui--tell-type-reviewed agent-ui-type-reviewed-functions))
+    (should (memq 'agent-ui--tell-type-reviewed agent-ui--type-reviewed-handlers))
     (let* ((session (agent-ui-test-aua-session "Claude Agent @ proj" "/tmp/proj/"))
            (name (agent-ui--session-name session))
            (inserted nil))
@@ -668,7 +671,7 @@ at least: `agent-ui-test-timers-run'."
   "A question shown: once Emacs is idle a moment, its pane selected, the
 cursor on it. Not another component, not one coming back with its session,
 not with the option off (on: its own default)."
-  (should (memq #'agent-ui--focus-question-h (default-value 'agent-ui-shown-functions)))
+  (should (memq 'agent-ui--focus-question-h agent-ui--shown-handlers))
   (should (eq (default-value 'agent-ui-focus-questions) t))
   (agent-ui-test-aua
     (let* ((session (agent-ui-test-aua-session "Claude Agent @ focus" "/tmp/focus/"))
@@ -785,7 +788,7 @@ Emacs is idle a moment again."
 closed and killed, the cursor back in the session. Beside other components,
 they stay; a plan approved goes too (doom-q49); the option off (on: its
 own default), all stay."
-  (should (memq #'agent-ui--close-answered-h (default-value 'agent-ui-changed-hook)))
+  (should (memq 'agent-ui--close-answered-h agent-ui--changed-handlers))
   (should (eq (default-value 'agent-ui-close-answered) t))
   (agent-ui-test-aua
     (let* ((session (agent-ui-test-aua-session "Claude Agent @ close" "/tmp/close/"))
@@ -898,7 +901,7 @@ session's own canvas emptied: kept."
            (tests (agent-ui-sub-canvas name "tests"))
            (agent-ui-display-function #'agent-ui-display-canvas)
            (agent-ui-close-finished 1))
-      (should (memq #'agent-ui--close-emptied-p (default-value 'agent-ui-close-emptied-functions)))
+      (should (memq 'agent-ui--close-emptied-p agent-ui--close-emptied-handlers))
       (save-window-excursion
         (delete-other-windows)
         (switch-to-buffer session)

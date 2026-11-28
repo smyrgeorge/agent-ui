@@ -108,7 +108,6 @@ Its finished components' countdowns started, started again or stopped
             agent-ui--kept kept)
       (agent-ui--closing-timer))))
 
-(add-hook 'agent-ui-changed-hook #'agent-ui--finished-check)
 
 (defun agent-ui--closing-timer ()
   "The current canvas's countdowns' timer.
@@ -193,7 +192,6 @@ canvas staying (`agent-ui-footer-functions')."
                               "RET: keep it, not closed"))
        width))))
 
-(add-hook 'agent-ui-footer-functions #'agent-ui--closing-footer)
 
 (defun agent-ui-keep-finished (id &optional canvas)
   "Keep finished component ID of CANVAS (default: the current buffer's).

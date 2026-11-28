@@ -145,12 +145,11 @@ PROPS and CTX are the component's."
 
 (defun agent-ui-slider--removed (key)
   "Call off the live send of component KEY, gone from the current canvas.
-It was waiting.  In `agent-ui-removed-functions'."
+It was waiting.  One of `agent-ui--removed-handlers'."
   (when-let* ((timer (gethash (cons (current-buffer) key) agent-ui-slider--live-timers)))
     (cancel-timer timer)
     (remhash (cons (current-buffer) key) agent-ui-slider--live-timers)))
 
-(add-hook 'agent-ui-removed-functions #'agent-ui-slider--removed)
 
 (defun agent-ui-slider--slide (steps)
   "Move the knob on point's line STEPS steps (below 0: left)."

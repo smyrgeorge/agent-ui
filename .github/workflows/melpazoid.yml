@@ -22,18 +22,9 @@ jobs:
         uses: actions/setup-python@v5
         with: { python-version: '3.10' }
 
-      - name: Install
-        run: |
-          sudo apt-get install emacs && emacs --version
-          git clone https://github.com/riscy/melpazoid.git ~/melpazoid
-
-      - name: Run
+      - name: Run (scripts/melpazoid.sh, a warning failing it)
         env:
-          LOCAL_REPO: ${{ github.workspace }}
-          # The recipe, as it will be written for MELPA:
-          RECIPE: (agent-ui :fetcher github :repo "smyrgeorge/agent-ui" :files (:defaults "bin" "skills" "assets"))
-          # Its advice (ignore-errors, hooks) said, not failing the run:
-          WARN_IS_ERROR: false
+          MELPAZOID: ${{ runner.temp }}/melpazoid
           # Not on MELPA yet: true once it is.
           EXIST_OK: false
-        run: echo $GITHUB_REF && make -C ~/melpazoid
+        run: echo $GITHUB_REF && scripts/melpazoid.sh

@@ -21,7 +21,8 @@ the repository in Emacs and `M-x agent-ui-open-dashboard`, or copy one into your
 | `E` (in a dashboard) | Save it as a PDF, as it shows now, beside its file. |
 | `q` (in a dashboard) | Close it. |
 | `S` (on a canvas) | Save the component at point as one of the project's dashboards. |
-| `M-x agent-ui-dashboard-forget-project` | Stop trusting one of the projects you trusted. |
+| `M-x agent-ui-trust-project` | Trust the current project: all of its code runs without asking (confirmed with `yes`). |
+| `M-x agent-ui-forget-project` | Stop trusting one of the projects you trusted. |
 
 - `M-x agent-ui-open-dashboard` lists the current project's dashboards, a row each: its name, its title, how often it's
   fetched, and `open` if it's open, with the project's name and its dashboards' folder under them. One whose file can't
@@ -81,20 +82,21 @@ A dashboard's code runs as Emacs itself, and comes from a repository. So before 
 | Key | What it does |
 |---|---|
 | `y` | Run it. |
-| `p` | Trust the project: all its dashboards run without asking (once you confirm it with `yes`). |
+| `p` | Trust the project: all of its code runs without asking, its dashboards too (once you confirm it with `yes`). |
 | `v` | View its file first, read-only, then be asked again. |
 | `n` | Not now: it's drawn, nothing runs, and it says so (`r` asks again). |
 
 - Its components' `source`s are commands, so they count as its code too. They don't start before it may run.
-- A yes is remembered by the file's content (sha256) and where it is, in `agent-ui-dashboard-trust-file` (under your
+- A yes is remembered by the file's content (sha256) and where it is, in `agent-ui-trust-file` (under your
   `user-emacs-directory`), not in the repository. The same file isn't asked about again, after a restart too.
 - What runs is the file as it was read when the dashboard opened, and that's what a yes is remembered for. If it changes
   while you're asked (your agent editing it), nothing runs and nothing is remembered: `r` reads it again and asks.
 - Once the file changes (a pull, an edit), you're asked again. The same file in another repository (a clone, a fork) is
   asked about there, since its scripts aren't the ones you let run.
 - A trusted project's dashboards all run without asking, whatever their files become (while your agent builds one, say):
-  the project's code is trusted, and so are the scripts they run. `M-x agent-ui-dashboard-forget-project` lists the
-  trusted projects and stops trusting one.
+  the project's code is trusted, and so are the scripts they run. It's the project's trust, not the dashboards' alone:
+  a package built on Agent UI that runs a project's code (agent-workflow's workflows) asks for the same, and trusting
+  the project once does for both. `M-x agent-ui-forget-project` lists the trusted projects and stops trusting one.
 
 Once it may run, `:start` runs, `:fetch` runs at once and every `:every` seconds, and `:stop` runs when it closes.
 Each is called with the dashboard, in the project's root (`default-directory`). An error in one of them is kept and said

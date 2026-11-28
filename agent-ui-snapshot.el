@@ -494,7 +494,7 @@ See `agent-ui-pdf-file' for where.  Returns its file."
   "Component ID of CANVAS as the agent reads it in a prompt."
   (let ((component (agent-ui-get id :canvas canvas)))
     (format "Agent UI component %s (%s), as it's shown:\n```text\n%s\n```\n"
-            (agent-ui--key-id id) (plist-get component :type)
+            (agent-ui-key-id id) (plist-get component :type)
             (substring-no-properties (agent-ui-render component (agent-ui-context :width agent-ui-snapshot-width))))))
 
 (defun agent-ui-send-component ()

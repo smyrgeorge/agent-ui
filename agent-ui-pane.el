@@ -690,7 +690,6 @@ Its title came, changed or went (`agent-ui-title-changed-hook')."
     (when (window-parameter window 'agent-ui-pane)
       (agent-ui--pane-set window 'header-line-format (agent-ui--pane-bar (current-buffer))))))
 
-(add-hook 'agent-ui-title-changed-hook #'agent-ui--pane-retitle)
 
 ;; THE BAR UNDER ITS VIEWS
 ;; Agent UI's own, as the session's mode line is the conversation's: what it
@@ -1037,7 +1036,6 @@ Its session's Agent UI is fitted to it again, soon."
   (when (buffer-live-p agent-ui--session-buffer)
     (agent-ui--pane-fit-soon agent-ui--session-buffer)))
 
-(add-hook 'agent-ui-changed-hook #'agent-ui--pane-changed-h)
 
 (defun agent-ui--pane-unattach (cell)
   "CELL, a view's window that can't go, made a window like any.
@@ -1347,7 +1345,6 @@ New, or shown again: the view back if its window was closed (see above)."
                 (window (agent-ui--pane-session-window session)))
       (agent-ui--pane-sync (window-frame window)))))
 
-(add-hook 'agent-ui-shown-functions #'agent-ui--pane-shown-h)
 
 ;; ====== ITS OWN CHANGES, AND ANOTHER'S LAYOUT ======
 ;; Agent UI's own changes of a frame's windows go through
